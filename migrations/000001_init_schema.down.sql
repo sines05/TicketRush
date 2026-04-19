@@ -1,0 +1,8 @@
+-- 000001_init_schema.down.sql
+DROP TABLE IF EXISTS tickets;
+DROP TABLE IF EXISTS order_items;
+DROP TABLE IF EXISTS orders;
+DROP TABLE IF EXISTS seats;
+DROP TABLE IF EXISTS event_zones;
+DROP TABLE IF EXISTS events;
+DROP TABLE IF EXISTS users;

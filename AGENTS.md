@@ -4,9 +4,9 @@ This document contains strictly technical instructions and business logic constr
 
 ## RULE #1: MANDATORY DOCUMENTATION REVIEW
 Before performing any task (coding, refactoring, or designing), you MUST read and understand the following documents:
-1. [requirements.md](docs/requirements.md): High-level project requirements, features, and success criteria.
-2. [api_docs.md](docs/api_docs.md): API specifications, standard response format, and endpoint logic.
-3. [db_design.md](docs/db_design.md): Database schema, relationships, and indexing strategy.
+1. [REQUIREMENT.md](docs/REQUIREMENT.md): High-level project requirements, features, and success criteria.
+2. [API.md](docs/API.md): API specifications, standard response format, and endpoint logic.
+3. [database.md](database/database.md): Database schema, relationships, and indexing strategy.
 
 ---
 
