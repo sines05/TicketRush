@@ -70,19 +70,21 @@ func (s *workerService) releaseExpiredOrders() {
 	for _, order := range orders {
 		log.Printf("Releasing expired order: %s", order.ID)
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		if err := s.orderRepo.ReleaseOrder(ctx, order.ID); err != nil {
+		seatIDs, err := s.orderRepo.ReleaseOrder(ctx, order.ID)
+		if err != nil {
 			log.Printf("Failed to release order %s: %v", order.ID, err)
 			cancel()
 			continue
 		}
 		cancel()
 
-		// Notify frontend via WS
-		s.wsHub.Broadcast(map[string]interface{}{
-			"type":     "ORDER_EXPIRED",
-			"order_id": order.ID,
-			"event_id": order.EventID,
-		})
+		// Notify frontend via WS for each released seat
+		for _, seatID := range seatIDs {
+			s.wsHub.Broadcast(map[string]interface{}{
+				"type":    "SEAT_RELEASED",
+				"seat_id": seatID,
+			})
+		}
 	}
 }
 

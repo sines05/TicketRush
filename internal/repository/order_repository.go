@@ -16,7 +16,7 @@ type OrderRepository interface {
 	CompleteOrder(ctx context.Context, orderID uuid.UUID) (*models.Order, error)
 	GetOrderByID(id uuid.UUID) (*models.Order, error)
 	GetExpiredOrders(limit int) ([]models.Order, error)
-	ReleaseOrder(ctx context.Context, orderID uuid.UUID) error
+	ReleaseOrder(ctx context.Context, orderID uuid.UUID) ([]uuid.UUID, error)
 	GetTicketsByUserID(userID uuid.UUID) ([]models.Ticket, error)
 }
 
@@ -175,8 +175,9 @@ func (r *orderRepo) GetExpiredOrders(limit int) ([]models.Order, error) {
 	return orders, nil
 }
 
-func (r *orderRepo) ReleaseOrder(ctx context.Context, orderID uuid.UUID) error {
-	return r.db.Transaction(func(tx *gorm.DB) error {
+func (r *orderRepo) ReleaseOrder(ctx context.Context, orderID uuid.UUID) ([]uuid.UUID, error) {
+	var seatIDs []uuid.UUID
+	err := r.db.Transaction(func(tx *gorm.DB) error {
 		var order models.Order
 		if err := tx.Preload("OrderItems").First(&order, orderID).Error; err != nil {
 			return err
@@ -193,9 +194,12 @@ func (r *orderRepo) ReleaseOrder(ctx context.Context, orderID uuid.UUID) error {
 		}
 
 		// Release seats
-		var seatIDs []uuid.UUID
 		for _, item := range order.OrderItems {
 			seatIDs = append(seatIDs, item.SeatID)
+		}
+
+		if len(seatIDs) == 0 {
+			return nil
 		}
 
 		return tx.Model(&models.Seat{}).
@@ -206,6 +210,7 @@ func (r *orderRepo) ReleaseOrder(ctx context.Context, orderID uuid.UUID) error {
 				"locked_at":          nil,
 			}).Error
 	})
+	return seatIDs, err
 }
 
 func (r *orderRepo) GetTicketsByUserID(userID uuid.UUID) ([]models.Ticket, error) {
