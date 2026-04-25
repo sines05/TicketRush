@@ -15,31 +15,33 @@ const (
 
 type Event struct {
 	BaseModel
-	Title       string      `gorm:"not null;type:varchar(255)"`
-	Description string      `gorm:"type:text"`
-	BannerURL   string      `gorm:"type:varchar(255)"`
-	StartTime   time.Time   `gorm:"not null"`
-	EndTime     time.Time
-	IsPublished bool        `gorm:"default:false"`
-	Zones       []EventZone `gorm:"foreignKey:EventID"`
+	Title       string      `gorm:"not null;type:varchar(255)" json:"title"`
+	Description string      `gorm:"type:text" json:"description"`
+	BannerURL   string      `gorm:"type:varchar(255)" json:"banner_url"`
+	StartTime   time.Time   `gorm:"not null" json:"start_time"`
+	EndTime     time.Time   `json:"end_time"`
+	IsPublished bool        `gorm:"default:false" json:"is_published"`
+	Zones       []EventZone `gorm:"foreignKey:EventID" json:"zones,omitempty"`
 }
 
 type EventZone struct {
 	BaseModel
-	EventID     uuid.UUID `gorm:"type:uuid;not null;index:idx_event_zone_name,unique"`
-	Name        string    `gorm:"not null;type:varchar(50);index:idx_event_zone_name,unique"`
-	Price       float64   `gorm:"type:decimal(12,2);not null"`
-	TotalRows   int       `gorm:"not null"`
-	SeatsPerRow int       `gorm:"not null"`
-	Seats       []Seat    `gorm:"foreignKey:ZoneID"`
+	EventID     uuid.UUID `gorm:"type:uuid;not null;index:idx_event_zone_name,unique" json:"event_id"`
+	Name        string    `gorm:"not null;type:varchar(50);index:idx_event_zone_name,unique" json:"name"`
+	Price       float64   `gorm:"type:decimal(12,2);not null" json:"price"`
+	TotalRows   int       `gorm:"not null" json:"total_rows"`
+	SeatsPerRow int       `gorm:"not null" json:"seats_per_row"`
+	Seats       []Seat    `gorm:"foreignKey:ZoneID" json:"seats,omitempty"`
+	Event       Event     `gorm:"foreignKey:EventID" json:"-"`
 }
 
 type Seat struct {
 	BaseModel
-	ZoneID         uuid.UUID  `gorm:"type:uuid;not null;index:idx_seats_zone_row_num,unique;index:idx_seats_zone_status"`
-	RowLabel       string     `gorm:"not null;type:varchar(10);index:idx_seats_zone_row_num,unique"`
-	SeatNumber     int        `gorm:"not null;index:idx_seats_zone_row_num,unique"`
-	Status         SeatStatus `gorm:"type:varchar(20);default:'AVAILABLE';index:idx_seats_zone_status;index:idx_seats_expiration"`
-	LockedByUserID *uuid.UUID `gorm:"type:uuid"`
-	LockedAt       *time.Time `gorm:"index:idx_seats_expiration"`
+	ZoneID         uuid.UUID  `gorm:"type:uuid;not null;index:idx_seats_zone_row_num,unique;index:idx_seats_zone_status" json:"zone_id"`
+	RowLabel       string     `gorm:"not null;type:varchar(10);index:idx_seats_zone_row_num,unique" json:"row_label"`
+	SeatNumber     int        `gorm:"not null;index:idx_seats_zone_row_num,unique" json:"seat_number"`
+	Status         SeatStatus `gorm:"type:varchar(20);default:'AVAILABLE';index:idx_seats_zone_status;index:idx_seats_expiration" json:"status"`
+	LockedByUserID *uuid.UUID `gorm:"type:uuid" json:"locked_by_user_id,omitempty"`
+	LockedAt       *time.Time `gorm:"index:idx_seats_expiration" json:"locked_at,omitempty"`
+	Zone           EventZone  `gorm:"foreignKey:ZoneID" json:"zone,omitempty"`
 }

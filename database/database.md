@@ -41,6 +41,19 @@ Table users {
   updated_at timestamp [default: `CURRENT_TIMESTAMP`]
 }
 
+Table password_resets {
+  id uuid [pk, default: `gen_random_uuid()`]
+  user_id uuid [not null, ref: > users.id]
+  token varchar(255) [unique, not null]
+  expires_at timestamp [not null]
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  indexes {
+    token [name: "idx_password_resets_token"]
+    user_id [name: "idx_password_resets_user_id"]
+  }
+}
+
 Table events {
   id uuid [pk, default: `gen_random_uuid()`]
   title varchar(255) [not null]

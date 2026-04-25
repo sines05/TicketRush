@@ -54,19 +54,38 @@ The system requires PostgreSQL and Redis. Start them quickly using Docker Compos
 docker compose up -d
 ```
 
-### 2. Launch Backend
+### 2. Environment Configuration
+Create a `.env` file in the root directory and configure the necessary variables (e.g., Database, Redis, JWT Secret, Google OAuth2). You can copy the example below:
+```env
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=user
+DB_PASSWORD=password
+DB_NAME=ticketrush
+REDIS_HOST=localhost
+REDIS_PORT=6379
+JWT_SECRET=super-secret-key-change-me-in-production
+PORT=8081
+
+# Google OAuth2 (Required for Google Login)
+GOOGLE_CLIENT_ID=your-client-id
+GOOGLE_CLIENT_SECRET=your-client-secret
+GOOGLE_REDIRECT_URL=http://localhost:8081/api/v1/auth/google/callback
+```
+
+### 3. Launch Backend
 The system will automatically apply SQL migrations to set up the database schema on startup:
 ```bash
 go run cmd/server/main.go
 ```
 
-### 3. Seed Sample Data
+### 4. Seed Sample Data
 To populate the database with initial events and seat maps for testing, run the seed script:
 ```bash
 go run cmd/seed/main.go
 ```
 
-### 4. Launch Frontend
+### 5. Launch Frontend
 ```bash
 cd frontend
 npm install

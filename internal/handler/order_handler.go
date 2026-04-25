@@ -91,8 +91,8 @@ func (h *OrderHandler) GetMyTickets(c *gin.Context) {
 	for _, t := range tickets {
 		data = append(data, map[string]interface{}{
 			"ticket_id":     t.ID,
-			"event_title":   t.Seat.ZoneID.String(), // Simplified, normally you'd preload event title
-			"zone_name":     t.Seat.RowLabel,       // Simplified
+			"event_title":   t.Seat.Zone.Event.Title,
+			"zone_name":     t.Seat.Zone.Name,
 			"seat_label":    fmt.Sprintf("%s-%d", t.Seat.RowLabel, t.Seat.SeatNumber),
 			"qr_code_token": t.QRCodeToken,
 			"is_checked_in": t.IsCheckedIn,

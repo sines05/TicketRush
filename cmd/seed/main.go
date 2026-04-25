@@ -10,6 +10,7 @@ import (
 	"ticketrush/internal/config"
 	"ticketrush/internal/models"
 	"ticketrush/internal/repository"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func main() {
@@ -23,13 +24,15 @@ func main() {
 	}
 
 	// Drop existing tables to start fresh with UUIDs
-	db.Migrator().DropTable(&models.Ticket{}, &models.OrderItem{}, &models.Order{}, &models.Seat{}, &models.EventZone{}, &models.Event{}, &models.User{})
+	db.Exec("DROP TABLE IF EXISTS schema_migrations")
+	db.Migrator().DropTable(&models.PasswordReset{}, &models.Ticket{}, &models.OrderItem{}, &models.Order{}, &models.Seat{}, &models.EventZone{}, &models.Event{}, &models.User{})
 
 	// Re-run migrations
 	repository.RunMigrations(cfg)
+	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
 	admin := models.User{
 		Email:        "admin@ticketrush.com",
-		PasswordHash: "$2a$10$8K9O2y8eQ1e9eQ1e9eQ1eu7Y1Y1Y1Y1Y1Y1Y1Y1Y1Y1Y1Y1Y1Y1Y1", // "password"
+		PasswordHash: string(hashedPassword),
 		FullName:     "System Admin",
 		Role:         models.RoleAdmin,
 		Gender:       models.GenderOther,

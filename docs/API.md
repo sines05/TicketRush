@@ -39,6 +39,24 @@ Protected routes require a JWT token in the header:
 - **Body**: `{ "email": "...", "password": "..." }`
 - **Success Data**: `{ "user_id": "...", "full_name": "...", "role": "CUSTOMER|ADMIN", "access_token": "..." }`
 
+### Google Login
+`GET /auth/google/login`
+- **Action**: Redirects user to Google OAuth consent screen.
+
+### Google Callback
+`GET /auth/google/callback?code=...`
+- **Success Data**: `{ "user_id": "...", "full_name": "...", "role": "CUSTOMER", "access_token": "..." }`
+
+### Forgot Password
+`POST /auth/forgot-password`
+- **Body**: `{ "email": "..." }`
+- **Success Data**: `null` (Check terminal for token in development)
+
+### Reset Password
+`POST /auth/reset-password`
+- **Body**: `{ "token": "...", "new_password": "..." }`
+- **Success Data**: `null`
+
 ---
 
 ## 2. Public Event Endpoints

@@ -7,44 +7,49 @@ const AdminDashboardPage = () => {
   const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newEvent, setNewEvent] = useState({
-    name: '',
+    title: '',
     description: '',
-    date: '',
-    location: '',
-    zones: [{ name: '', price: 0, rows: 10, cols: 10 }]
+    start_time: '',
+    end_time: '',
+    banner_url: '',
+    is_published: true,
+    zones: [{ name: '', price: 0, total_rows: 10, seats_per_row: 10 }]
   });
 
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ['admin-stats'],
     queryFn: async () => {
-      const res = await api.get('/api/admin/stats');
-      return res.data;
+      return await api.get('/admin/dashboard/stats');
     },
+    refetchInterval: 5000, // Real-time update every 5 seconds
   });
 
   const { data: events, isLoading: eventsLoading } = useQuery({
     queryKey: ['admin-events'],
     queryFn: async () => {
-      const res = await api.get('/api/admin/events');
-      return res.data;
+      // Use public events list if admin specific one doesn't exist
+      return await api.get('/events');
     },
   });
 
   const createEventMutation = useMutation({
     mutationFn: async (eventData) => {
-      const res = await api.post('/api/admin/events', eventData);
-      return res.data;
+      return await api.post('/admin/events', eventData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-events'] });
       setIsModalOpen(false);
+      alert('Event created successfully!');
     },
+    onError: (err) => {
+      alert(`Failed to create event: ${err.message}`);
+    }
   });
 
   const addZone = () => {
     setNewEvent({
       ...newEvent,
-      zones: [...newEvent.zones, { name: '', price: 0, rows: 10, cols: 10 }]
+      zones: [...newEvent.zones, { name: '', price: 0, total_rows: 10, seats_per_row: 10 }]
     });
   };
 
@@ -55,7 +60,7 @@ const AdminDashboardPage = () => {
     });
   };
 
-  const updateZone = (index, field, value) => {
+  const updateZone = (field, value, index) => {
     const updatedZones = [...newEvent.zones];
     updatedZones[index][field] = value;
     setNewEvent({ ...newEvent, zones: updatedZones });
@@ -92,10 +97,18 @@ const AdminDashboardPage = () => {
         </div>
         <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
           <div className="flex items-center gap-4 mb-4">
-            <div className="p-3 bg-blue-100 text-blue-600 rounded-xl"><Users size={24} /></div>
-            <span className="text-gray-500 font-medium">Total Customers</span>
+            <div className="p-3 bg-blue-100 text-blue-600 rounded-xl"><LayoutGrid size={24} /></div>
+            <span className="text-gray-500 font-medium">Occupancy Rate</span>
           </div>
-          <div className="text-3xl font-black">{stats?.gender_dist?.length || 0}</div>
+          <div className="flex items-end gap-3">
+            <div className="text-3xl font-black">{Math.round((stats?.occupancy_rate || 0) * 100)}%</div>
+            <div className="flex-1 bg-gray-100 h-2 mb-2 rounded-full overflow-hidden">
+              <div 
+                className="bg-blue-500 h-full transition-all duration-1000" 
+                style={{ width: `${(stats?.occupancy_rate || 0) * 100}%` }}
+              ></div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -126,6 +139,18 @@ const AdminDashboardPage = () => {
                 ))}
               </div>
             </div>
+
+            <div className="pt-6 border-t border-gray-50">
+              <span className="text-sm font-medium text-gray-500 block mb-3">Age Groups</span>
+              <div className="grid grid-cols-3 gap-4">
+                {stats?.age_dist && Object.entries(stats.age_dist).map(([group, count]) => (
+                  <div key={group} className="text-center p-3 bg-gray-50 rounded-2xl">
+                    <div className="text-xs text-gray-400 font-bold uppercase mb-1">{group}</div>
+                    <div className="text-lg font-black text-gray-700">{count}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -139,14 +164,14 @@ const AdminDashboardPage = () => {
             {eventsLoading ? (
               <div className="text-center py-10 text-gray-400">Loading events...</div>
             ) : events?.map(event => (
-              <div key={event.ID} className="flex items-center justify-between p-4 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors">
+              <div key={event.id} className="flex items-center justify-between p-4 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors">
                 <div>
-                  <div className="font-bold text-gray-800">{event.Name}</div>
-                  <div className="text-xs text-gray-400">{event.Location} • {new Date(event.Date).toLocaleDateString()}</div>
+                  <div className="font-bold text-gray-800">{event.title}</div>
+                  <div className="text-xs text-gray-400">{new Date(event.start_time).toLocaleDateString()}</div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-medium px-2 py-1 bg-gray-100 rounded text-gray-500">
-                    {event.Status}
+                  <span className={`text-xs font-medium px-2 py-1 rounded ${event.is_published ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-500'}`}>
+                    {event.is_published ? 'Published' : 'Draft'}
                   </span>
                 </div>
               </div>
@@ -166,44 +191,60 @@ const AdminDashboardPage = () => {
 
             <form onSubmit={(e) => {
               e.preventDefault();
-              createEventMutation.mutate(newEvent);
+              // Convert local time strings to ISO format before sending to server
+              const submitData = {
+                ...newEvent,
+                start_time: new Date(newEvent.start_time).toISOString(),
+                end_time: new Date(newEvent.end_time).toISOString()
+              };
+              createEventMutation.mutate(submitData);
             }} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Event Name</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Event Title</label>
                   <input
                     type="text"
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                    value={newEvent.name}
-                    onChange={e => setNewEvent({...newEvent, name: e.target.value})}
+                    value={newEvent.title}
+                    onChange={e => setNewEvent({...newEvent, title: e.target.value})}
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Banner URL</label>
                   <input
                     type="text"
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                    value={newEvent.location}
-                    onChange={e => setNewEvent({...newEvent, location: e.target.value})}
-                    required
+                    value={newEvent.banner_url}
+                    onChange={e => setNewEvent({...newEvent, banner_url: e.target.value})}
+                    placeholder="https://..."
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Start Time</label>
                   <input
                     type="datetime-local"
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                    value={newEvent.date}
-                    onChange={e => setNewEvent({...newEvent, date: e.target.value})}
+                    value={newEvent.start_time}
+                    onChange={e => setNewEvent({...newEvent, start_time: e.target.value})}
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">End Time</label>
                   <input
-                    type="text"
+                    type="datetime-local"
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                    value={newEvent.end_time}
+                    onChange={e => setNewEvent({...newEvent, end_time: e.target.value})}
+                    required
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                  <textarea
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                    rows="3"
                     value={newEvent.description}
                     onChange={e => setNewEvent({...newEvent, description: e.target.value})}
                   />
@@ -230,7 +271,7 @@ const AdminDashboardPage = () => {
                           type="text"
                           className="w-full px-3 py-1 border border-gray-300 rounded"
                           value={zone.name}
-                          onChange={e => updateZone(idx, 'name', e.target.value)}
+                          onChange={e => updateZone('name', e.target.value, idx)}
                           required
                         />
                       </div>
@@ -240,7 +281,7 @@ const AdminDashboardPage = () => {
                           type="number"
                           className="w-full px-3 py-1 border border-gray-300 rounded"
                           value={zone.price}
-                          onChange={e => updateZone(idx, 'price', parseFloat(e.target.value))}
+                          onChange={e => updateZone('price', parseFloat(e.target.value), idx)}
                           required
                         />
                       </div>
@@ -249,8 +290,8 @@ const AdminDashboardPage = () => {
                         <input
                           type="number"
                           className="w-full px-3 py-1 border border-gray-300 rounded"
-                          value={zone.rows}
-                          onChange={e => updateZone(idx, 'rows', parseInt(e.target.value))}
+                          value={zone.total_rows}
+                          onChange={e => updateZone('total_rows', parseInt(e.target.value), idx)}
                           required
                         />
                       </div>
@@ -260,8 +301,8 @@ const AdminDashboardPage = () => {
                           <input
                             type="number"
                             className="w-full px-3 py-1 border border-gray-300 rounded"
-                            value={zone.cols}
-                            onChange={e => updateZone(idx, 'cols', parseInt(e.target.value))}
+                            value={zone.seats_per_row}
+                            onChange={e => updateZone('seats_per_row', parseInt(e.target.value), idx)}
                             required
                           />
                         </div>
@@ -288,10 +329,10 @@ const AdminDashboardPage = () => {
                 </button>
                 <button
                   type="submit"
-                  disabled={createEventMutation.isLoading}
+                  disabled={createEventMutation.isPending}
                   className="bg-indigo-600 text-white px-8 py-2 rounded-lg font-bold hover:bg-indigo-700 transition-all disabled:bg-gray-300"
                 >
-                  {createEventMutation.isLoading ? 'Creating...' : 'Create Event'}
+                  {createEventMutation.isPending ? 'Creating...' : 'Create Event'}
                 </button>
               </div>
             </form>

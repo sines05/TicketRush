@@ -54,14 +54,37 @@ const LoginPage = () => {
         {error && <p className="text-red-500 text-sm">{error}</p>}
         <button
           type="submit"
-          className="w-full bg-indigo-600 text-white py-2 rounded-lg font-bold hover:bg-indigo-700 transition-colors"
+          className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
         >
           Login
         </button>
+
+        <div className="relative my-8">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-gray-200"></div>
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="px-2 bg-white text-gray-500">Hoặc tiếp tục với</span>
+          </div>
+        </div>
+
+        <a
+          href="http://localhost:8081/api/v1/auth/google/login"
+          className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-gray-200 rounded-xl font-medium hover:bg-gray-50 transition-all"
+        >
+          <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
+          Đăng nhập bằng Google
+        </a>
       </form>
-      <p className="text-center mt-6 text-gray-600">
-        Don't have an account? <Link to="/register" className="text-indigo-600 font-medium">Register</Link>
-      </p>
+      
+      <div className="mt-8 space-y-4 text-center text-sm">
+        <p className="text-gray-600">
+          Chưa có tài khoản? <Link to="/register" className="text-indigo-600 font-bold">Đăng ký ngay</Link>
+        </p>
+        <p>
+          <Link to="/forgot-password" title="Quên mật khẩu" className="text-gray-400 hover:text-indigo-600 transition-colors">Quên mật khẩu?</Link>
+        </p>
+      </div>
     </div>
   );
 };

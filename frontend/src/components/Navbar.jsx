@@ -24,16 +24,20 @@ const Navbar = () => {
 
         {token ? (
           <>
-            {user?.role === 'admin' && (
+            {user?.role === 'ADMIN' && (
               <Link to="/admin" className="flex items-center gap-1 text-gray-600 hover:text-indigo-600 font-medium">
                 <LayoutDashboard size={18} />
                 <span>Admin</span>
               </Link>
             )}
+            <Link to="/tickets/my-tickets" className="flex items-center gap-1 text-gray-600 hover:text-indigo-600 font-medium">
+              <Ticket size={18} />
+              <span>My Tickets</span>
+            </Link>
             <div className="flex items-center gap-4 ml-4 pl-4 border-l border-gray-200">
               <div className="flex items-center gap-2 text-gray-700 font-medium">
                 <User size={18} />
-                <span>{user?.username}</span>
+                <span>{user?.fullName}</span>
               </div>
               <button
                 onClick={handleLogout}

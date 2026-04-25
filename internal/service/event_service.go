@@ -190,13 +190,31 @@ func (s *eventService) GetAdminStats(eventID *uuid.UUID) (map[string]interface{}
 		}
 	}
 
+	var totalSeats int64
+	querySeats := s.db.Model(&models.Seat{})
+	if eventID != nil {
+		querySeats = querySeats.Joins("JOIN event_zones ON event_zones.id = seats.zone_id").Where("event_zones.event_id = ?", *eventID)
+	}
+	querySeats.Count(&totalSeats)
+
+	occupancyRate := 0.0
+	if totalSeats > 0 {
+		occupancyRate = float64(totalSold) / float64(totalSeats)
+	}
+
+	genderList := make([]map[string]interface{}, 0)
+	for gender, count := range genderDist {
+		genderList = append(genderList, map[string]interface{}{
+			"gender": gender,
+			"count":  count,
+		})
+	}
+
 	return map[string]interface{}{
-		"total_revenue":        totalRevenue,
-		"total_tickets_sold":   totalSold,
-		"fill_rate_percentage": 0, // Placeholder
-		"demographics": map[string]interface{}{
-			"gender":     genderDist,
-			"age_groups": ageGroups,
-		},
+		"total_revenue":   totalRevenue,
+		"total_sold":      totalSold,
+		"occupancy_rate":  occupancyRate,
+		"gender_dist":     genderList,
+		"age_dist":        ageGroups,
 	}, nil
 }

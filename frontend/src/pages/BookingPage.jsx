@@ -23,7 +23,7 @@ const BookingPage = () => {
   const { lastMessage } = useWebSocket(`ws://localhost:8081/ws`);
 
   useEffect(() => {
-    if (lastMessage && (lastMessage.type === 'SEAT_LOCKED' || lastMessage.type === 'SEAT_SOLD' || lastMessage.type === 'SEAT_AVAILABLE' || lastMessage.type === 'ORDER_EXPIRED')) {
+    if (lastMessage && (lastMessage.type === 'SEAT_LOCKED' || lastMessage.type === 'SEAT_SOLD' || lastMessage.type === 'SEAT_RELEASED')) {
       refetch();
     }
   }, [lastMessage, refetch]);
@@ -116,38 +116,82 @@ const BookingPage = () => {
             </div>
           </div>
 
-          {/* Zones */}
-          <div className="space-y-12">
-            {seatMap?.zones?.map(zone => (
-              <div key={zone.zone_id} className="space-y-4">
-                <div className="flex justify-between items-center border-b border-gray-50 pb-2">
-                  <h3 className="text-lg font-bold text-gray-700">{zone.name}</h3>
-                  <span className="text-sm font-bold text-indigo-600">${zone.price}</span>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {zone.seats?.map(seat => {
-                    const isSelected = selectedSeats.includes(seat.seat_id);
-                    const color = isSelected
-                      ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200 ring-2 ring-offset-1 ring-indigo-400'
-                      : seat.status === 'AVAILABLE' ? 'bg-green-500 text-white hover:bg-green-600'
-                      : seat.status === 'LOCKED' ? 'bg-yellow-400 text-white'
-                      : 'bg-red-500 text-white';
+          {/* Stage */}
+          <div className="w-full h-12 bg-gray-100 rounded-t-full flex items-center justify-center text-gray-400 font-bold text-sm mb-16 border-t-4 border-indigo-200">
+            STAGE
+          </div>
 
-                    return (
-                      <button
-                        key={seat.seat_id}
-                        disabled={seat.status !== 'AVAILABLE' || status !== 'selecting'}
-                        onClick={() => toggleSeat(seat.seat_id, seat.status)}
-                        className={`w-10 h-10 rounded-lg text-[10px] font-bold transition-all ${color} ${seat.status !== 'AVAILABLE' ? 'cursor-not-allowed opacity-40' : 'hover:scale-110 active:scale-95'}`}
-                        title={`${seat.row_label}${seat.seat_number}`}
-                      >
-                        {seat.row_label}{seat.seat_number}
-                      </button>
-                    );
-                  })}
+          {/* Zones */}
+          <div className="space-y-16">
+            {seatMap?.zones?.map(zone => {
+              // Group seats by row
+              const rows = zone.seats?.reduce((acc, seat) => {
+                if (!acc[seat.row_label]) acc[seat.row_label] = [];
+                acc[seat.row_label].push(seat);
+                return acc;
+              }, {});
+
+              const rowLabels = Object.keys(rows || {}).sort();
+              const maxCols = Math.max(...rowLabels.map(label => rows[label].length));
+
+              return (
+                <div key={zone.zone_id} className="space-y-6">
+                  <div className="flex justify-between items-center border-b border-gray-100 pb-2">
+                    <h3 className="text-xl font-black text-gray-800">{zone.name}</h3>
+                    <span className="bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full text-sm font-bold">
+                      ${zone.price} / seat
+                    </span>
+                  </div>
+
+                  <div className="overflow-x-auto pb-4">
+                    <div className="inline-block min-w-full">
+                      <div className="flex flex-col gap-3">
+                        {rowLabels.map(label => (
+                          <div key={label} className="flex items-center gap-4">
+                            <div className="w-6 text-sm font-bold text-gray-400">{label}</div>
+                            <div 
+                              className="grid gap-3"
+                              style={{ 
+                                gridTemplateColumns: `repeat(${maxCols}, minmax(max-content, 1fr))`,
+                                width: 'fit-content'
+                              }}
+                            >
+                              {rows[label].sort((a, b) => a.seat_number - b.seat_number).map(seat => {
+                                const isSelected = selectedSeats.includes(seat.seat_id);
+                                const color = isSelected
+                                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200 ring-2 ring-offset-1 ring-indigo-400'
+                                  : seat.status === 'AVAILABLE' ? 'bg-green-500 text-white hover:bg-green-600'
+                                  : seat.status === 'LOCKED' ? 'bg-yellow-400 text-white'
+                                  : 'bg-red-500 text-white';
+
+                                return (
+                                  <button
+                                    key={seat.seat_id}
+                                    disabled={seat.status !== 'AVAILABLE' || status !== 'selecting'}
+                                    onClick={() => toggleSeat(seat.seat_id, seat.status)}
+                                    className={`
+                                      ${maxCols > 20 ? 'w-8 h-8 text-[8px]' : 'w-10 h-10 text-[10px]'} 
+                                      rounded-lg font-bold transition-all flex items-center justify-center flex-shrink-0
+                                      ${color} 
+                                      ${seat.status !== 'AVAILABLE' ? 'cursor-not-allowed opacity-40' : 'active:scale-90'}
+                                    `}
+                                    style={{ minWidth: maxCols > 20 ? '32px' : '40px', minHeight: maxCols > 20 ? '32px' : '40px' }}
+                                    title={`${seat.row_label}${seat.seat_number} - $${zone.price}`}
+                                  >
+                                    {seat.seat_number}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            <div className="w-6 text-sm font-bold text-gray-400 text-right">{label}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
