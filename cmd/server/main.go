@@ -44,7 +44,7 @@ func main() {
 	eventHandler := handler.NewEventHandler(eventService)
 
 	orderRepo := repository.NewOrderRepository(db)
-	orderService := service.NewOrderService(orderRepo)
+	orderService := service.NewOrderService(orderRepo, hub)
 	orderHandler := handler.NewOrderHandler(orderService)
 
 	queueRepo := repository.NewQueueRepository(rdb)

@@ -1,78 +1,116 @@
 # TicketRush API Documentation
 
 ## Base URL
-`http://localhost:8080`
+`http://localhost:8080/api/v1`
+
+## Standard Response Format
+All API responses follow this structure:
+```json
+{
+  "success": boolean,
+  "data": object | array | null,
+  "message": "User-facing message",
+  "errorCode": "INTERNAL_ERROR_CODE" // Only if success is false
+}
+```
 
 ## Authentication
-All protected routes require a JWT token in the header:
+Protected routes require a JWT token in the header:
 `Authorization: Bearer <token>`
 
 ---
 
-## Auth Endpoints
+## 1. Auth Endpoints
 ### Register
 `POST /auth/register`
-**Body**: `{ "username": "...", "password": "...", "gender": "...", "age": 25 }`
+- **Body**: 
+```json
+{
+  "email": "user@example.com",
+  "password": "password123",
+  "full_name": "Nguyen Van A",
+  "gender": "MALE",
+  "date_of_birth": "1995-01-01"
+}
+```
 
 ### Login
 `POST /auth/login`
-**Body**: `{ "username": "...", "password": "..." }`
+- **Body**: `{ "email": "...", "password": "..." }`
+- **Success Data**: `{ "user_id": "...", "full_name": "...", "role": "CUSTOMER|ADMIN", "access_token": "..." }`
 
 ---
 
-## Public Event Endpoints
+## 2. Public Event Endpoints
 ### List Events
 `GET /events`
-**Response**: `Array<Event>`
+- **Success Data**: `Array<{ "id": "...", "title": "...", "banner_url": "...", "start_time": "..." }>`
 
 ### Event Details
 `GET /events/:id`
-**Response**: `Event` (includes Zones and Seats)
+- **Success Data**: `{ "id": "...", "title": "...", "description": "...", "banner_url": "...", "start_time": "...", "end_time": "..." }`
+
+### Seat Map (Live Status)
+`GET /events/:id/seat-map`
+- **Success Data**: `Array<{ "zone_id": "...", "zone_name": "...", "price": 500, "seats": [[{ "id": "...", "status": "AVAILABLE|LOCKED|SOLD" }, ...], ...] }>`
 
 ---
 
-## Customer Endpoints
+## 3. Customer Endpoints (Protected)
 ### Join Virtual Queue
-`POST /api/customer/queue/join`
-**Body**: `{ "event_id": 1 }`
-**Response**: `{ "status": "waiting" | "allowed" }`
+`POST /queue/join`
+- **Body**: `{ "event_id": "..." }`
+- **Success Data**: `{ "status": "waiting" | "allowed" }`
 
 ### Check Queue Status
-`GET /api/customer/queue/status?event_id=1`
-**Response**: `{ "status": "waiting", "position": 105 }`
+`GET /queue/status?event_id=...`
+- **Success Data**: `{ "status": "waiting" | "allowed", "position": 105 }`
 
-### Lock Seats
-`POST /api/customer/bookings/lock`
-**Body**: `{ "event_id": 1, "seat_ids": [10, 11] }`
-**Response**: `{ "booking_id": 500 }`
+### Lock Seats (Reserve)
+`POST /orders/lock-seats`
+- **Body**: `{ "event_id": "...", "seat_ids": ["uuid1", "uuid2"] }`
+- **Success Data**: `{ "order_id": "...", "total_amount": 1000, "status": "PENDING", "expires_at": "..." }`
 
-### Confirm Payment (Mock)
-`POST /api/customer/bookings/:id/pay`
-**Response**: `{ "message": "payment successful" }`
+### Checkout (Confirm Payment)
+`POST /orders/checkout`
+- **Body**: `{ "order_id": "..." }`
+- **Success Data**: `{ "order_id": "...", "status": "COMPLETED", "ticket_count": 2 }`
 
-### Get My Ticket
-`GET /api/customer/bookings/:id`
-**Response**: `Booking` (includes Tickets)
+### My Tickets
+`GET /tickets/my-tickets`
+- **Success Data**: `Array<{ "ticket_id": "...", "event_title": "...", "zone_name": "...", "seat_label": "A-1", "qr_code_token": "...", "is_checked_in": false }>`
 
 ---
 
-## Admin Endpoints
+## 4. Admin Endpoints (Admin Only)
 ### Create Event
-`POST /api/admin/events`
-**Body**: 
+`POST /admin/events`
+- **Body**: 
 ```json
 {
-  "name": "Summer Concert",
+  "title": "Summer Concert",
   "description": "...",
-  "date": "2026-06-01T20:00:00Z",
-  "location": "Stadium A",
+  "banner_url": "...",
+  "start_time": "2026-06-01T20:00:00Z",
+  "end_time": "2026-06-01T23:00:00Z",
   "zones": [
     { "name": "VIP", "price": 200, "rows": 5, "cols": 10 },
-    { "name": "General", "price": 50, "rows": 20, "cols": 50 }
+    { "name": "Standard", "price": 50, "rows": 20, "cols": 50 }
   ]
 }
 ```
 
-### Get Admin Stats
-`GET /api/admin/stats`
-**Response**: `{ "total_revenue": 50000, "total_sold": 1000, "gender_dist": [...], "age_dist": [...] }`
+### Dashboard Stats
+`GET /admin/dashboard/stats?event_id=...`
+- **Success Data**: `{ "total_revenue": 50000, "total_sold": 1000, "occupancy_rate": 0.85, ... }`
+
+---
+
+## 5. Real-time (WebSocket)
+`GET /ws`
+- **Protocol**: `ws://localhost:8080/ws`
+- **Broadcast Messages**:
+  - `{ "type": "SEAT_LOCKED", "seat_id": "..." }`
+  - `{ "type": "SEAT_RELEASED", "seat_id": "..." }`
+  - `{ "type": "SEAT_SOLD", "seat_id": "..." }`
+

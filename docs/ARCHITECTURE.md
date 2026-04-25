@@ -39,15 +39,19 @@ Tickets follow a state machine: `Available` $\rightarrow$ `Locked` $\rightarrow$
 - **Auto-Release**: A background Go worker runs every minute, scanning for seats where `status = 'locked' AND locked_until < NOW()`. These seats are automatically reset to `available` and a WebSocket broadcast is sent to all clients.
 
 ### 4. Real-time Synchronization
-To provide a "live" feel, WebSockets are used to broadcast state changes.
-- Whenever a seat is locked, sold, or released, the server broadcasts a message: `{ "type": "SEAT_LOCKED", "seat_id": 123 }`.
+To provide a "live" feel, WebSockets are used to broadcast state changes. To maintain Clean Architecture (SOLID), the `OrderService` uses a `Broadcaster` interface to send messages without coupling directly to the WebSocket Hub.
+- The server broadcasts messages when seats change states:
+  - `{ "type": "SEAT_LOCKED", "seat_id": "uuid" }` (When a user successfully reserves seats)
+  - `{ "type": "SEAT_SOLD", "seat_id": "uuid" }` (When an order is successfully checked out)
+  - `{ "type": "SEAT_RELEASED", "seat_id": "uuid" }` (When an order expires and seats are freed)
 - The frontend listens to these messages and updates the colors of the seats in the map without requiring a page refresh.
 
 ## API Summary
-- `POST /auth/register`, `/auth/login`: User management.
-- `GET /events`, `GET /events/:id`: Event discovery.
-- `POST /api/customer/queue/join`, `GET /api/customer/queue/status`: Virtual queue.
-- `POST /api/customer/bookings/lock`: Pessimistic seat locking.
-- `POST /api/customer/bookings/:id/pay`: Mock payment confirmation.
-- `GET /api/admin/stats`: Real-time business intelligence.
-- `POST /api/admin/events`: Event and seating matrix creation.
+- `POST /api/v1/auth/register`, `/api/v1/auth/login`: User management.
+- `GET /api/v1/events`, `GET /api/v1/events/:id`: Event discovery.
+- `POST /api/v1/queue/join`, `GET /api/v1/queue/status`: Virtual queue.
+- `POST /api/v1/orders/lock-seats`: Pessimistic seat locking.
+- `POST /api/v1/orders/checkout`: Payment confirmation and ticket generation.
+- `GET /api/v1/tickets/my-tickets`: User's purchased tickets.
+- `GET /api/v1/admin/dashboard/stats`: Real-time business intelligence.
+- `POST /api/v1/admin/events`: Event and seating matrix creation.

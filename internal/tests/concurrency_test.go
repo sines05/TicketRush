@@ -25,7 +25,9 @@ func TestSeatLockConcurrency(t *testing.T) {
 		return
 	}
 
-	// Setup: Create a test event and one seat
+	// Setup: Create a test user, event and one seat
+	user := models.User{Email: "test@ticketrush.com", PasswordHash: "hash", FullName: "Test User"}
+	db.Create(&user)
 	event := models.Event{Title: "Concurrency Test"}
 	db.Create(&event)
 	zone := models.EventZone{EventID: event.ID, Name: "VIP", Price: 100}
@@ -34,7 +36,7 @@ func TestSeatLockConcurrency(t *testing.T) {
 	db.Create(&seat)
 
 	orderRepo := repository.NewOrderRepository(db)
-	orderSvc := service.NewOrderService(orderRepo)
+	orderSvc := service.NewOrderService(orderRepo, &mockBroadcaster{})
 
 	var wg sync.WaitGroup
 	successCount := 0
@@ -46,8 +48,7 @@ func TestSeatLockConcurrency(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			userID := uuid.New()
-			_, err := orderSvc.LockSeats(context.Background(), userID, event.ID, []uuid.UUID{seat.ID})
+			_, err := orderSvc.LockSeats(context.Background(), user.ID, event.ID, []uuid.UUID{seat.ID})
 			mu.Lock()
 			if err == nil {
 				successCount++
@@ -67,4 +68,5 @@ func TestSeatLockConcurrency(t *testing.T) {
 	db.Unscoped().Delete(&seat)
 	db.Unscoped().Delete(&zone)
 	db.Unscoped().Delete(&event)
+	db.Unscoped().Delete(&user)
 }
