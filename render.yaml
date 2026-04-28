@@ -32,12 +32,12 @@ services:
           property: port
       - key: REDIS_HOST
         fromService:
-          type: redis
+          type: keyvalue
           name: ticketrush-redis
           property: host
       - key: REDIS_PORT
         fromService:
-          type: redis
+          type: keyvalue
           name: ticketrush-redis
           property: port
       - key: JWT_SECRET
@@ -63,15 +63,15 @@ services:
         source: /*
         destination: /index.html
 
-# 3. Database (PostgreSQL)
+  # 3. Redis (Internal - now called Key Value)
+  - type: keyvalue
+    name: ticketrush-redis
+    plan: free
+    region: singapore
+    ipAllowList: [] 
+
+# 4. Database (PostgreSQL)
 databases:
   - name: ticketrush-db
     plan: free
     region: singapore
-
-# 4. Redis (Internal)
-redis:
-  - name: ticketrush-redis
-    plan: free
-    region: singapore
-    ipAllowList: [] # Only allow internal traffic
