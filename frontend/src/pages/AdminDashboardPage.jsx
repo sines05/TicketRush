@@ -16,12 +16,17 @@ const AdminDashboardPage = () => {
     zones: [{ name: '', price: 0, total_rows: 10, seats_per_row: 10 }]
   });
 
+  const [selectedEventId, setSelectedEventId] = useState(null);
+
   const { data: stats, isLoading: statsLoading } = useQuery({
-    queryKey: ['admin-stats'],
+    queryKey: ['admin-stats', selectedEventId],
     queryFn: async () => {
-      return await api.get('/admin/dashboard/stats');
+      const url = selectedEventId 
+        ? `/admin/dashboard/stats?event_id=${selectedEventId}` 
+        : '/admin/dashboard/stats';
+      return await api.get(url);
     },
-    refetchInterval: 5000, // Real-time update every 5 seconds
+    refetchInterval: 5000,
   });
 
   const { data: events, isLoading: eventsLoading } = useQuery({
@@ -156,15 +161,33 @@ const AdminDashboardPage = () => {
 
         {/* Event List */}
         <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
-          <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
-            <LayoutGrid size={20} className="text-indigo-500" />
-            Managed Events
-          </h3>
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-xl font-bold flex items-center gap-2">
+              <LayoutGrid size={20} className="text-indigo-500" />
+              Managed Events
+            </h3>
+            {selectedEventId && (
+              <button 
+                onClick={() => setSelectedEventId(null)}
+                className="text-xs font-bold text-indigo-600 hover:indigo-800"
+              >
+                Clear Filter
+              </button>
+            )}
+          </div>
           <div className="space-y-4">
             {eventsLoading ? (
               <div className="text-center py-10 text-gray-400">Loading events...</div>
             ) : events?.map(event => (
-              <div key={event.id} className="flex items-center justify-between p-4 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors">
+              <div 
+                key={event.id} 
+                onClick={() => setSelectedEventId(event.id)}
+                className={`flex items-center justify-between p-4 border rounded-xl cursor-pointer transition-all ${
+                  selectedEventId === event.id 
+                    ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200' 
+                    : 'border-gray-100 hover:bg-gray-50'
+                }`}
+              >
                 <div>
                   <div className="font-bold text-gray-800">{event.title}</div>
                   <div className="text-xs text-gray-400">{new Date(event.start_time).toLocaleDateString()}</div>

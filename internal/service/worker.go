@@ -17,14 +17,16 @@ type WorkerService interface {
 type workerService struct {
 	db           *gorm.DB
 	queueService QueueService
+	queueRepo    repository.QueueRepository
 	wsHub        *repository.Hub
 	orderRepo    repository.OrderRepository
 }
 
-func NewWorkerService(db *gorm.DB, queueService QueueService, wsHub *repository.Hub, orderRepo repository.OrderRepository) WorkerService {
+func NewWorkerService(db *gorm.DB, queueService QueueService, queueRepo repository.QueueRepository, wsHub *repository.Hub, orderRepo repository.OrderRepository) WorkerService {
 	return &workerService{
 		db:           db,
 		queueService: queueService,
+		queueRepo:    queueRepo,
 		wsHub:        wsHub,
 		orderRepo:    orderRepo,
 	}
@@ -76,6 +78,11 @@ func (s *workerService) releaseExpiredOrders() {
 			cancel()
 			continue
 		}
+
+		// Remove user from Redis active set so new users can enter the queue
+		if err := s.queueRepo.RemoveFromActive(ctx, order.EventID, order.UserID); err != nil {
+			log.Printf("Failed to remove user %s from active set for event %s: %v", order.UserID, order.EventID, err)
+		}
 		cancel()
 
 		// Notify frontend via WS for each released seat
@@ -87,4 +94,3 @@ func (s *workerService) releaseExpiredOrders() {
 		}
 	}
 }
-

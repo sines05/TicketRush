@@ -1,0 +1,78 @@
+services:
+  # 1. Backend Service (Go)
+  - type: web
+    name: ticketrush-api
+    env: docker
+    dockerContext: .
+    dockerfilePath: Dockerfile
+    plan: free
+    region: singapore # Choose your closest region
+    envVars:
+      - key: PORT
+        value: 8080
+      - key: DB_HOST
+        fromDatabase:
+          name: ticketrush-db
+          property: host
+      - key: DB_USER
+        fromDatabase:
+          name: ticketrush-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: ticketrush-db
+          property: password
+      - key: DB_NAME
+        fromDatabase:
+          name: ticketrush-db
+          property: database
+      - key: DB_PORT
+        fromDatabase:
+          name: ticketrush-db
+          property: port
+      - key: REDIS_HOST
+        fromService:
+          type: redis
+          name: ticketrush-redis
+          property: host
+      - key: REDIS_PORT
+        fromService:
+          type: redis
+          name: ticketrush-redis
+          property: port
+      - key: JWT_SECRET
+        generateValue: true
+      - key: GOOGLE_CLIENT_ID
+        sync: false # Set manually in Render dashboard
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false # Set manually in Render dashboard
+      - key: GOOGLE_REDIRECT_URL
+        value: https://ticketrush-api.onrender.com/api/v1/auth/google/callback
+
+  # 2. Frontend Service (React Static or Docker)
+  # Option A: Static Site (Recommended for Free Tier)
+  - type: static
+    name: ticketrush-web
+    env: static
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: frontend/dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://ticketrush-api.onrender.com/api/v1
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+# 3. Database (PostgreSQL)
+databases:
+  - name: ticketrush-db
+    plan: free
+    region: singapore
+
+# 4. Redis (Internal)
+redis:
+  - name: ticketrush-redis
+    plan: free
+    region: singapore
+    ipAllowList: [] # Only allow internal traffic

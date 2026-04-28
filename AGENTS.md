@@ -75,7 +75,7 @@ Every API response MUST follow this structure:
 
 ### 1. Naming Strategy
 To ensure consistency across the stack:
-- JSON Properties: camelCase (e.g., fullName, orderId).
+- JSON Properties: snake_case (e.g., full_name, order_id). Matches the database column names and API.md specification.
 - Database: snake_case for Table and Column names (e.g., full_name, order_id).
 - Code:
     - camelCase for Variables and Functions.

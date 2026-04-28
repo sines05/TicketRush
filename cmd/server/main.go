@@ -43,15 +43,15 @@ func main() {
 	eventService := service.NewEventService(eventRepo, db)
 	eventHandler := handler.NewEventHandler(eventService)
 
-	orderRepo := repository.NewOrderRepository(db)
-	orderService := service.NewOrderService(orderRepo, hub)
-	orderHandler := handler.NewOrderHandler(orderService)
-
 	queueRepo := repository.NewQueueRepository(rdb)
 	queueService := service.NewQueueService(queueRepo)
 	queueHandler := handler.NewQueueHandler(queueService)
 
-	workerService := service.NewWorkerService(db, queueService, hub, orderRepo)
+	orderRepo := repository.NewOrderRepository(db)
+	orderService := service.NewOrderService(orderRepo, queueRepo, hub)
+	orderHandler := handler.NewOrderHandler(orderService)
+
+	workerService := service.NewWorkerService(db, queueService, queueRepo, hub, orderRepo)
 	workerService.StartWorkers()
 
 	// 6. Setup Gin

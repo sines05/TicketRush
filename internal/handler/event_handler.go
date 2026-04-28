@@ -63,7 +63,7 @@ func (h *EventHandler) GetEvent(c *gin.Context) {
 
 	event, err := h.eventService.GetEvent(id)
 	if err != nil {
-		utils.SendError(c, http.StatusNotFound, "event not found", "NOT_FOUND")
+		utils.SendError(c, http.StatusNotFound, "event not found", "EVENT_NOT_FOUND")
 		return
 	}
 

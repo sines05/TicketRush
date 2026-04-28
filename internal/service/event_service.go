@@ -159,27 +159,49 @@ func (s *eventService) GetAdminStats(eventID *uuid.UUID) (map[string]interface{}
 	}
 	querySold.Count(&totalSold)
 
-	// Demographics (simulated for brevity, normally you'd join with users)
-	genderDist := make(map[string]int64)
+	// Demographics: based on actual ticket purchasers, not all users
 	var genders []struct {
 		Gender string
 		Count  int64
 	}
-	s.db.Model(&models.User{}).Select("gender, count(*) as count").Group("gender").Scan(&genders)
+	genderQuery := s.db.Model(&models.User{}).
+		Select("users.gender, count(DISTINCT users.id) as count").
+		Joins("JOIN tickets ON tickets.user_id = users.id").
+		Joins("JOIN orders ON orders.id = tickets.order_id")
+	if eventID != nil {
+		genderQuery = genderQuery.Where("orders.event_id = ?", *eventID)
+	}
+	genderQuery.Group("users.gender").Scan(&genders)
+
+	genderList := make([]map[string]interface{}, 0)
 	for _, g := range genders {
-		genderDist[g.Gender] = g.Count
+		genderList = append(genderList, map[string]interface{}{
+			"gender": g.Gender,
+			"count":  g.Count,
+		})
 	}
 
+	// Age groups: based on ticket purchasers
 	ageGroups := map[string]int64{
 		"18-24": 0,
 		"25-34": 0,
 		"35+":   0,
 	}
-	// Simplified age group logic
-	var users []models.User
-	s.db.Find(&users)
+	var purchasers []models.User
+	purchaserQuery := s.db.Model(&models.User{}).
+		Select("DISTINCT users.id, users.date_of_birth").
+		Joins("JOIN tickets ON tickets.user_id = users.id").
+		Joins("JOIN orders ON orders.id = tickets.order_id")
+	if eventID != nil {
+		purchaserQuery = purchaserQuery.Where("orders.event_id = ?", *eventID)
+	}
+	purchaserQuery.Find(&purchasers)
+
 	now := time.Now()
-	for _, u := range users {
+	for _, u := range purchasers {
+		if u.DateOfBirth.IsZero() {
+			continue
+		}
 		age := now.Year() - u.DateOfBirth.Year()
 		if age < 25 {
 			ageGroups["18-24"]++
@@ -202,19 +224,11 @@ func (s *eventService) GetAdminStats(eventID *uuid.UUID) (map[string]interface{}
 		occupancyRate = float64(totalSold) / float64(totalSeats)
 	}
 
-	genderList := make([]map[string]interface{}, 0)
-	for gender, count := range genderDist {
-		genderList = append(genderList, map[string]interface{}{
-			"gender": gender,
-			"count":  count,
-		})
-	}
-
 	return map[string]interface{}{
-		"total_revenue":   totalRevenue,
-		"total_sold":      totalSold,
-		"occupancy_rate":  occupancyRate,
-		"gender_dist":     genderList,
-		"age_dist":        ageGroups,
+		"total_revenue":  totalRevenue,
+		"total_sold":     totalSold,
+		"occupancy_rate": occupancyRate,
+		"gender_dist":    genderList,
+		"age_dist":       ageGroups,
 	}, nil
 }
