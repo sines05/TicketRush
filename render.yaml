@@ -49,9 +49,8 @@ services:
       - key: GOOGLE_REDIRECT_URL
         value: https://ticketrush-api.onrender.com/api/v1/auth/google/callback
 
-  # 2. Frontend Service (React Static or Docker)
-  # Option A: Static Site (Recommended for Free Tier)
-  - type: static
+  # 2. Frontend Service (React Static)
+  - type: static_site
     name: ticketrush-web
     env: static
     buildCommand: cd frontend && npm install && npm run build
