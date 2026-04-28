@@ -2,11 +2,11 @@ services:
   # 1. Backend Service (Go)
   - type: web
     name: ticketrush-api
-    env: docker
-    dockerContext: .
-    dockerfilePath: Dockerfile
+    env: go
     plan: free
-    region: singapore # Choose your closest region
+    region: singapore
+    buildCommand: go build -o main ./cmd/server/main.go
+    startCommand: ./main
     envVars:
       - key: PORT
         value: 8080
