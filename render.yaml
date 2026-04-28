@@ -50,9 +50,9 @@ services:
         value: https://ticketrush-api.onrender.com/api/v1/auth/google/callback
 
   # 2. Frontend Service (React Static)
-  - type: static_site
+  - type: web
     name: ticketrush-web
-    env: static
+    runtime: static
     buildCommand: cd frontend && npm install && npm run build
     staticPublishPath: frontend/dist
     envVars:
