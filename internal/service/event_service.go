@@ -30,7 +30,7 @@ type EventCreateRequest struct {
 type EventService interface {
 	CreateEvent(req EventCreateRequest) (*models.Event, error)
 	GetEvent(id uuid.UUID) (*models.Event, error)
-	ListEvents() ([]models.Event, error)
+	ListEvents(search string) ([]models.Event, error)
 	GetSeatMap(eventID uuid.UUID) (map[string]interface{}, error)
 	GetAdminStats(eventID *uuid.UUID) (map[string]interface{}, error)
 }
@@ -108,8 +108,8 @@ func (s *eventService) GetEvent(id uuid.UUID) (*models.Event, error) {
 	return s.eventRepo.GetEventByID(id)
 }
 
-func (s *eventService) ListEvents() ([]models.Event, error) {
-	return s.eventRepo.GetAllEvents()
+func (s *eventService) ListEvents(search string) ([]models.Event, error) {
+	return s.eventRepo.GetAllEvents(search)
 }
 
 func (s *eventService) GetSeatMap(eventID uuid.UUID) (map[string]interface{}, error) {

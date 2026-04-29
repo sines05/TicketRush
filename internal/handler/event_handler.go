@@ -34,7 +34,8 @@ func (h *EventHandler) CreateEvent(c *gin.Context) {
 }
 
 func (h *EventHandler) ListEvents(c *gin.Context) {
-	events, err := h.eventService.ListEvents()
+	search := c.Query("q")
+	events, err := h.eventService.ListEvents(search)
 	if err != nil {
 		utils.SendError(c, http.StatusInternalServerError, err.Error(), "FETCH_FAILED")
 		return

@@ -47,7 +47,7 @@ services:
       - key: GOOGLE_CLIENT_SECRET
         sync: false # Set manually in Render dashboard
       - key: GOOGLE_REDIRECT_URL
-        value: https://ticketrush-api.onrender.com/api/v1/auth/google/callback
+        value: https://ticketrush-web-kuos.onrender.com/google-callback
 
   # 2. Frontend Service (React Static)
   - type: web
