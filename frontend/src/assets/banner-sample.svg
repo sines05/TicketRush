@@ -1,0 +1,16 @@
+<svg width="1200" height="420" viewBox="0 0 1200 420" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1200" y2="420" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0EA5E9" stop-opacity="0.30" />
+      <stop offset="1" stop-color="#22C55E" stop-opacity="0.20" />
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="420" rx="28" fill="#0B0F14"/>
+  <rect x="24" y="24" width="1152" height="372" rx="22" fill="url(#g)"/>
+  <circle cx="980" cy="140" r="120" fill="#0EA5E9" fill-opacity="0.25"/>
+  <circle cx="1020" cy="180" r="90" fill="#EAB308" fill-opacity="0.22"/>
+  <circle cx="1060" cy="220" r="70" fill="#EF4444" fill-opacity="0.18"/>
+  <path d="M90 290C210 240 320 250 420 280C520 310 600 330 720 300C840 270 930 230 1110 260" stroke="#E0F2FE" stroke-opacity="0.55" stroke-width="4" stroke-linecap="round"/>
+  <text x="86" y="150" fill="#F8FAFC" font-family="ui-sans-serif, system-ui" font-size="42" font-weight="700">TicketRush Event Banner</text>
+  <text x="86" y="195" fill="#94A3B8" font-family="ui-sans-serif, system-ui" font-size="18">Banner mẫu • dùng cho Home/EventDetail</text>
+</svg>

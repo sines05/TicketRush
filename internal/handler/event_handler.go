@@ -34,7 +34,8 @@ func (h *EventHandler) CreateEvent(c *gin.Context) {
 }
 
 func (h *EventHandler) ListEvents(c *gin.Context) {
-	events, err := h.eventService.ListEvents()
+	search := c.Query("q")
+	events, err := h.eventService.ListEvents(search)
 	if err != nil {
 		utils.SendError(c, http.StatusInternalServerError, err.Error(), "FETCH_FAILED")
 		return
@@ -63,7 +64,7 @@ func (h *EventHandler) GetEvent(c *gin.Context) {
 
 	event, err := h.eventService.GetEvent(id)
 	if err != nil {
-		utils.SendError(c, http.StatusNotFound, "event not found", "NOT_FOUND")
+		utils.SendError(c, http.StatusNotFound, "event not found", "EVENT_NOT_FOUND")
 		return
 	}
 

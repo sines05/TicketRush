@@ -43,15 +43,15 @@ func main() {
 	eventService := service.NewEventService(eventRepo, db)
 	eventHandler := handler.NewEventHandler(eventService)
 
-	orderRepo := repository.NewOrderRepository(db)
-	orderService := service.NewOrderService(orderRepo, hub)
-	orderHandler := handler.NewOrderHandler(orderService)
-
 	queueRepo := repository.NewQueueRepository(rdb)
 	queueService := service.NewQueueService(queueRepo)
 	queueHandler := handler.NewQueueHandler(queueService)
 
-	workerService := service.NewWorkerService(db, queueService, hub, orderRepo)
+	orderRepo := repository.NewOrderRepository(db)
+	orderService := service.NewOrderService(orderRepo, queueRepo, hub)
+	orderHandler := handler.NewOrderHandler(orderService)
+
+	workerService := service.NewWorkerService(db, queueService, queueRepo, hub, orderRepo)
 	workerService.StartWorkers()
 
 	// 6. Setup Gin
@@ -59,7 +59,7 @@ func main() {
 
 	// CORS Middleware
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:5174"},
+		AllowOrigins:     []string{"http://localhost:5173"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
@@ -74,6 +74,10 @@ func main() {
 		{
 			auth.POST("/register", authHandler.Register)
 			auth.POST("/login", authHandler.Login)
+			auth.GET("/google/login", authHandler.GoogleLogin)
+			auth.GET("/google/callback", authHandler.GoogleCallback)
+			auth.POST("/forgot-password", authHandler.ForgotPassword)
+			auth.POST("/reset-password", authHandler.ResetPassword)
 		}
 
 		// Public Routes

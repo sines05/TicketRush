@@ -1,0 +1,37 @@
+{
+  "event_id": "uuid-event-demo",
+  "zones": [
+    {
+      "zone_id": "uuid-vip",
+      "name": "Khu VIP A",
+      "price": 2000000,
+      "layout_meta": { "align": "center", "style": "center_aisle", "aisle_size": 2, "pos_x": 35, "pos_y": 35 },
+      "seats": [
+        { "seat_id": "uuid-seat-a1", "row_label": "A", "seat_number": 1, "status": "AVAILABLE" },
+        { "seat_id": "uuid-seat-a2", "row_label": "A", "seat_number": 2, "status": "AVAILABLE" },
+        { "seat_id": "uuid-seat-a3", "row_label": "A", "seat_number": 3, "status": "LOCKED", "locked_by_user_id": "uuid-customer-01" },
+        { "seat_id": "uuid-seat-a4", "row_label": "A", "seat_number": 4, "status": "AVAILABLE" },
+        { "seat_id": "uuid-seat-a5", "row_label": "A", "seat_number": 5, "status": "SOLD" },
+
+        { "seat_id": "uuid-seat-b1", "row_label": "B", "seat_number": 1, "status": "AVAILABLE" },
+        { "seat_id": "uuid-seat-b2", "row_label": "B", "seat_number": 2, "status": "LOCKED", "locked_by_user_id": "uuid-user-123" },
+        { "seat_id": "uuid-seat-b3", "row_label": "B", "seat_number": 3, "status": "AVAILABLE" },
+        { "seat_id": "uuid-seat-b4", "row_label": "B", "seat_number": 4, "status": "AVAILABLE" },
+        { "seat_id": "uuid-seat-b5", "row_label": "B", "seat_number": 5, "status": "AVAILABLE" }
+      ]
+    },
+    {
+      "zone_id": "uuid-standard",
+      "name": "Khu Standard",
+      "price": 1200000,
+      "layout_meta": { "align": "center", "style": "three_blocks", "aisle_size": 2, "pos_x": 65, "pos_y": 55 },
+      "seats": [
+        { "seat_id": "uuid-seat-c1", "row_label": "C", "seat_number": 1, "status": "AVAILABLE" },
+        { "seat_id": "uuid-seat-c2", "row_label": "C", "seat_number": 2, "status": "AVAILABLE" },
+        { "seat_id": "uuid-seat-c3", "row_label": "C", "seat_number": 3, "status": "SOLD" },
+        { "seat_id": "uuid-seat-c4", "row_label": "C", "seat_number": 4, "status": "AVAILABLE" },
+        { "seat_id": "uuid-seat-c5", "row_label": "C", "seat_number": 5, "status": "AVAILABLE" }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "total_revenue": 500000000,
+  "total_tickets_sold": 450,
+  "fill_rate_percentage": 90.5,
+  "demographics": {
+    "gender": { "MALE": 200, "FEMALE": 230, "OTHER": 20 },
+    "age_groups": { "18-24": 300, "25-34": 100, "35+": 50 }
+  }
+}

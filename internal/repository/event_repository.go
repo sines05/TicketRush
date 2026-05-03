@@ -10,7 +10,7 @@ import (
 type EventRepository interface {
 	CreateEvent(event *models.Event) error
 	GetEventByID(id uuid.UUID) (*models.Event, error)
-	GetAllEvents() ([]models.Event, error)
+	GetAllEvents(search string) ([]models.Event, error)
 	UpdateEvent(event *models.Event) error
 	DeleteEvent(id uuid.UUID) error
 	GetSeatMap(eventID uuid.UUID) ([]models.EventZone, error)
@@ -36,9 +36,13 @@ func (r *eventRepo) GetEventByID(id uuid.UUID) (*models.Event, error) {
 	return &event, nil
 }
 
-func (r *eventRepo) GetAllEvents() ([]models.Event, error) {
+func (r *eventRepo) GetAllEvents(search string) ([]models.Event, error) {
 	var events []models.Event
-	if err := r.db.Where("is_published = ?", true).Find(&events).Error; err != nil {
+	query := r.db.Where("is_published = ?", true)
+	if search != "" {
+		query = query.Where("title ILIKE ?", "%"+search+"%")
+	}
+	if err := query.Find(&events).Error; err != nil {
 		return nil, err
 	}
 	return events, nil
