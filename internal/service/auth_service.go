@@ -61,6 +61,12 @@ func NewAuthService(userRepo repository.UserRepository, cfg *config.Config) Auth
 }
 
 func (s *authService) Register(req RegisterRequest) (*models.User, error) {
+	// Check if user already exists
+	_, err := s.userRepo.FindByEmail(req.Email)
+	if err == nil {
+		return nil, errors.New("email already exists")
+	}
+
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, err

@@ -30,6 +30,10 @@ func (h *AuthHandler) Register(c *gin.Context) {
 
 	_, err := h.authService.Register(req)
 	if err != nil {
+		if err.Error() == "email already exists" {
+			utils.SendError(c, http.StatusConflict, "Email already exists", "EMAIL_EXISTS")
+			return
+		}
 		utils.SendError(c, http.StatusInternalServerError, "Could not create user", "REGISTER_FAILED")
 		return
 	}

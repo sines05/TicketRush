@@ -46,40 +46,135 @@ The project follows modern software design principles:
 
 ---
 
-## Quick Start Guide
+## Quick Start Guide (Docker - Recommended)
 
-### 1. Infrastructure Setup
-The system requires PostgreSQL and Redis. Start them quickly using Docker Compose:
+### One-Command Setup
+The entire system (PostgreSQL, Redis, Backend, Frontend) starts automatically with database migrations and sample data pre-seeded:
+
 ```bash
-docker compose up -d
+docker compose up --build
 ```
 
+✅ **What happens automatically:**
+- Builds backend and frontend images
+- Starts PostgreSQL, Redis, Backend, and Frontend containers
+- Runs database migrations
+- **Auto-seeds sample data** (events, zones, seats, and test accounts)
+- Backend API available at: `http://localhost:8080`
+- Frontend available at: `http://localhost:5173`
+
+### Test Accounts (Password: `password`)
+| Role | Email | Status |
+| :--- | :--- | :--- |
+| **Admin** | `admin@ticketrush.com` | Full access |
+| **Customer** | `customer@ticketrush.com` | Standard user |
+| **Customer** | `linhchi@gmail.com` | Standard user |
+| **Customer** | `minhduc@gmail.com` | Standard user |
+| **Customer** | `thuytrang@gmail.com` | Standard user |
+| **Customer** | `hoangnam@gmail.com` | Standard user |
+
+### Stop & Clean Up
+```bash
+# Stop running containers
+docker compose down
+
+# Stop and remove all data (fresh database next time)
+docker compose down -v
+```
+
+---
+
+## Manual Setup (Without Docker)
+
+### 1. Infrastructure Setup
+Ensure PostgreSQL 15 and Redis 7 are installed and running locally.
+
 ### 2. Launch Backend
-The system will automatically apply SQL migrations to set up the database schema on startup:
 ```bash
 go run cmd/server/main.go
 ```
 
-### 3. Seed Sample Data
-To populate the database with initial events and seat maps for testing, run the seed script:
+### 3. Seed Sample Data (Optional)
 ```bash
 go run cmd/seed/main.go
 ```
 
-### 4. Test Accounts
-All passwords are `password`:
-- **Admin**: `admin@ticketrush.com`
-- **Customers**: 
-    - `customer@ticketrush.com`
-    - `linhchi@gmail.com`
-    - `minhduc@gmail.com`
-
-### 5. Launch Frontend
+### 4. Launch Frontend
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
+
+---
+
+## Updating Database Sample Data
+
+### Scenario 1: Update Auto-Seed Data (Docker - Fresh Database)
+**When:** You want to change the sample events, users, or seats before first-time setup.
+
+**How:** Edit [internal/repository/seeder.go](internal/repository/seeder.go), then rebuild containers:
+```go
+// Example: In seeder.go, modify this section
+events := []models.Event{
+    {
+        Title:       "Your Event Name",
+        Description: "Your description",
+        Category:    "MUSIC",
+        IsFeatured:  true,
+        IsPublished: true,
+        StartTime:   time.Date(2026, 6, 15, 20, 0, 0, 0, time.UTC),
+        // ... modify fields
+    },
+    // Add more events
+}
+```
+
+Then restart Docker:
+```bash
+docker compose down -v  # Remove old volumes
+docker compose up --build  # Auto-seed with new data
+```
+
+### Scenario 2: Add More Data to Existing Docker Container
+**When:** You want to add additional events/users without removing existing data.
+
+**How:** Enter the database container directly:
+```bash
+# Connect to PostgreSQL container
+docker exec -it ticketrush-db psql -U user -d ticketrush
+
+# Now you can run SQL commands
+INSERT INTO events (title, description, category, is_featured, is_published, start_time, end_time, created_at, updated_at) 
+VALUES ('New Event', 'Description', 'MUSIC', true, true, NOW(), NOW() + interval '3 hours', NOW(), NOW());
+```
+
+### Scenario 3: Re-Seed Entire Database (Docker)
+**When:** You want to reset everything to the initial auto-seed state.
+
+**How:**
+```bash
+# Stop containers and remove volumes
+docker compose down -v
+
+# Restart (auto-seeding will run again)
+docker compose up
+```
+
+### Scenario 4: Seed Data Manually (Non-Docker Setup)
+**When:** You're running the backend locally (not in Docker).
+
+**How:** Edit [cmd/seed/main.go](cmd/seed/main.go) and run:
+```bash
+go run cmd/seed/main.go
+```
+
+This will:
+- Drop and recreate all tables
+- Run migrations
+- Populate with sample data from the seed file
+
+> **Note:** This is a complete reset - all existing data will be deleted.
 
 ---
 

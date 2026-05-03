@@ -25,6 +25,9 @@ func main() {
 	// Run Migrations
 	repository.RunMigrations(cfg)
 
+	// Auto-seed database if empty
+	repository.AutoSeedDatabase(db)
+
 	// 3. Initialize Redis
 	rdb := repository.NewRedisClient(cfg)
 	fmt.Println("Successfully connected to Redis")
@@ -105,6 +108,7 @@ func main() {
 			admin := protected.Group("/admin")
 			admin.Use(middleware.RoleMiddleware(models.RoleAdmin))
 			{
+				admin.GET("/events", eventHandler.ListEvents)
 				admin.POST("/events", eventHandler.CreateEvent)
 				admin.GET("/dashboard/stats", eventHandler.GetStats)
 			}
