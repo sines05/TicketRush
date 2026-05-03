@@ -1,21 +1,7 @@
-# Binaries
-bin/
-/server
-/tmp/server
-
-# Environment variables
-.env
-
-# Dependencies
-node_modules/
-frontend/node_modules/
-
-# IDEs/Tools
-.claude/
-.vscode/
-.idea/
-*.log
-
-# OS files
+node_modules
+.dist
+.dist-ssr
+.vscode
 .DS_Store
-Thumbs.db
+.env
+.env.*

@@ -1,0 +1,21 @@
+# Binaries
+bin/
+/server
+/tmp/server
+
+# Environment variables
+.env
+
+# Dependencies
+node_modules/
+frontend/node_modules/
+
+# IDEs/Tools
+.claude/
+.vscode/
+.idea/
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db

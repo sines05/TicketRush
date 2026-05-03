@@ -1,16 +1,29 @@
-# React + Vite
+# TicketRush Frontend (Demo)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Frontend-only demo cho web TicketRush (tương tự Ticketbox):
+- Customer flow: Home → EventDetail → VirtualQueue → SeatMap → Checkout (10 phút) → Vé QR
+- Admin flow: Dashboard (biểu đồ) + EventForm (sinh ma trận ghế)
 
-Currently, two official plugins are available:
+## Yêu cầu môi trường
+- Cài **Node.js LTS** (khuyến nghị 20+)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Chạy dự án
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
-## React Compiler
+Mở: http://localhost:5173
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Demo đăng nhập
+- Bất kỳ email/mật khẩu đều vào được (mock)
+- Email có chứa chuỗi `admin` sẽ có role `ADMIN` và vào được `/admin/*`
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Ghi chú
+- Mặc định chạy mock (frontend-only) với `VITE_USE_MOCK`.
+- Khi backend sẵn sàng, có thể tắt mock và dùng API thật theo contract:
+	- Base URL mặc định: `http://localhost:8080/api/v1` (có thể override bằng `VITE_API_BASE_URL`)
+	- Tắt mock: tạo file `.env` trong thư mục `frontend`:
+		- `VITE_USE_MOCK=false`
+		- `VITE_API_BASE_URL=http://localhost:8080/api/v1`
