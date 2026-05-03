@@ -1,12 +1,17 @@
 import axios from 'axios';
 
-const api = axios.create({
-  baseURL: (import.meta.env.VITE_API_URL || 'http://localhost:8081') + '/api/v1',
+// Standard Response Format expectation (backend):
+// { success: boolean, message?: string, data?: any, errors?: any }
+
+export const api = axios.create({
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1',
+  timeout: 15000
 });
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('tr_access_token') || localStorage.getItem('tr_token');
   if (token) {
+    config.headers = config.headers || {};
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
@@ -14,14 +19,31 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(
   (response) => {
-    // Return the "data" part of our standard response format
-    return response.data.data;
+    const payload = response?.data;
+
+    // If backend already returns standard format, keep it.
+    if (payload && typeof payload === 'object' && 'success' in payload) return payload;
+
+    // Otherwise wrap.
+    return { success: true, data: payload, message: '', errorCode: '' };
   },
   (error) => {
-    // Handle standard error format
-    const message = error.response?.data?.message || 'Đã có lỗi xảy ra';
-    return Promise.reject(new Error(message));
+    const payload = error?.response?.data;
+    if (payload && typeof payload === 'object' && 'success' in payload) {
+      return Promise.reject(payload);
+    }
+
+    return Promise.reject({
+      success: false,
+      data: null,
+      message: error?.message || 'Network error',
+      errorCode: 'NETWORK_ERROR'
+    });
   }
 );
 
-export default api;
+export function unwrap(response) {
+  if (!response) throw { success: false, data: null, message: 'Empty response', errorCode: 'EMPTY_RESPONSE' };
+  if (response.success) return response.data;
+  throw response;
+}

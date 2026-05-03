@@ -30,7 +30,8 @@ type EventCreateRequest struct {
 type EventService interface {
 	CreateEvent(req EventCreateRequest) (*models.Event, error)
 	GetEvent(id uuid.UUID) (*models.Event, error)
-	ListEvents() ([]models.Event, error)
+	ListEvents(search string) ([]models.Event, error)
+	ListFeaturedEvents(limit int) ([]models.Event, error)
 	GetSeatMap(eventID uuid.UUID) (map[string]interface{}, error)
 	GetAdminStats(eventID *uuid.UUID) (map[string]interface{}, error)
 }
@@ -108,8 +109,12 @@ func (s *eventService) GetEvent(id uuid.UUID) (*models.Event, error) {
 	return s.eventRepo.GetEventByID(id)
 }
 
-func (s *eventService) ListEvents() ([]models.Event, error) {
-	return s.eventRepo.GetAllEvents()
+func (s *eventService) ListEvents(search string) ([]models.Event, error) {
+	return s.eventRepo.GetAllEvents(search)
+}
+
+func (s *eventService) ListFeaturedEvents(limit int) ([]models.Event, error) {
+	return s.eventRepo.GetFeaturedEvents(limit)
 }
 
 func (s *eventService) GetSeatMap(eventID uuid.UUID) (map[string]interface{}, error) {
@@ -159,27 +164,49 @@ func (s *eventService) GetAdminStats(eventID *uuid.UUID) (map[string]interface{}
 	}
 	querySold.Count(&totalSold)
 
-	// Demographics (simulated for brevity, normally you'd join with users)
-	genderDist := make(map[string]int64)
+	// Demographics: based on actual ticket purchasers, not all users
 	var genders []struct {
 		Gender string
 		Count  int64
 	}
-	s.db.Model(&models.User{}).Select("gender, count(*) as count").Group("gender").Scan(&genders)
+	genderQuery := s.db.Model(&models.User{}).
+		Select("users.gender, count(DISTINCT users.id) as count").
+		Joins("JOIN tickets ON tickets.user_id = users.id").
+		Joins("JOIN orders ON orders.id = tickets.order_id")
+	if eventID != nil {
+		genderQuery = genderQuery.Where("orders.event_id = ?", *eventID)
+	}
+	genderQuery.Group("users.gender").Scan(&genders)
+
+	genderList := make([]map[string]interface{}, 0)
 	for _, g := range genders {
-		genderDist[g.Gender] = g.Count
+		genderList = append(genderList, map[string]interface{}{
+			"gender": g.Gender,
+			"count":  g.Count,
+		})
 	}
 
+	// Age groups: based on ticket purchasers
 	ageGroups := map[string]int64{
 		"18-24": 0,
 		"25-34": 0,
 		"35+":   0,
 	}
-	// Simplified age group logic
-	var users []models.User
-	s.db.Find(&users)
+	var purchasers []models.User
+	purchaserQuery := s.db.Model(&models.User{}).
+		Select("DISTINCT users.id, users.date_of_birth").
+		Joins("JOIN tickets ON tickets.user_id = users.id").
+		Joins("JOIN orders ON orders.id = tickets.order_id")
+	if eventID != nil {
+		purchaserQuery = purchaserQuery.Where("orders.event_id = ?", *eventID)
+	}
+	purchaserQuery.Find(&purchasers)
+
 	now := time.Now()
-	for _, u := range users {
+	for _, u := range purchasers {
+		if u.DateOfBirth.IsZero() {
+			continue
+		}
 		age := now.Year() - u.DateOfBirth.Year()
 		if age < 25 {
 			ageGroups["18-24"]++
@@ -190,13 +217,23 @@ func (s *eventService) GetAdminStats(eventID *uuid.UUID) (map[string]interface{}
 		}
 	}
 
+	var totalSeats int64
+	querySeats := s.db.Model(&models.Seat{})
+	if eventID != nil {
+		querySeats = querySeats.Joins("JOIN event_zones ON event_zones.id = seats.zone_id").Where("event_zones.event_id = ?", *eventID)
+	}
+	querySeats.Count(&totalSeats)
+
+	occupancyRate := 0.0
+	if totalSeats > 0 {
+		occupancyRate = float64(totalSold) / float64(totalSeats)
+	}
+
 	return map[string]interface{}{
-		"total_revenue":        totalRevenue,
-		"total_tickets_sold":   totalSold,
-		"fill_rate_percentage": 0, // Placeholder
-		"demographics": map[string]interface{}{
-			"gender":     genderDist,
-			"age_groups": ageGroups,
-		},
+		"total_revenue":  totalRevenue,
+		"total_sold":     totalSold,
+		"occupancy_rate": occupancyRate,
+		"gender_dist":    genderList,
+		"age_dist":       ageGroups,
 	}, nil
 }

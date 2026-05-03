@@ -37,7 +37,9 @@ func (h *OrderHandler) LockSeats(c *gin.Context) {
 
 	order, err := h.orderService.LockSeats(c.Request.Context(), u.ID, req.EventID, req.SeatIDs)
 	if err != nil {
-		if errors.Is(err, utils.ErrSeatAlreadyTaken) {
+		if errors.Is(err, utils.ErrQueueNotAllowed) {
+			utils.SendError(c, http.StatusForbidden, err.Error(), "QUEUE_NOT_ALLOWED")
+		} else if errors.Is(err, utils.ErrSeatAlreadyTaken) {
 			utils.SendError(c, http.StatusConflict, err.Error(), "SEAT_ALREADY_TAKEN")
 		} else {
 			utils.SendError(c, http.StatusInternalServerError, err.Error(), "LOCK_FAILED")
@@ -64,9 +66,18 @@ func (h *OrderHandler) Checkout(c *gin.Context) {
 		return
 	}
 
-	order, err := h.orderService.Checkout(c.Request.Context(), req.OrderID)
+	user, _ := c.Get("user")
+	u := user.(*models.User)
+
+	order, err := h.orderService.Checkout(c.Request.Context(), u.ID, req.OrderID)
 	if err != nil {
-		utils.SendError(c, http.StatusBadRequest, err.Error(), "CHECKOUT_FAILED")
+		if errors.Is(err, utils.ErrOrderExpired) {
+			utils.SendError(c, http.StatusBadRequest, err.Error(), "ORDER_EXPIRED")
+		} else if errors.Is(err, utils.ErrOrderNotPending) {
+			utils.SendError(c, http.StatusBadRequest, err.Error(), "ORDER_NOT_PENDING")
+		} else {
+			utils.SendError(c, http.StatusBadRequest, err.Error(), "CHECKOUT_FAILED")
+		}
 		return
 	}
 
@@ -91,8 +102,8 @@ func (h *OrderHandler) GetMyTickets(c *gin.Context) {
 	for _, t := range tickets {
 		data = append(data, map[string]interface{}{
 			"ticket_id":     t.ID,
-			"event_title":   t.Seat.ZoneID.String(), // Simplified, normally you'd preload event title
-			"zone_name":     t.Seat.RowLabel,       // Simplified
+			"event_title":   t.Seat.Zone.Event.Title,
+			"zone_name":     t.Seat.Zone.Name,
 			"seat_label":    fmt.Sprintf("%s-%d", t.Seat.RowLabel, t.Seat.SeatNumber),
 			"qr_code_token": t.QRCodeToken,
 			"is_checked_in": t.IsCheckedIn,

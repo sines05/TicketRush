@@ -1,33 +1,35 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
-export const useWebSocket = (url) => {
+export function useWebSocket(url, { enabled = true } = {}) {
+  const wsRef = useRef(null);
+  const [status, setStatus] = useState('DISCONNECTED');
   const [lastMessage, setLastMessage] = useState(null);
-  const socketRef = useRef(null);
 
   useEffect(() => {
-    const socket = new WebSocket(url);
-    socketRef.current = socket;
+    if (!enabled || !url) return;
 
-    socket.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      setLastMessage(data);
+    const ws = new WebSocket(url);
+    wsRef.current = ws;
+    setStatus('CONNECTING');
+
+    ws.onopen = () => setStatus('CONNECTED');
+    ws.onclose = () => setStatus('DISCONNECTED');
+    ws.onerror = () => setStatus('ERROR');
+    ws.onmessage = (ev) => setLastMessage(ev.data);
+
+    return () => {
+      ws.close();
     };
+  }, [enabled, url]);
 
-    socket.onclose = () => {
-      console.log('WebSocket disconnected. Attempting to reconnect...');
-      setTimeout(() => {
-        socketRef.current = new WebSocket(url);
-      }, 3000);
+  const send = useMemo(() => {
+    return (data) => {
+      const ws = wsRef.current;
+      if (!ws || ws.readyState !== WebSocket.OPEN) return false;
+      ws.send(typeof data === 'string' ? data : JSON.stringify(data));
+      return true;
     };
+  }, []);
 
-    return () => socket.close();
-  }, [url]);
-
-  const sendMessage = (data) => {
-    if (socketRef.current?.readyState === WebSocket.OPEN) {
-      socketRef.current.send(JSON.stringify(data));
-    }
-  };
-
-  return { lastMessage, sendMessage };
-};
+  return { status, lastMessage, send };
+}

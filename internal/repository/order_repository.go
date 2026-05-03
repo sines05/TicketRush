@@ -215,7 +215,7 @@ func (r *orderRepo) ReleaseOrder(ctx context.Context, orderID uuid.UUID) ([]uuid
 
 func (r *orderRepo) GetTicketsByUserID(userID uuid.UUID) ([]models.Ticket, error) {
 	var tickets []models.Ticket
-	if err := r.db.Preload("Seat").
+	if err := r.db.Preload("Seat.Zone.Event").
 		Joins("JOIN orders ON orders.id = tickets.order_id").
 		Where("tickets.user_id = ?", userID).
 		Order("orders.created_at DESC").
