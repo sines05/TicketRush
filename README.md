@@ -66,7 +66,15 @@ To populate the database with initial events and seat maps for testing, run the 
 go run cmd/seed/main.go
 ```
 
-### 4. Launch Frontend
+### 4. Test Accounts
+All passwords are `password`:
+- **Admin**: `admin@ticketrush.com`
+- **Customers**: 
+    - `customer@ticketrush.com`
+    - `linhchi@gmail.com`
+    - `minhduc@gmail.com`
+
+### 5. Launch Frontend
 ```bash
 cd frontend
 npm install

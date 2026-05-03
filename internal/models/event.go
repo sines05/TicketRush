@@ -21,6 +21,8 @@ type Event struct {
 	StartTime   time.Time   `gorm:"not null" json:"start_time"`
 	EndTime     time.Time   `json:"end_time"`
 	IsPublished bool        `gorm:"default:false" json:"is_published"`
+	IsFeatured  bool        `gorm:"default:false" json:"is_featured"`
+	Category    string      `gorm:"type:varchar(50);not null;default:'Âm nhạc & Lễ hội'" json:"category"`
 	Zones       []EventZone `gorm:"foreignKey:EventID" json:"zones,omitempty"`
 }
 

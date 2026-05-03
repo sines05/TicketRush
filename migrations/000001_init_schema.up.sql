@@ -3,7 +3,7 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 CREATE TABLE users (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     full_name VARCHAR(100) NOT NULL,
@@ -18,7 +18,7 @@ CREATE TABLE users (
 CREATE INDEX idx_users_deleted_at ON users(deleted_at);
 
 CREATE TABLE events (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     title VARCHAR(255) NOT NULL,
     description TEXT,
     banner_url VARCHAR(255),
@@ -33,7 +33,7 @@ CREATE TABLE events (
 CREATE INDEX idx_events_deleted_at ON events(deleted_at);
 
 CREATE TABLE event_zones (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     event_id UUID NOT NULL REFERENCES events(id),
     name VARCHAR(50) NOT NULL,
     price DECIMAL(12,2) NOT NULL,
@@ -48,7 +48,7 @@ CREATE UNIQUE INDEX idx_event_zone_name ON event_zones(event_id, name);
 CREATE INDEX idx_event_zones_deleted_at ON event_zones(deleted_at);
 
 CREATE TABLE seats (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     zone_id UUID NOT NULL REFERENCES event_zones(id),
     row_label VARCHAR(10) NOT NULL,
     seat_number INT NOT NULL,
@@ -66,7 +66,7 @@ CREATE INDEX idx_seats_expiration ON seats(status, locked_at);
 CREATE INDEX idx_seats_deleted_at ON seats(deleted_at);
 
 CREATE TABLE orders (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id),
     event_id UUID NOT NULL REFERENCES events(id),
     total_amount DECIMAL(12,2) NOT NULL,
@@ -81,7 +81,7 @@ CREATE INDEX idx_orders_status_event ON orders(event_id, status);
 CREATE INDEX idx_orders_deleted_at ON orders(deleted_at);
 
 CREATE TABLE order_items (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     order_id UUID NOT NULL REFERENCES orders(id),
     seat_id UUID NOT NULL REFERENCES seats(id),
     price DECIMAL(12,2) NOT NULL,
@@ -94,7 +94,7 @@ CREATE UNIQUE INDEX idx_order_seat ON order_items(order_id, seat_id);
 CREATE INDEX idx_order_items_deleted_at ON order_items(deleted_at);
 
 CREATE TABLE tickets (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     order_id UUID NOT NULL REFERENCES orders(id),
     seat_id UUID UNIQUE NOT NULL REFERENCES seats(id),
     user_id UUID NOT NULL REFERENCES users(id),

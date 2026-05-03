@@ -11,6 +11,7 @@ type EventRepository interface {
 	CreateEvent(event *models.Event) error
 	GetEventByID(id uuid.UUID) (*models.Event, error)
 	GetAllEvents(search string) ([]models.Event, error)
+	GetFeaturedEvents(limit int) ([]models.Event, error)
 	UpdateEvent(event *models.Event) error
 	DeleteEvent(id uuid.UUID) error
 	GetSeatMap(eventID uuid.UUID) ([]models.EventZone, error)
@@ -43,6 +44,17 @@ func (r *eventRepo) GetAllEvents(search string) ([]models.Event, error) {
 		query = query.Where("title ILIKE ?", "%"+search+"%")
 	}
 	if err := query.Find(&events).Error; err != nil {
+		return nil, err
+	}
+	return events, nil
+}
+
+func (r *eventRepo) GetFeaturedEvents(limit int) ([]models.Event, error) {
+	var events []models.Event
+	if err := r.db.Where("is_published = ? AND is_featured = ?", true, true).
+		Order("start_time ASC").
+		Limit(limit).
+		Find(&events).Error; err != nil {
 		return nil, err
 	}
 	return events, nil

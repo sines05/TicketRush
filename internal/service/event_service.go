@@ -31,6 +31,7 @@ type EventService interface {
 	CreateEvent(req EventCreateRequest) (*models.Event, error)
 	GetEvent(id uuid.UUID) (*models.Event, error)
 	ListEvents(search string) ([]models.Event, error)
+	ListFeaturedEvents(limit int) ([]models.Event, error)
 	GetSeatMap(eventID uuid.UUID) (map[string]interface{}, error)
 	GetAdminStats(eventID *uuid.UUID) (map[string]interface{}, error)
 }
@@ -110,6 +111,10 @@ func (s *eventService) GetEvent(id uuid.UUID) (*models.Event, error) {
 
 func (s *eventService) ListEvents(search string) ([]models.Event, error) {
 	return s.eventRepo.GetAllEvents(search)
+}
+
+func (s *eventService) ListFeaturedEvents(limit int) ([]models.Event, error) {
+	return s.eventRepo.GetFeaturedEvents(limit)
 }
 
 func (s *eventService) GetSeatMap(eventID uuid.UUID) (map[string]interface{}, error) {

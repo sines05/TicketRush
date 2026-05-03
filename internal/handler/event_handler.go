@@ -54,6 +54,27 @@ func (h *EventHandler) ListEvents(c *gin.Context) {
 	utils.SendSuccess(c, http.StatusOK, data, "Thành công")
 }
 
+func (h *EventHandler) ListFeaturedEvents(c *gin.Context) {
+	events, err := h.eventService.ListFeaturedEvents(5)
+	if err != nil {
+		utils.SendError(c, http.StatusInternalServerError, err.Error(), "FETCH_FAILED")
+		return
+	}
+
+	data := make([]map[string]interface{}, 0)
+	for _, e := range events {
+		data = append(data, map[string]interface{}{
+			"id":         e.ID,
+			"title":      e.Title,
+			"banner_url": e.BannerURL,
+			"category":   e.Category,
+			"start_time": e.StartTime,
+		})
+	}
+
+	utils.SendSuccess(c, http.StatusOK, data, "Thành công")
+}
+
 func (h *EventHandler) GetEvent(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)

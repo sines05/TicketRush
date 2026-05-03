@@ -82,6 +82,7 @@ func main() {
 
 		// Public Routes
 		v1.GET("/events", eventHandler.ListEvents)
+		v1.GET("/events/featured", eventHandler.ListFeaturedEvents)
 		v1.GET("/events/:id", eventHandler.GetEvent)
 		v1.GET("/events/:id/seat-map", eventHandler.GetSeatMap)
 
