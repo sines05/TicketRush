@@ -12,6 +12,7 @@ import Checkout from '../pages/Booking/Checkout.jsx';
 
 import Dashboard from '../pages/Admin/Dashboard.jsx';
 import EventForm from '../pages/Admin/EventForm.jsx';
+import AdminCheckIn from '../pages/Admin/CheckIn.jsx';
 
 import Login from '../pages/Auth/Login.jsx';
 import Register from '../pages/Auth/Register.jsx';
@@ -40,6 +41,7 @@ export default function AppRoutes() {
 
       <Route element={<ProtectedRoute allowedRoles={[ROLES.ADMIN]} />}>
         <Route path="/admin/dashboard" element={<Dashboard />} />
+        <Route path="/admin/check-in" element={<AdminCheckIn />} />
         <Route path="/admin/events/new" element={<EventForm />} />
         <Route path="/admin/events/:eventId/edit" element={<EventForm />} />
       </Route>

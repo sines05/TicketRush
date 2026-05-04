@@ -25,7 +25,16 @@ export default function TicketItem({ ticket }) {
           <div className="space-y-3 md:pl-3">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <div className="text-lg font-bold truncate">{ticket.event_title}</div>
+                <div className="flex items-center gap-2">
+                  <div className="text-lg font-bold truncate">{ticket.event_title}</div>
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                      ticket.is_checked_in ? 'bg-success/15 text-success border border-success/30' : 'bg-warning/15 text-warning border border-warning/30'
+                    }`}
+                  >
+                    {ticket.is_checked_in ? 'Đã check-in' : 'Chưa check-in'}
+                  </span>
+                </div>
                 <div className="mt-1 text-sm text-muted break-all">Mã vé: {ticket.ticket_id}</div>
                 {ticket.price != null && <div className="mt-2 text-base font-semibold text-muted">{formatVND(ticket.price)}</div>}
               </div>

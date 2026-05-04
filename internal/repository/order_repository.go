@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -18,6 +19,8 @@ type OrderRepository interface {
 	GetExpiredOrders(limit int) ([]models.Order, error)
 	ReleaseOrder(ctx context.Context, orderID uuid.UUID) ([]uuid.UUID, error)
 	GetTicketsByUserID(userID uuid.UUID) ([]models.Ticket, error)
+	GetTicketsByEventID(eventID *uuid.UUID) ([]models.Ticket, error)
+	CheckInTicket(ctx context.Context, qrCodeToken string) (*models.Ticket, error)
 }
 
 type orderRepo struct {
@@ -223,4 +226,45 @@ func (r *orderRepo) GetTicketsByUserID(userID uuid.UUID) ([]models.Ticket, error
 		return nil, err
 	}
 	return tickets, nil
+}
+
+func (r *orderRepo) GetTicketsByEventID(eventID *uuid.UUID) ([]models.Ticket, error) {
+	var tickets []models.Ticket
+	query := r.db.Preload("Seat.Zone.Event").Joins("JOIN orders ON orders.id = tickets.order_id")
+	if eventID != nil {
+		query = query.Where("orders.event_id = ?", *eventID)
+	}
+	if err := query.Order("orders.created_at DESC").Find(&tickets).Error; err != nil {
+		return nil, err
+	}
+	return tickets, nil
+}
+
+func (r *orderRepo) CheckInTicket(ctx context.Context, qrCodeToken string) (*models.Ticket, error) {
+	var ticket models.Ticket
+	err := r.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Preload("Seat.Zone.Event").
+			Where("qr_code_token = ? OR id = ?", qrCodeToken, qrCodeToken).
+			First(&ticket).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return utils.ErrTicketNotFound
+			}
+			return err
+		}
+
+		if ticket.IsCheckedIn {
+			return utils.ErrTicketAlreadyCheckedIn
+		}
+
+		ticket.IsCheckedIn = true
+		if err := tx.Save(&ticket).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &ticket, nil
 }

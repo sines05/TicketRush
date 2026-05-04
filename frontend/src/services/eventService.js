@@ -157,4 +157,30 @@ async function deleteEvent(eventId) {
   return { event_id: eventId };
 }
 
-export default { getEvents, getFeaturedEvents, getEventDetail, getSeatMap, createEvent, getAdminEvents, updateEvent, deleteEvent };
+async function getDashboardStats(eventId) {
+  if (!USE_MOCK) {
+    const url = eventId ? `${API_ROUTES.ADMIN_STATS}?event_id=${eventId}` : API_ROUTES.ADMIN_STATS;
+    const res = await api.get(url);
+    return unwrap(res);
+  }
+
+  await sleep(300);
+  const mockStats = {
+    total_revenue: 50000,
+    total_sold: 1000,
+    occupancy_rate: 0.85,
+    gender_dist: [
+      { gender: 'MALE', count: 600 },
+      { gender: 'FEMALE', count: 350 },
+      { gender: 'OTHER', count: 50 }
+    ],
+    age_dist: {
+      '18-24': 250,
+      '25-34': 450,
+      '35+': 300
+    }
+  };
+  return mockStats;
+}
+
+export default { getEvents, getFeaturedEvents, getEventDetail, getSeatMap, createEvent, getAdminEvents, updateEvent, deleteEvent, getDashboardStats };

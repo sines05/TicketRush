@@ -134,3 +134,46 @@ func (h *EventHandler) GetStats(c *gin.Context) {
 
 	utils.SendSuccess(c, http.StatusOK, stats, "Thành công")
 }
+
+func (h *EventHandler) UpdateEvent(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		utils.SendError(c, http.StatusBadRequest, "invalid event id", "INVALID_ID")
+		return
+	}
+
+	var req service.EventCreateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.SendError(c, http.StatusBadRequest, err.Error(), "INVALID_INPUT")
+		return
+	}
+
+	event, err := h.eventService.UpdateEvent(id, req)
+	if err != nil {
+		utils.SendError(c, http.StatusInternalServerError, err.Error(), "UPDATE_FAILED")
+		return
+	}
+
+	utils.SendSuccess(c, http.StatusOK, gin.H{
+		"id":    event.ID,
+		"title": event.Title,
+	}, "Cập nhật sự kiện thành công")
+}
+
+func (h *EventHandler) DeleteEvent(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		utils.SendError(c, http.StatusBadRequest, "invalid event id", "INVALID_ID")
+		return
+	}
+
+	err = h.eventService.DeleteEvent(id)
+	if err != nil {
+		utils.SendError(c, http.StatusInternalServerError, err.Error(), "DELETE_FAILED")
+		return
+	}
+
+	utils.SendSuccess(c, http.StatusOK, nil, "Xóa sự kiện thành công")
+}

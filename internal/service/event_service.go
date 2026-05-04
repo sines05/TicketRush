@@ -11,19 +11,22 @@ import (
 )
 
 type ZoneConfig struct {
-	Name        string  `json:"name"`
-	Price       float64 `json:"price"`
-	TotalRows   int     `json:"total_rows"`
-	SeatsPerRow int     `json:"seats_per_row"`
+	Name       string     `json:"name"`
+	Price      float64    `json:"price"`
+	TotalRows  int        `json:"total_rows"`
+	SeatsPerRow int       `json:"seats_per_row"`
+	LayoutMeta models.JSONMap `json:"layout_meta"`
 }
 
 type EventCreateRequest struct {
 	Title       string       `json:"title"`
 	Description string       `json:"description"`
 	BannerURL   string       `json:"banner_url"`
+	Category    string       `json:"category"`
 	StartTime   string       `json:"start_time"` // ISO8601
 	EndTime     string       `json:"end_time"`   // ISO8601
 	IsPublished bool         `json:"is_published"`
+	IsFeatured  bool         `json:"is_featured"`
 	Zones       []ZoneConfig `json:"zones"`
 }
 
@@ -34,6 +37,8 @@ type EventService interface {
 	ListFeaturedEvents(limit int) ([]models.Event, error)
 	GetSeatMap(eventID uuid.UUID) (map[string]interface{}, error)
 	GetAdminStats(eventID *uuid.UUID) (map[string]interface{}, error)
+	UpdateEvent(id uuid.UUID, req EventCreateRequest) (*models.Event, error)
+	DeleteEvent(id uuid.UUID) error
 }
 
 type eventService struct {
@@ -58,9 +63,11 @@ func (s *eventService) CreateEvent(req EventCreateRequest) (*models.Event, error
 			Title:       req.Title,
 			Description: req.Description,
 			BannerURL:   req.BannerURL,
+			Category:    req.Category,
 			StartTime:   startTime,
 			EndTime:     endTime,
 			IsPublished: req.IsPublished,
+			IsFeatured:  req.IsFeatured,
 		}
 		if err := tx.Create(&event).Error; err != nil {
 			return err
@@ -73,6 +80,7 @@ func (s *eventService) CreateEvent(req EventCreateRequest) (*models.Event, error
 				Price:       zCfg.Price,
 				TotalRows:   zCfg.TotalRows,
 				SeatsPerRow: zCfg.SeatsPerRow,
+				LayoutMeta:  zCfg.LayoutMeta,
 			}
 			if err := tx.Create(&zone).Error; err != nil {
 				return err
@@ -236,4 +244,40 @@ func (s *eventService) GetAdminStats(eventID *uuid.UUID) (map[string]interface{}
 		"gender_dist":    genderList,
 		"age_dist":       ageGroups,
 	}, nil
+}
+
+func (s *eventService) UpdateEvent(id uuid.UUID, req EventCreateRequest) (*models.Event, error) {
+	event, err := s.eventRepo.GetEventByID(id)
+	if err != nil {
+		return nil, fmt.Errorf("event not found")
+	}
+
+	startTime, _ := time.Parse(time.RFC3339, req.StartTime)
+	endTime, _ := time.Parse(time.RFC3339, req.EndTime)
+
+	event.Title = req.Title
+	event.Description = req.Description
+	if req.BannerURL != "" {
+		event.BannerURL = req.BannerURL
+	}
+	event.StartTime = startTime
+	event.EndTime = endTime
+	event.IsPublished = req.IsPublished
+
+	if err := s.eventRepo.UpdateEvent(event); err != nil {
+		return nil, err
+	}
+
+	return event, nil
+}
+
+func (s *eventService) DeleteEvent(id uuid.UUID) error {
+	// Check if event exists
+	_, err := s.eventRepo.GetEventByID(id)
+	if err != nil {
+		return fmt.Errorf("event not found")
+	}
+
+	// Delete event (cascade should handle zones and seats)
+	return s.eventRepo.DeleteEvent(id)
 }

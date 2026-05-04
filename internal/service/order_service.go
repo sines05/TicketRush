@@ -17,6 +17,8 @@ type OrderService interface {
 	LockSeats(ctx context.Context, userID uuid.UUID, eventID uuid.UUID, seatIDs []uuid.UUID) (*models.Order, error)
 	Checkout(ctx context.Context, userID uuid.UUID, orderID uuid.UUID) (*models.Order, error)
 	GetMyTickets(userID uuid.UUID) ([]models.Ticket, error)
+	GetTickets(eventID *uuid.UUID) ([]models.Ticket, error)
+	CheckInTicket(ctx context.Context, qrCodeToken string) (*models.Ticket, error)
 }
 
 type orderService struct {
@@ -72,4 +74,12 @@ func (s *orderService) Checkout(ctx context.Context, userID uuid.UUID, orderID u
 
 func (s *orderService) GetMyTickets(userID uuid.UUID) ([]models.Ticket, error) {
 	return s.orderRepo.GetTicketsByUserID(userID)
+}
+
+func (s *orderService) GetTickets(eventID *uuid.UUID) ([]models.Ticket, error) {
+	return s.orderRepo.GetTicketsByEventID(eventID)
+}
+
+func (s *orderService) CheckInTicket(ctx context.Context, qrCodeToken string) (*models.Ticket, error) {
+	return s.orderRepo.CheckInTicket(ctx, qrCodeToken)
 }

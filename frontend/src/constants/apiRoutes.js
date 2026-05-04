@@ -16,6 +16,8 @@ export const API_ROUTES = Object.freeze({
   CHECKOUT: '/orders/checkout',
 
   MY_TICKETS: '/tickets/my-tickets',
+  ADMIN_TICKETS: '/admin/tickets',
+  ADMIN_TICKET_CHECKIN: '/admin/tickets/check-in',
 
   UPLOADS: '/uploads',
 

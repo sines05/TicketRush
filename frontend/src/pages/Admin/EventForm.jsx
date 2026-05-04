@@ -49,6 +49,31 @@ function buildRowSeatCounts(zone) {
       }
       return out;
     }
+    case 'pyramid': {
+      if (totalRows <= 0) return [];
+      const minSeats = Math.max(1, Math.floor(seatsPerRow / 2));
+      const maxSeats = seatsPerRow;
+      
+      if (totalRows === 1) return [maxSeats];
+      
+      const out = [];
+      const midPoint = Math.floor(totalRows / 2);
+      
+      for (let i = 0; i < totalRows; i++) {
+        if (i <= midPoint) {
+          // Expand phase
+          const t = i / midPoint;
+          const v = Math.round(minSeats + (maxSeats - minSeats) * t);
+          out.push(v);
+        } else {
+          // Contract phase
+          const t = (i - midPoint) / (totalRows - midPoint - 1);
+          const v = Math.round(maxSeats - (maxSeats - minSeats) * t);
+          out.push(Math.max(1, v));
+        }
+      }
+      return out;
+    }
     case 'custom': {
       return parseCounts(zone.customCounts);
     }
@@ -139,6 +164,45 @@ function buildRowCells(seatsInRow, maxSeatCount, meta) {
   return { cells, cols: totalCols };
 }
 
+function getZoneBoxSize(zone) {
+  const counts = buildRowSeatCounts(zone);
+  const totalSeats = counts.reduce((sum, v) => sum + (Number(v) || 0), 0);
+  const sizeFactor = Math.sqrt(totalSeats) * 12;
+  const width = Math.max(80, Math.min(200, sizeFactor));
+  const height = Math.max(60, Math.min(150, sizeFactor));
+  const sizePercent = Math.max(5, Math.min(20, Math.sqrt(totalSeats))); // % for collision
+  return { width, height, sizePercent };
+}
+
+function MiniSeating({ zone }) {
+  const counts = buildRowSeatCounts(zone);
+  const totalSeats = counts.reduce((sum, v) => sum + (Number(v) || 0), 0);
+  const rows = counts.length;
+  const maxCols = counts.length ? Math.max(...counts) : 1;
+
+  if (zone.seatType === 'standing') {
+    return (
+      <div className="w-full h-full rounded border-2 flex items-center justify-center text-xs font-semibold text-center" style={{borderColor: zone.color || '#60a5fa', backgroundColor: (zone.color || '#60a5fa') + '40'}}>
+        Standing<br/>{totalSeats} seats
+      </div>
+    );
+  } else {
+    // seated
+    const cellSize = Math.max(2, Math.min(8, 60 / maxCols)); // px
+    return (
+      <div className="w-full h-full rounded p-1" style={{backgroundColor: (zone.color || '#60a5fa') + '10'}}>
+        <div className="grid gap-px h-full" style={{gridTemplateRows: `repeat(${rows}, 1fr)`, gridTemplateColumns: `repeat(${maxCols}, 1fr)`}}>
+          {counts.map((count, r) =>
+            Array.from({length: maxCols}, (_, c) =>
+              c < count ? <div key={`${r}-${c}`} className="rounded-sm" style={{backgroundColor: zone.color || '#60a5fa', width: cellSize + 'px', height: cellSize + 'px'}}></div> : <div key={`${r}-${c}`}></div>
+            )
+          ).flat()}
+        </div>
+      </div>
+    );
+  }
+}
+
 export default function EventForm() {
   const navigate = useNavigate();
   const { eventId } = useParams();
@@ -172,7 +236,9 @@ export default function EventForm() {
       renderStyle: 'plain',
       aisleSize: 2,
       posX: 15,
-      posY: 30
+      posY: 30,
+      color: '#60a5fa',
+      seatType: 'seated'
     }
   ]);
   const [activeZoneIndex, setActiveZoneIndex] = useState(0);
@@ -183,6 +249,25 @@ export default function EventForm() {
   const [dragging, setDragging] = useState(null);
 
   const activeZone = zones[activeZoneIndex] || zones[0] || null;
+
+  // Collision detection: check if two zones overlap
+  function checkZoneOverlap(z1, z2) {
+    const size1 = getZoneBoxSize(z1).sizePercent; // % size
+    const size2 = getZoneBoxSize(z2).sizePercent;
+    const margin = size1; // margin equal to box size
+    
+    const x1Min = (Number(z1.posX) || 0) - size1 / 2;
+    const x1Max = (Number(z1.posX) || 0) + size1 / 2;
+    const y1Min = (Number(z1.posY) || 0) - size1 / 2;
+    const y1Max = (Number(z1.posY) || 0) + size1 / 2;
+
+    const x2Min = (Number(z2.posX) || 0) - size2 / 2 - margin;
+    const x2Max = (Number(z2.posX) || 0) + size2 / 2 + margin;
+    const y2Min = (Number(z2.posY) || 0) - size2 / 2 - margin;
+    const y2Max = (Number(z2.posY) || 0) + size2 / 2 + margin;
+
+    return !(x1Max < x2Min || x1Min > x2Max || y1Max < y2Min || y1Min > y2Max);
+  }
 
   useEffect(() => {
     if (!dragging) return;
@@ -198,17 +283,27 @@ export default function EventForm() {
       const nextX = dragging.originX + (dx / rect.width) * 100;
       const nextY = dragging.originY + (dy / rect.height) * 100;
 
-      setZones((prev) =>
-        prev.map((z, i) =>
+      const clampedX = Math.max(0, Math.min(100, nextX));
+      const clampedY = Math.max(0, Math.min(100, nextY));
+
+      setZones((prev) => {
+        const nextZones = prev.map((z, i) =>
           i === dragging.zoneIndex
-            ? {
-                ...z,
-                posX: Math.max(0, Math.min(100, nextX)),
-                posY: Math.max(0, Math.min(100, nextY))
-              }
+            ? { ...z, posX: clampedX, posY: clampedY }
             : z
-        )
-      );
+        );
+
+        // Check for overlaps and prevent if collision detected
+        const draggingZone = nextZones[dragging.zoneIndex];
+        const hasOverlap = nextZones.some((z, i) =>
+          i !== dragging.zoneIndex && checkZoneOverlap(draggingZone, z)
+        );
+
+        if (hasOverlap) {
+          return prev; // Keep original position
+        }
+        return nextZones;
+      });
     }
 
     function onUp() {
@@ -233,6 +328,14 @@ export default function EventForm() {
       aisle_size: activeZone?.aisleSize ?? 2
     };
   }, [activeZone]);
+
+  const maxSeatsPerRow = useMemo(() => {
+    return zones.reduce((max, z) => Math.max(max, Number(z.seatsPerRow) || 0, ...(buildRowSeatCounts(z) || [])), 0);
+  }, [zones]);
+
+  const maxRows = useMemo(() => {
+    return zones.reduce((max, z) => Math.max(max, Number(z.totalRows) || 0, (buildRowSeatCounts(z) || []).length), 0);
+  }, [zones]);
 
   const totalSeatsInActiveZone = useMemo(() => rowSeatCounts.reduce((sum, v) => sum + (Number(v) || 0), 0), [rowSeatCounts]);
 
@@ -296,6 +399,8 @@ export default function EventForm() {
           const aisleSize = Math.max(1, Math.min(6, Number(meta?.aisle_size) || 2));
           const posX = Number.isFinite(Number(meta?.pos_x)) ? Math.max(0, Math.min(100, Number(meta?.pos_x))) : Math.min(85, 15 + idx * 18);
           const posY = Number.isFinite(Number(meta?.pos_y)) ? Math.max(0, Math.min(100, Number(meta?.pos_y))) : 30 + (idx % 2) * 28;
+          const color = meta?.color || '#60a5fa';
+          const seatType = meta?.seat_type === 'standing' ? 'standing' : 'seated';
 
           return {
             key: `zone-${idx + 1}-${z.zone_id}`,
@@ -311,7 +416,9 @@ export default function EventForm() {
             renderStyle,
             aisleSize,
             posX,
-            posY
+            posY,
+            color,
+            seatType
           };
         });
 
@@ -345,12 +452,16 @@ export default function EventForm() {
         price: Number(z.price) || 0,
         total_rows,
         seats_per_row,
+        seat_type: z.seatType || 'seated',
+        color: z.color || '#60a5fa',
         layout_meta: {
           align: z.layout === 'grid' ? 'left' : z.renderAlign || 'left',
           style: z.renderStyle || 'plain',
           aisle_size: Math.max(1, Math.min(6, Number(z.aisleSize) || 2)),
           pos_x: Math.max(0, Math.min(100, Number(z.posX) || 0)),
-          pos_y: Math.max(0, Math.min(100, Number(z.posY) || 0))
+          pos_y: Math.max(0, Math.min(100, Number(z.posY) || 0)),
+          color: z.color || '#60a5fa',
+          seat_type: z.seatType || 'seated'
         }
       };
 
@@ -395,7 +506,9 @@ export default function EventForm() {
         renderStyle: 'plain',
         aisleSize: 2,
         posX: Math.min(85, 15 + nextIndex * 18),
-        posY: 30 + (nextIndex % 2) * 28
+        posY: 30 + (nextIndex % 2) * 28,
+        color: '#60a5fa',
+        seatType: 'seated'
       });
       setActiveZoneIndex(nextIndex);
       return next;
@@ -448,14 +561,12 @@ export default function EventForm() {
 
       if (isEdit) {
         await eventService.updateEvent(eventId, { ...payload, banner_url: banner_url || '' });
-        navigate('/admin/dashboard');
       } else {
-        const result = await eventService.createEvent({ ...payload, banner_url: banner_url || null });
-        const createdId = result?.event_id;
-        if (createdId) {
-          navigate(`/events/${createdId}?hl=created`, { replace: false });
-        }
+        await eventService.createEvent({ ...payload, banner_url: banner_url || null });
       }
+      
+      // Navigate to dashboard after successful creation/update
+      navigate('/admin/dashboard');
     } catch (e) {
       setError(e?.message || 'Tạo sự kiện thất bại (cần đăng nhập ADMIN).');
     } finally {
@@ -577,41 +688,49 @@ export default function EventForm() {
 
         <div className="mt-6 grid gap-4 md:grid-cols-2">
           <div className="rounded-2xl border border-text/10 bg-bg/40 p-4">
-            <div className="flex items-center justify-between">
-              <div className="text-sm font-semibold">Zones</div>
-              <Button variant="secondary" size="sm" onClick={addZone}>Thêm zone</Button>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <div className="text-sm font-semibold">Zone Placement</div>
+                <div className="mt-1 text-xs text-muted">Kéo thả để sắp xếp vị trí các zone trên sân khấu</div>
+              </div>
+              <Button variant="secondary" size="sm" onClick={addZone}>+ Thêm zone</Button>
             </div>
 
-            <div className="mt-3 flex flex-wrap gap-2">
+            <div className="grid gap-2 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 mb-4">
               {zones.map((z, idx) => (
                 <button
                   key={z.key}
                   type="button"
                   onClick={() => setActiveZoneIndex(idx)}
-                  className={`rounded-lg border px-3 py-2 text-sm transition ${
+                  className={`rounded-lg border p-3 text-sm transition text-left ${
                     idx === activeZoneIndex
                       ? 'border-brand-600/60 bg-brand-600/15 text-text'
                       : 'border-text/10 bg-bg/30 text-muted hover:bg-text/5 hover:text-text'
                   }`}
                 >
-                  <div className="font-semibold">{z.name || `Zone ${idx + 1}`}</div>
-                  <div className="text-xs">{formatVND(Number(z.price) || 0)}</div>
+                  <div className="font-semibold truncate">{z.name || `Zone ${idx + 1}`}</div>
+                  <div className="text-xs mt-1">{formatVND(Number(z.price) || 0)}</div>
+                  <div className="text-[10px] text-muted mt-1">
+                    {(() => {
+                      const counts = buildRowSeatCounts(z);
+                      return `${counts.length} rows`;
+                    })()}
+                  </div>
                 </button>
               ))}
             </div>
 
-            <div className="mt-4 rounded-2xl border border-text/10 bg-bg/30 p-3">
-              <div className="text-xs font-semibold text-muted">Sơ đồ zones (kéo thả để di chuyển)</div>
-              <div className="mt-3 overflow-hidden rounded-xl border border-text/10 bg-bg/40">
-                <div ref={placementRef} className="relative h-44">
+            <div className="rounded-2xl border border-text/10 bg-bg/30 p-4">
+              <div className="text-xs font-semibold text-muted mb-3">Visual Layout (Kéo để di chuyển, zones không được đè lên nhau)</div>
+              <div className="overflow-hidden rounded-xl border border-text/10 bg-bg/40">
+                <div ref={placementRef} className="relative h-56 sm:h-64 md:h-72">
                   <div className="absolute left-3 right-3 top-3 flex items-center justify-center">
                     <div className="h-2 w-3/5 rounded-full bg-brand-600/40" aria-hidden="true" />
                   </div>
 
                   {zones.map((z, idx) => (
-                    <button
+                    <div
                       key={`zone-pos-${z.key}`}
-                      type="button"
                       onClick={() => setActiveZoneIndex(idx)}
                       onPointerDown={(e) => {
                         e.preventDefault();
@@ -619,25 +738,68 @@ export default function EventForm() {
                         const originY = Number(z.posY) || 0;
                         setDragging({ zoneIndex: idx, startX: e.clientX, startY: e.clientY, originX, originY });
                       }}
-                      className={`absolute w-32 select-none rounded-xl border px-3 py-2 text-left text-xs transition active:cursor-grabbing ${
+                      className={`absolute select-none rounded-xl border transition active:cursor-grabbing cursor-grab ${
                         idx === activeZoneIndex
-                          ? 'border-brand-600/60 bg-brand-600/15 text-text'
-                          : 'border-text/10 bg-surface text-muted hover:bg-text/5 hover:text-text'
+                          ? 'border-brand-600/60 bg-brand-600/15'
+                          : 'border-text/10 bg-surface'
                       }`}
-                      style={{ left: `${Math.max(0, Math.min(100, Number(z.posX) || 0))}%`, top: `${Math.max(0, Math.min(100, Number(z.posY) || 0))}%`, transform: 'translate(-50%, -50%)' }}
-                      title="Kéo để di chuyển"
+                      style={{
+                        left: `${Math.max(0, Math.min(100, Number(z.posX) || 0))}%`,
+                        top: `${Math.max(0, Math.min(100, Number(z.posY) || 0))}%`,
+                        transform: 'translate(-50%, -50%)',
+                        width: `${getZoneBoxSize(z).width}px`,
+                        height: `${getZoneBoxSize(z).height}px`
+                      }}
+                      title="Kéo để di chuyển (không thể đè lên zone khác)"
                     >
-                      <div className="font-semibold leading-tight">{z.name || `Zone ${idx + 1}`}</div>
-                      <div className="mt-0.5 text-[10px] text-muted">{formatVND(Number(z.price) || 0)}</div>
-                    </button>
+                      <MiniSeating zone={z} />
+                    </div>
                   ))}
                 </div>
               </div>
-              <div className="mt-2 text-[11px] text-muted">Vị trí zone sẽ hiển thị cho khách ở trang chọn ghế.</div>
+              <div className="mt-3 rounded-2xl border border-text/10 bg-bg/40 p-4">
+                <div className="text-sm font-semibold mb-3">Chi tiết sơ đồ zone</div>
+                <div className="text-sm text-muted mb-3">
+                  <p><strong>Tổng ghế:</strong> {totalSeatsInActiveZone}</p>
+                  <p><strong>Màu:</strong> <span style={{ color: activeZone?.color }}>{activeZone?.color}</span></p>
+                  <p><strong>Loại:</strong> {activeZone?.seatType === 'standing' ? 'Đứng' : 'Ngồi'}</p>
+                </div>
+                <div className="rounded-xl border border-text/10 bg-bg/30 p-4">
+                  <div className="text-sm font-semibold mb-3">Sơ đồ ghế chi tiết</div>
+                  <div className="overflow-auto max-h-96">
+                    {preview.rows.length === 0 ? (
+                      <div className="text-sm text-muted text-center py-8">Chưa có dữ liệu</div>
+                    ) : (
+                      <div className="space-y-2">
+                        {preview.rows.map((row) => (
+                          <div key={row.rowLabel} className="flex items-center gap-2">
+                            <div className="w-6 text-xs font-semibold text-muted text-right">{row.rowLabel}</div>
+                            {(() => {
+                              const built = buildRowCells(row.seats, preview.maxSeatCount, previewLayoutMeta);
+                              return (
+                                <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${built.cols}, minmax(0, 1fr))` }}>
+                                  {built.cells.map((s, idx) => {
+                                    if (!s) return <div key={`${row.rowLabel}-empty-${idx}`} className="h-6 w-6 rounded bg-text/5" />;
+                                    return <Seat key={s.seat_id} seat={s} selected={false} onClick={() => {}} />;
+                                  })}
+                                </div>
+                              );
+                            })()}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
+          </div>
+
+          <div className="rounded-2xl border border-text/10 bg-bg/40 p-4">
+            <div className="text-sm font-semibold mb-4">Zone Configuration</div>
 
             {activeZone && (
-              <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <div className="space-y-4">
                 <Input label="Tên zone" value={activeZone.name} onChange={(e) => setZoneField(activeZoneIndex, { name: e.target.value })} />
                 <Input
                   label="Giá (VND)"
@@ -646,8 +808,30 @@ export default function EventForm() {
                   onChange={(e) => setZoneField(activeZoneIndex, { price: e.target.value })}
                 />
 
-                <label className="block md:col-span-2">
-                  <div className="mb-1 text-sm text-muted">Layout</div>
+                <label className="block mb-3">
+                  <div className="mb-1 text-sm text-muted">Loại ghế</div>
+                  <select
+                    value={activeZone.seatType || 'seated'}
+                    onChange={(e) => setZoneField(activeZoneIndex, { seatType: e.target.value })}
+                    className="w-full rounded-md border border-text/10 bg-surface px-3 py-2 text-sm text-text focus:border-brand-600/50 focus:outline-none focus:ring-2 focus:ring-brand-600/25"
+                  >
+                    <option value="seated">Ngồi (Seated)</option>
+                    <option value="standing">Đứng (Standing)</option>
+                  </select>
+                </label>
+
+                <label className="block mb-3">
+                  <div className="mb-1 text-sm text-muted">Màu zone</div>
+                  <input
+                    type="color"
+                    value={activeZone.color || '#60a5fa'}
+                    onChange={(e) => setZoneField(activeZoneIndex, { color: e.target.value })}
+                    className="w-full h-10 rounded-md border border-text/10 bg-surface"
+                  />
+                </label>
+
+                <label className="block">
+                  <div className="mb-1 text-sm text-muted">Layout Type</div>
                   <select
                     value={activeZone.layout}
                     onChange={(e) => {
@@ -660,24 +844,25 @@ export default function EventForm() {
                     }}
                     className="w-full rounded-md border border-text/10 bg-surface px-3 py-2 text-sm text-text focus:border-brand-600/50 focus:outline-none focus:ring-2 focus:ring-brand-600/25"
                   >
-                    <option value="grid">Grid (đều)</option>
-                    <option value="tapered">Tapered (to/nhỏ theo hàng)</option>
-                    <option value="custom">Custom (số ghế từng hàng)</option>
+                    <option value="grid">Grid (Lưới đều)</option>
+                    <option value="tapered">Tapered (Hình thang - to/nhỏ)</option>
+                    <option value="pyramid">Pyramid (Hình chóp - nhỏ đến to)</option>
+                    <option value="custom">Custom (Tùy chỉnh từng hàng)</option>
                   </select>
                 </label>
 
-                {(activeZone.layout === 'grid' || activeZone.layout === 'tapered') && (
+                {(activeZone.layout === 'grid' || activeZone.layout === 'tapered' || activeZone.layout === 'pyramid') && (
                   <Input
-                    label="Total rows"
+                    label="Tổng hàng"
                     type="number"
                     value={activeZone.totalRows}
                     onChange={(e) => setZoneField(activeZoneIndex, { totalRows: e.target.value })}
                   />
                 )}
 
-                {activeZone.layout === 'grid' && (
+                {(activeZone.layout === 'grid' || activeZone.layout === 'pyramid') && (
                   <Input
-                    label="Seats/row"
+                    label="Ghế/Hàng"
                     type="number"
                     value={activeZone.seatsPerRow}
                     onChange={(e) => setZoneField(activeZoneIndex, { seatsPerRow: e.target.value })}
@@ -687,13 +872,13 @@ export default function EventForm() {
                 {activeZone.layout === 'tapered' && (
                   <>
                     <Input
-                      label="Seats row (start)"
+                      label="Ghế hàng đầu (start)"
                       type="number"
                       value={activeZone.taperedStart}
                       onChange={(e) => setZoneField(activeZoneIndex, { taperedStart: e.target.value })}
                     />
                     <Input
-                      label="Seats row (end)"
+                      label="Ghế hàng cuối (end)"
                       type="number"
                       value={activeZone.taperedEnd}
                       onChange={(e) => setZoneField(activeZoneIndex, { taperedEnd: e.target.value })}
@@ -702,8 +887,8 @@ export default function EventForm() {
                 )}
 
                 {activeZone.layout === 'custom' && (
-                  <label className="block md:col-span-2">
-                    <div className="mb-1 text-sm text-muted">Row seat counts</div>
+                  <label className="block">
+                    <div className="mb-1 text-sm text-muted">Số ghế từng hàng</div>
                     <textarea
                       value={activeZone.customCounts}
                       onChange={(e) => setZoneField(activeZoneIndex, { customCounts: e.target.value })}
@@ -711,14 +896,16 @@ export default function EventForm() {
                       rows={3}
                       className="w-full rounded-md border border-text/10 bg-surface px-3 py-2 text-sm text-text placeholder:text-muted/70 focus:border-brand-600/50 focus:outline-none focus:ring-2 focus:ring-brand-600/25"
                     />
-                    <div className="mt-1 text-xs text-muted">Nhập số ghế theo từng hàng, phân tách bằng dấu phẩy hoặc xuống dòng.</div>
+                    <div className="mt-1 text-xs text-muted">Phân tách bằng dấu phẩy hoặc xuống dòng.</div>
                   </label>
                 )}
 
-                <div className="md:col-span-2 grid gap-4 md:grid-cols-3">
+                <div className="border-t border-text/10 pt-4">
+                  <div className="text-xs font-semibold text-muted mb-3">Tùy chọn hiển thị</div>
+                  
                   {activeZone.layout !== 'grid' && (
-                    <label className="block">
-                      <div className="mb-1 text-sm text-muted">Căn ghế</div>
+                    <label className="block mb-3">
+                      <div className="mb-1 text-sm text-muted">Căn chỉnh ghế</div>
                       <select
                         value={activeZone.renderAlign || 'left'}
                         onChange={(e) => setZoneField(activeZoneIndex, { renderAlign: e.target.value })}
@@ -731,22 +918,22 @@ export default function EventForm() {
                     </label>
                   )}
 
-                  <label className="block md:col-span-2">
-                    <div className="mb-1 text-sm text-muted">Kiểu hiển thị (block / lối đi)</div>
+                  <label className="block mb-3">
+                    <div className="mb-1 text-sm text-muted">Kiểu hiển thị</div>
                     <select
                       value={activeZone.renderStyle || 'plain'}
                       onChange={(e) => setZoneField(activeZoneIndex, { renderStyle: e.target.value })}
                       className="w-full rounded-md border border-text/10 bg-surface px-3 py-2 text-sm text-text focus:border-brand-600/50 focus:outline-none focus:ring-2 focus:ring-brand-600/25"
                     >
-                      <option value="plain">Plain (không chia block)</option>
+                      <option value="plain">Plain (không có lối đi)</option>
                       <option value="center_aisle">Chia 2 block (lối đi giữa)</option>
-                      <option value="three_blocks">Box sections (3 block)</option>
+                      <option value="three_blocks">3 Block (box sections)</option>
                     </select>
                   </label>
 
                   {activeZone.renderStyle && activeZone.renderStyle !== 'plain' && (
                     <Input
-                      label="Độ rộng lối đi (cột trống)"
+                      label="Độ rộng lối đi (cột)"
                       type="number"
                       value={activeZone.aisleSize ?? 2}
                       onChange={(e) => setZoneField(activeZoneIndex, { aisleSize: e.target.value })}
@@ -754,43 +941,27 @@ export default function EventForm() {
                   )}
                 </div>
 
-                <div className="md:col-span-2 flex items-center justify-between">
-                  <div className="text-xs text-muted">Tổng ghế (zone đang chọn): {totalSeatsInActiveZone}</div>
-                  <Button variant="secondary" size="sm" onClick={removeActiveZone} disabled={zones.length <= 1}>
+                <div className="border-t border-text/10 pt-4 flex items-center justify-between">
+                  <div className="text-xs text-muted">
+                    <span className="font-semibold">{totalSeatsInActiveZone}</span> ghế
+                  </div>
+                  <Button 
+                    variant="secondary" 
+                    size="sm" 
+                    onClick={removeActiveZone} 
+                    disabled={zones.length <= 1}
+                  >
                     Xoá zone
                   </Button>
                 </div>
               </div>
             )}
-          </div>
 
-          <div className="rounded-2xl border border-text/10 bg-bg/40 p-4">
-            <div className="text-sm font-semibold">Preview seating plan</div>
-            <div className="mt-4 overflow-auto rounded-xl border border-text/10 bg-bg/30 p-3">
-              {preview.rows.length === 0 ? (
-                <div className="text-sm text-muted">Chưa có dữ liệu preview.</div>
-              ) : (
-                <div className="space-y-3">
-                  {preview.rows.map((row) => (
-                    <div key={row.rowLabel} className="flex items-center gap-3">
-                      <div className="w-6 text-xs font-semibold text-muted">{row.rowLabel}</div>
-                      {(() => {
-                        const built = buildRowCells(row.seats, preview.maxSeatCount, previewLayoutMeta);
-                        return (
-                          <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${built.cols}, minmax(0, 1fr))` }}>
-                            {built.cells.map((s, idx) => {
-                              if (!s) return <div key={`${row.rowLabel}-empty-${idx}`} className="h-8 w-8 rounded-md bg-text/5" />;
-                              return <Seat key={s.seat_id} seat={s} selected={false} onClick={() => {}} />;
-                            })}
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className="mt-3 text-xs text-muted">Preview chỉ để admin cân chỉnh layout theo zone.</div>
+            {!activeZone && (
+              <div className="text-sm text-muted text-center py-8">
+                Chọn một zone từ danh sách phía trên để cấu hình
+              </div>
+            )}
           </div>
         </div>
 

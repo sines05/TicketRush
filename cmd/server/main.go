@@ -110,7 +110,11 @@ func main() {
 			{
 				admin.GET("/events", eventHandler.ListEvents)
 				admin.POST("/events", eventHandler.CreateEvent)
+				admin.PUT("/events/:id", eventHandler.UpdateEvent)
+				admin.DELETE("/events/:id", eventHandler.DeleteEvent)
 				admin.GET("/dashboard/stats", eventHandler.GetStats)
+				admin.GET("/tickets", orderHandler.GetTickets)
+				admin.POST("/tickets/check-in", orderHandler.CheckInTicket)
 			}
 		}
 	}

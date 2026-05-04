@@ -88,6 +88,10 @@ func (h *OrderHandler) Checkout(c *gin.Context) {
 	}, "Thanh toán thành công! Vé đã được tạo.")
 }
 
+type checkInTicketRequest struct {
+	QRCodeToken string `json:"qr_code_token" binding:"required"`
+}
+
 func (h *OrderHandler) GetMyTickets(c *gin.Context) {
 	user, _ := c.Get("user")
 	u := user.(*models.User)
@@ -101,14 +105,89 @@ func (h *OrderHandler) GetMyTickets(c *gin.Context) {
 	data := make([]map[string]interface{}, 0)
 	for _, t := range tickets {
 		data = append(data, map[string]interface{}{
-			"ticket_id":     t.ID,
-			"event_title":   t.Seat.Zone.Event.Title,
-			"zone_name":     t.Seat.Zone.Name,
-			"seat_label":    fmt.Sprintf("%s-%d", t.Seat.RowLabel, t.Seat.SeatNumber),
-			"qr_code_token": t.QRCodeToken,
-			"is_checked_in": t.IsCheckedIn,
+			"ticket_id":       t.ID,
+			"event_title":     t.Seat.Zone.Event.Title,
+			"event_banner_url": t.Seat.Zone.Event.BannerURL,
+			"zone_name":       t.Seat.Zone.Name,
+			"seat_label":      fmt.Sprintf("%s-%d", t.Seat.RowLabel, t.Seat.SeatNumber),
+			"row_label":       t.Seat.RowLabel,
+			"seat_number":     t.Seat.SeatNumber,
+			"price":           t.Seat.Zone.Price,
+			"qr_code_token":   t.QRCodeToken,
+			"is_checked_in":   t.IsCheckedIn,
 		})
 	}
 
 	utils.SendSuccess(c, http.StatusOK, data, "Thành công")
+}
+
+func (h *OrderHandler) GetTickets(c *gin.Context) {
+	eventIDParam := c.Query("event_id")
+	var eventID *uuid.UUID
+	if eventIDParam != "" {
+		parsed, err := uuid.Parse(eventIDParam)
+		if err != nil {
+			utils.SendError(c, http.StatusBadRequest, err.Error(), "INVALID_EVENT_ID")
+			return
+		}
+		eventID = &parsed
+	}
+
+	tickets, err := h.orderService.GetTickets(eventID)
+	if err != nil {
+		utils.SendError(c, http.StatusInternalServerError, err.Error(), "FETCH_FAILED")
+		return
+	}
+
+	data := make([]map[string]interface{}, 0)
+	for _, t := range tickets {
+		data = append(data, map[string]interface{}{
+			"ticket_id":       t.ID,
+			"event_title":     t.Seat.Zone.Event.Title,
+			"event_banner_url": t.Seat.Zone.Event.BannerURL,
+			"zone_name":       t.Seat.Zone.Name,
+			"seat_label":      fmt.Sprintf("%s-%d", t.Seat.RowLabel, t.Seat.SeatNumber),
+			"row_label":       t.Seat.RowLabel,
+			"seat_number":     t.Seat.SeatNumber,
+			"price":           t.Seat.Zone.Price,
+			"qr_code_token":   t.QRCodeToken,
+			"is_checked_in":   t.IsCheckedIn,
+		})
+	}
+
+	utils.SendSuccess(c, http.StatusOK, data, "Thành công")
+}
+
+func (h *OrderHandler) CheckInTicket(c *gin.Context) {
+	var req checkInTicketRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.SendError(c, http.StatusBadRequest, err.Error(), "INVALID_INPUT")
+		return
+	}
+
+	ticket, err := h.orderService.CheckInTicket(c.Request.Context(), req.QRCodeToken)
+	if err != nil {
+		if errors.Is(err, utils.ErrTicketNotFound) {
+			utils.SendError(c, http.StatusNotFound, err.Error(), "TICKET_NOT_FOUND")
+			return
+		}
+		if errors.Is(err, utils.ErrTicketAlreadyCheckedIn) {
+			utils.SendError(c, http.StatusConflict, err.Error(), "TICKET_ALREADY_CHECKED_IN")
+			return
+		}
+		utils.SendError(c, http.StatusInternalServerError, err.Error(), "CHECKIN_FAILED")
+		return
+	}
+
+	utils.SendSuccess(c, http.StatusOK, map[string]interface{}{
+		"ticket_id":       ticket.ID,
+		"event_title":     ticket.Seat.Zone.Event.Title,
+		"event_banner_url": ticket.Seat.Zone.Event.BannerURL,
+		"zone_name":       ticket.Seat.Zone.Name,
+		"seat_label":      fmt.Sprintf("%s-%d", ticket.Seat.RowLabel, ticket.Seat.SeatNumber),
+		"row_label":       ticket.Seat.RowLabel,
+		"seat_number":     ticket.Seat.SeatNumber,
+		"qr_code_token":   ticket.QRCodeToken,
+		"is_checked_in":   ticket.IsCheckedIn,
+	}, "Vé đã được xác nhận.")
 }

@@ -104,6 +104,14 @@ Protected routes require a JWT token in the header:
 `GET /admin/dashboard/stats?event_id=...`
 - **Success Data**: `{ "total_revenue": 50000, "total_sold": 1000, "occupancy_rate": 0.85, ... }`
 
+### Admin Ticket Check-in
+`GET /admin/tickets?event_id=...`
+- **Success Data**: `Array<{ "ticket_id": "...", "event_title": "...", "zone_name": "...", "seat_label": "A-1", "qr_code_token": "...", "is_checked_in": false }>`
+
+`POST /admin/tickets/check-in`
+- **Body**: `{ "qr_code_token": "..." }`
+- **Success Data**: `{ "ticket_id": "...", "event_title": "...", "zone_name": "...", "seat_label": "A-1", "qr_code_token": "...", "is_checked_in": true }`
+
 ---
 
 ## 5. Real-time (WebSocket)
