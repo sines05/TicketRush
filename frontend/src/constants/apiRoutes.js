@@ -7,14 +7,15 @@ export const API_ROUTES = Object.freeze({
   EVENTS: '/events',
   TRENDING_EVENTS: '/events/trending',
   FEATURED_EVENTS: '/events/featured',
-  EVENT_DETAIL: (eventId) => `/events/${eventId}`,
-  SEAT_MAP: (eventId) => `/events/${eventId}/seat-map`,
+  EVENT_DETAIL: (idOrSlug) => `/events/${idOrSlug}`,
+  SEAT_MAP: (idOrSlug) => `/events/${idOrSlug}/seat-map`,
 
   QUEUE_JOIN: '/queue/join',
   QUEUE_STATUS: '/queue/status',
 
   LOCK_SEATS: '/orders/lock-seats',
   CHECKOUT: '/orders/checkout',
+  CANCEL_ORDER: '/orders/cancel',
 
   MY_TICKETS: '/tickets/my-tickets',
   ADMIN_TICKETS: '/admin/tickets',

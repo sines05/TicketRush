@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"ticketrush/internal/models"
 	"ticketrush/internal/service"
 	"ticketrush/internal/utils"
 
@@ -48,6 +49,7 @@ func (h *EventHandler) ListEvents(c *gin.Context) {
 		data = append(data, map[string]interface{}{
 			"id":           e.ID,
 			"title":        e.Title,
+			"slug":         e.Slug,
 			"description":  e.Description,
 			"banner_url":   e.BannerURL,
 			"category":     e.Category,
@@ -73,6 +75,7 @@ func (h *EventHandler) ListFeaturedEvents(c *gin.Context) {
 		data = append(data, map[string]interface{}{
 			"id":         e.ID,
 			"title":      e.Title,
+			"slug":       e.Slug,
 			"banner_url": e.BannerURL,
 			"category":   e.Category,
 			"start_time": e.StartTime,
@@ -83,25 +86,28 @@ func (h *EventHandler) ListFeaturedEvents(c *gin.Context) {
 }
 
 func (h *EventHandler) GetEvent(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := uuid.Parse(idStr)
-	if err != nil {
-		utils.SendError(c, http.StatusBadRequest, "invalid event id", "INVALID_ID")
-		return
+	idOrSlug := c.Param("id")
+	var event *models.Event
+	var err error
+
+	if id, parseErr := uuid.Parse(idOrSlug); parseErr == nil {
+		event, err = h.eventService.GetEvent(id)
+	} else {
+		event, err = h.eventService.GetEventBySlug(idOrSlug)
 	}
 
-	// Best-effort view tracking (7-day rolling window) for trending ranking.
-	_ = h.eventService.TrackEventView(c.Request.Context(), id)
-
-	event, err := h.eventService.GetEvent(id)
 	if err != nil {
 		utils.SendError(c, http.StatusNotFound, "event not found", "EVENT_NOT_FOUND")
 		return
 	}
 
+	// Best-effort view tracking (7-day rolling window) for trending ranking.
+	_ = h.eventService.TrackEventView(c.Request.Context(), event.ID)
+
 	utils.SendSuccess(c, http.StatusOK, gin.H{
 		"id":           event.ID,
 		"title":        event.Title,
+		"slug":         event.Slug,
 		"description":  event.Description,
 		"banner_url":   event.BannerURL,
 		"category":     event.Category,
@@ -130,6 +136,7 @@ func (h *EventHandler) ListTrendingEvents(c *gin.Context) {
 		out = append(out, map[string]interface{}{
 			"id":         e.ID,
 			"title":      e.Title,
+			"slug":       e.Slug,
 			"banner_url": e.BannerURL,
 			"category":   e.Category,
 			"start_time": e.StartTime,
@@ -144,14 +151,22 @@ func (h *EventHandler) ListTrendingEvents(c *gin.Context) {
 }
 
 func (h *EventHandler) GetSeatMap(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := uuid.Parse(idStr)
-	if err != nil {
-		utils.SendError(c, http.StatusBadRequest, "invalid event id", "INVALID_ID")
-		return
+	idOrSlug := c.Param("id")
+	var eventID uuid.UUID
+	var err error
+
+	if id, parseErr := uuid.Parse(idOrSlug); parseErr == nil {
+		eventID = id
+	} else {
+		event, err := h.eventService.GetEventBySlug(idOrSlug)
+		if err != nil {
+			utils.SendError(c, http.StatusNotFound, "event not found", "EVENT_NOT_FOUND")
+			return
+		}
+		eventID = event.ID
 	}
 
-	data, err := h.eventService.GetSeatMap(id)
+	data, err := h.eventService.GetSeatMap(eventID)
 	if err != nil {
 		utils.SendError(c, http.StatusInternalServerError, err.Error(), "FETCH_FAILED")
 		return

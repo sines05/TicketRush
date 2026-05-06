@@ -1,0 +1,2 @@
+DROP INDEX IF EXISTS idx_events_slug;
+ALTER TABLE events DROP COLUMN IF EXISTS slug;

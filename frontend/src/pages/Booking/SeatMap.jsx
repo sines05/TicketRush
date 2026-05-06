@@ -7,6 +7,7 @@ import { BookingContext } from '../../context/BookingContext.jsx';
 import eventService from '../../services/eventService.js';
 import { formatVND } from '../../utils/formatters.js';
 import { useAuth } from '../../hooks/useAuth.js';
+import { useWebSocket } from '../../hooks/useWebSocket.js';
 import orderService from '../../services/orderService.js';
 
 function seatLabel(seat) {
@@ -29,6 +30,45 @@ export default function SeatMap() {
   const [activeZoneId, setActiveZoneId] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  // WebSocket real-time seat updates
+  const { status: wsStatus, lastMessage } = useWebSocket(
+    `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`,
+    { enabled: !!eventId }
+  );
+
+  useEffect(() => {
+    if (!lastMessage) return;
+    try {
+      const msg = JSON.parse(lastMessage);
+      if (!msg.type || !msg.seat_id) return;
+
+      setSeatMap((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          zones: prev.zones.map((zone) => ({
+            ...zone,
+            seats: zone.seats.map((seat) => {
+              if (seat.seat_id !== msg.seat_id) return seat;
+              switch (msg.type) {
+                case 'SEAT_LOCKED':
+                  return { ...seat, status: 'LOCKED' };
+                case 'SEAT_SOLD':
+                  return { ...seat, status: 'SOLD' };
+                case 'SEAT_RELEASED':
+                  return { ...seat, status: 'AVAILABLE', locked_by_user_id: null };
+                default:
+                  return seat;
+              }
+            })
+          }))
+        };
+      });
+    } catch {
+      // Ignore malformed messages
+    }
+  }, [lastMessage]);
 
   useEffect(() => {
     if (!eventId) {
@@ -215,6 +255,16 @@ export default function SeatMap() {
           <div>
             <div className="text-sm font-semibold">Chọn ghế</div>
             <div className="mt-1 text-xs text-muted">{event?.title}</div>
+            <div className="mt-2 flex items-center gap-2">
+              <span className={`h-2 w-2 rounded-full ${
+                wsStatus === 'CONNECTED' ? 'bg-success' :
+                wsStatus === 'CONNECTING' ? 'bg-warning animate-pulse' :
+                'bg-danger'
+              }`} />
+              <span className="text-xs text-muted">
+                {wsStatus === 'CONNECTED' ? 'Live' : wsStatus === 'CONNECTING' ? 'Connecting...' : 'Offline'}
+              </span>
+            </div>
           </div>
 
           <div className="flex items-center gap-2">

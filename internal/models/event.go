@@ -34,6 +34,7 @@ const (
 type Event struct {
 	BaseModel
 	Title       string      `gorm:"not null;type:varchar(255)" json:"title"`
+	Slug        string      `gorm:"not null;uniqueIndex;type:varchar(255)" json:"slug"`
 	Description string      `gorm:"type:text" json:"description"`
 	BannerURL   string      `gorm:"type:varchar(255)" json:"banner_url"`
 	StartTime   time.Time   `gorm:"not null" json:"start_time"`

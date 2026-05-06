@@ -16,6 +16,7 @@ type Broadcaster interface {
 type OrderService interface {
 	LockSeats(ctx context.Context, userID uuid.UUID, eventID uuid.UUID, seatIDs []uuid.UUID) (*models.Order, error)
 	Checkout(ctx context.Context, userID uuid.UUID, orderID uuid.UUID) (*models.Order, error)
+	CancelOrder(ctx context.Context, userID uuid.UUID, orderID uuid.UUID) error
 	GetMyTickets(userID uuid.UUID) ([]models.Ticket, error)
 	GetTickets(eventID *uuid.UUID) ([]models.Ticket, error)
 	CheckInTicket(ctx context.Context, qrCodeToken string) (*models.Ticket, error)
@@ -70,6 +71,19 @@ func (s *orderService) Checkout(ctx context.Context, userID uuid.UUID, orderID u
 		_ = s.queueRepo.RemoveFromActive(ctx, order.EventID, userID)
 	}
 	return order, err
+}
+
+func (s *orderService) CancelOrder(ctx context.Context, userID uuid.UUID, orderID uuid.UUID) error {
+	seatIDs, err := s.orderRepo.CancelOrder(ctx, orderID, userID)
+	if err == nil {
+		for _, seatID := range seatIDs {
+			s.broadcaster.Broadcast(map[string]interface{}{
+				"type":    "SEAT_RELEASED",
+				"seat_id": seatID,
+			})
+		}
+	}
+	return err
 }
 
 func (s *orderService) GetMyTickets(userID uuid.UUID) ([]models.Ticket, error) {

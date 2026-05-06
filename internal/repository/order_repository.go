@@ -15,6 +15,7 @@ import (
 type OrderRepository interface {
 	LockSeats(ctx context.Context, userID uuid.UUID, eventID uuid.UUID, seatIDs []uuid.UUID) (*models.Order, error)
 	CompleteOrder(ctx context.Context, orderID uuid.UUID) (*models.Order, error)
+	CancelOrder(ctx context.Context, orderID uuid.UUID, userID uuid.UUID) ([]uuid.UUID, error)
 	GetOrderByID(id uuid.UUID) (*models.Order, error)
 	GetExpiredOrders(limit int) ([]models.Order, error)
 	ReleaseOrder(ctx context.Context, orderID uuid.UUID) ([]uuid.UUID, error)
@@ -159,6 +160,62 @@ func (r *orderRepo) CompleteOrder(ctx context.Context, orderID uuid.UUID) (*mode
 	}
 
 	return &order, nil
+}
+
+func (r *orderRepo) CancelOrder(ctx context.Context, orderID uuid.UUID, userID uuid.UUID) ([]uuid.UUID, error) {
+	var seatIDs []uuid.UUID
+
+	err := r.db.Transaction(func(tx *gorm.DB) error {
+		// 1. Get order and lock it for update
+		var order models.Order
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Preload("OrderItems").
+			First(&order, orderID).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return utils.ErrOrderNotFound
+			}
+			return err
+		}
+
+		// 2. Verify ownership — only the order owner can cancel
+		if order.UserID != userID {
+			return utils.ErrOrderNotFound
+		}
+
+		// 3. Only PENDING orders can be cancelled
+		if order.Status != models.OrderPending {
+			return utils.ErrOrderNotPending
+		}
+
+		// 4. Update order status to CANCELLED
+		order.Status = models.OrderCancelled
+		if err := tx.Save(&order).Error; err != nil {
+			return err
+		}
+
+		// 5. Collect seat IDs and release them back to AVAILABLE
+		for _, item := range order.OrderItems {
+			seatIDs = append(seatIDs, item.SeatID)
+		}
+
+		if len(seatIDs) == 0 {
+			return nil
+		}
+
+		return tx.Model(&models.Seat{}).
+			Where("id IN ?", seatIDs).
+			Updates(map[string]interface{}{
+				"status":             models.SeatAvailable,
+				"locked_by_user_id": nil,
+				"locked_at":          nil,
+			}).Error
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return seatIDs, nil
 }
 
 func (r *orderRepo) GetOrderByID(id uuid.UUID) (*models.Order, error) {

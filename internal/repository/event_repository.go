@@ -11,6 +11,7 @@ import (
 type EventRepository interface {
 	CreateEvent(event *models.Event) error
 	GetEventByID(id uuid.UUID) (*models.Event, error)
+	GetEventBySlug(slug string) (*models.Event, error)
 	GetAllEvents(search string) ([]models.Event, error)
 	GetFeaturedEvents(limit int) ([]models.Event, error)
 	GetTrendingTicketStats(limit int, since time.Time) ([]EventTrendingTicketStats, error)
@@ -22,6 +23,7 @@ type EventRepository interface {
 type EventTrendingTicketStats struct {
 	ID        uuid.UUID `gorm:"column:id"`
 	Title     string    `gorm:"column:title"`
+	Slug      string    `gorm:"column:slug"`
 	BannerURL string    `gorm:"column:banner_url"`
 	Category  string    `gorm:"column:category"`
 	StartTime time.Time `gorm:"column:start_time"`
@@ -44,6 +46,14 @@ func (r *eventRepo) CreateEvent(event *models.Event) error {
 func (r *eventRepo) GetEventByID(id uuid.UUID) (*models.Event, error) {
 	var event models.Event
 	if err := r.db.First(&event, id).Error; err != nil {
+		return nil, err
+	}
+	return &event, nil
+}
+
+func (r *eventRepo) GetEventBySlug(slug string) (*models.Event, error) {
+	var event models.Event
+	if err := r.db.Where("slug = ?", slug).First(&event).Error; err != nil {
 		return nil, err
 	}
 	return &event, nil
@@ -82,6 +92,7 @@ func (r *eventRepo) GetTrendingTicketStats(limit int, since time.Time) ([]EventT
 SELECT
 	e.id,
 	e.title,
+	e.slug,
 	e.banner_url,
 	e.category,
 	e.start_time,

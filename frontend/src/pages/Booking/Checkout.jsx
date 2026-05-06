@@ -69,6 +69,19 @@ export default function Checkout() {
     }
   }, [isExpired, paid, clearBooking]);
 
+  async function handleEditSeats() {
+    // Cancel the current order to release seats before going back to seat selection
+    if (order?.order_id && !USE_MOCK) {
+      try {
+        await orderService.cancelOrder({ order_id: order.order_id });
+      } catch {
+        // Best-effort: still allow navigation even if cancel fails
+      }
+    }
+    clearBooking();
+    navigate(`/booking/seats?eventId=${eventId}`);
+  }
+
   async function handlePay() {
     if (isExpired) return;
 
@@ -192,7 +205,7 @@ export default function Checkout() {
                 <span className="font-semibold">{formatVND(total)}</span>
               </div>
               <div className="mt-3 flex gap-2">
-                <Button variant="secondary" onClick={() => navigate(`/booking/seats?eventId=${eventId}`)}>
+                <Button variant="secondary" onClick={handleEditSeats}>
                   Sửa ghế
                 </Button>
                 <Button onClick={handlePay} disabled={submitting || !order?.order_id}>

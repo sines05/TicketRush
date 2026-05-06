@@ -92,4 +92,24 @@ async function checkout({ order_id }) {
   return completed;
 }
 
-export default { lockSeats, checkout };
+async function cancelOrder({ order_id }) {
+  if (!order_id) {
+    throw { success: false, data: null, message: 'Thiếu order_id', errorCode: 'INVALID_REQUEST' };
+  }
+
+  if (!USE_MOCK) {
+    const res = await api.post(API_ROUTES.CANCEL_ORDER, { order_id });
+    return unwrap(res);
+  }
+
+  await sleep(300);
+
+  const order = orders.get(order_id);
+  if (order) {
+    orders.set(order_id, { ...order, status: 'CANCELLED' });
+  }
+
+  return { success: true, order_id, status: 'CANCELLED' };
+}
+
+export default { lockSeats, checkout, cancelOrder };

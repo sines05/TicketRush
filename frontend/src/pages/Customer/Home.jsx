@@ -142,7 +142,7 @@ export default function Home() {
               </div>
 
               <div className="mt-auto flex justify-end">
-                <Link to={`/events/${evt.id}`}>
+                <Link to={`/events/${evt.slug || evt.id}`}>
                   <Button size="sm">Xem chi tiết</Button>
                 </Link>
               </div>

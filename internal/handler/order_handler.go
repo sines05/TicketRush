@@ -88,6 +88,35 @@ func (h *OrderHandler) Checkout(c *gin.Context) {
 	}, "Thanh toán thành công! Vé đã được tạo.")
 }
 
+type cancelOrderRequest struct {
+	OrderID uuid.UUID `json:"order_id" binding:"required"`
+}
+
+func (h *OrderHandler) CancelOrder(c *gin.Context) {
+	var req cancelOrderRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.SendError(c, http.StatusBadRequest, err.Error(), "INVALID_INPUT")
+		return
+	}
+
+	user, _ := c.Get("user")
+	u := user.(*models.User)
+
+	err := h.orderService.CancelOrder(c.Request.Context(), u.ID, req.OrderID)
+	if err != nil {
+		if errors.Is(err, utils.ErrOrderNotFound) {
+			utils.SendError(c, http.StatusNotFound, err.Error(), "ORDER_NOT_FOUND")
+		} else if errors.Is(err, utils.ErrOrderNotPending) {
+			utils.SendError(c, http.StatusBadRequest, err.Error(), "ORDER_NOT_PENDING")
+		} else {
+			utils.SendError(c, http.StatusInternalServerError, err.Error(), "CANCEL_FAILED")
+		}
+		return
+	}
+
+	utils.SendSuccess(c, http.StatusOK, nil, "Đã hủy đơn hàng và giải phóng ghế.")
+}
+
 type checkInTicketRequest struct {
 	QRCodeToken string `json:"qr_code_token" binding:"required"`
 }

@@ -26,8 +26,7 @@ func main() {
 	// Run Migrations
 	repository.RunMigrations(cfg)
 
-	// Auto-seed database if empty
-	repository.AutoSeedDatabase(db)
+
 
 	// 3. Initialize Redis
 	rdb := repository.NewRedisClient(cfg)
@@ -103,6 +102,7 @@ func main() {
 			// Orders
 			protected.POST("/orders/lock-seats", orderHandler.LockSeats)
 			protected.POST("/orders/checkout", orderHandler.Checkout)
+			protected.POST("/orders/cancel", orderHandler.CancelOrder)
 
 			// Tickets
 			protected.GET("/tickets/my-tickets", orderHandler.GetMyTickets)

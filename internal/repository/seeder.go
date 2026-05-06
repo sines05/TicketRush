@@ -8,6 +8,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 	"ticketrush/internal/models"
+	"ticketrush/internal/utils"
 )
 
 // AutoSeedDatabase automatically seeds the database if it's empty
@@ -21,23 +22,23 @@ func AutoSeedDatabase(db *gorm.DB) {
 
 	// If users exist, skip seeding
 	if userCount > 0 {
-		fmt.Println("✓ Database already seeded, skipping seed")
+		fmt.Println("Database already seeded, skipping seed")
 		return
 	}
 
-	fmt.Println("🌱 Database is empty, auto-seeding...")
+	fmt.Println("Database is empty, auto-seeding...")
 
 	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
 
 	// ============================================================
 	// 1. USERS
 	// ============================================================
-	fmt.Println("👤 Creating users...")
+	fmt.Println("Creating users...")
 
 	admin := models.User{
 		Email:        "admin@ticketrush.com",
 		PasswordHash: string(hashedPassword),
-		FullName:     "Nguyễn Quản Trị",
+		FullName:     "Nguyen Quan Tri",
 		Role:         models.RoleAdmin,
 		Gender:       models.GenderMale,
 		DateOfBirth:  time.Date(1990, 5, 15, 0, 0, 0, 0, time.UTC),
@@ -48,7 +49,7 @@ func AutoSeedDatabase(db *gorm.DB) {
 		{
 			Email:        "customer@ticketrush.com",
 			PasswordHash: string(hashedPassword),
-			FullName:     "Trần Văn Khách",
+			FullName:     "Tran Van Khach",
 			Role:         models.RoleCustomer,
 			Gender:       models.GenderMale,
 			DateOfBirth:  time.Date(2000, 3, 20, 0, 0, 0, 0, time.UTC),
@@ -56,7 +57,7 @@ func AutoSeedDatabase(db *gorm.DB) {
 		{
 			Email:        "linhchi@gmail.com",
 			PasswordHash: string(hashedPassword),
-			FullName:     "Nguyễn Linh Chi",
+			FullName:     "Nguyen Linh Chi",
 			Role:         models.RoleCustomer,
 			Gender:       models.GenderFemale,
 			DateOfBirth:  time.Date(2001, 7, 12, 0, 0, 0, 0, time.UTC),
@@ -64,7 +65,7 @@ func AutoSeedDatabase(db *gorm.DB) {
 		{
 			Email:        "minhduc@gmail.com",
 			PasswordHash: string(hashedPassword),
-			FullName:     "Phạm Minh Đức",
+			FullName:     "Pham Minh Duc",
 			Role:         models.RoleCustomer,
 			Gender:       models.GenderMale,
 			DateOfBirth:  time.Date(1998, 11, 5, 0, 0, 0, 0, time.UTC),
@@ -72,7 +73,7 @@ func AutoSeedDatabase(db *gorm.DB) {
 		{
 			Email:        "thuytrang@gmail.com",
 			PasswordHash: string(hashedPassword),
-			FullName:     "Lê Thùy Trang",
+			FullName:     "Le Thuy Trang",
 			Role:         models.RoleCustomer,
 			Gender:       models.GenderFemale,
 			DateOfBirth:  time.Date(2003, 1, 28, 0, 0, 0, 0, time.UTC),
@@ -80,7 +81,7 @@ func AutoSeedDatabase(db *gorm.DB) {
 		{
 			Email:        "hoangnam@gmail.com",
 			PasswordHash: string(hashedPassword),
-			FullName:     "Vũ Hoàng Nam",
+			FullName:     "Vu Hoang Nam",
 			Role:         models.RoleCustomer,
 			Gender:       models.GenderMale,
 			DateOfBirth:  time.Date(1995, 9, 10, 0, 0, 0, 0, time.UTC),
@@ -91,11 +92,12 @@ func AutoSeedDatabase(db *gorm.DB) {
 	// ============================================================
 	// 2. EVENTS (Sample Concert Events)
 	// ============================================================
-	fmt.Println("🎤 Creating events...")
+	fmt.Println("Creating events...")
 
 	events := []models.Event{
 		{
 			Title:       "Coldplay Concert 2026",
+			Slug:        utils.GenerateSlug("Coldplay Concert 2026"),
 			Description: "Experience the magic of Coldplay's best hits",
 			Category:    "MUSIC",
 			IsFeatured:  true,
@@ -105,6 +107,7 @@ func AutoSeedDatabase(db *gorm.DB) {
 		},
 		{
 			Title:       "Taylor Swift Eras Tour",
+			Slug:        utils.GenerateSlug("Taylor Swift Eras Tour"),
 			Description: "The biggest concert of the year",
 			Category:    "MUSIC",
 			IsFeatured:  true,
@@ -114,6 +117,7 @@ func AutoSeedDatabase(db *gorm.DB) {
 		},
 		{
 			Title:       "Dua Lipa Live Concert",
+			Slug:        utils.GenerateSlug("Dua Lipa Live Concert"),
 			Description: "Dance with the disco queen",
 			Category:    "MUSIC",
 			IsFeatured:  false,
@@ -124,65 +128,50 @@ func AutoSeedDatabase(db *gorm.DB) {
 	}
 	db.Create(&events)
 
-	// Get the first event to create zones
-	var event models.Event
-	db.First(&event)
+	// Create zones and seats for ALL events
+	for _, evt := range events {
+		zones := []models.EventZone{
+			{
+				EventID:     evt.ID,
+				Name:        "VIP",
+				Price:       1500000,
+				TotalRows:   10,
+				SeatsPerRow: 50,
+			},
+			{
+				EventID:     evt.ID,
+				Name:        "STANDARD",
+				Price:       500000,
+				TotalRows:   60,
+				SeatsPerRow: 50,
+			},
+			{
+				EventID:     evt.ID,
+				Name:        "ECONOMY",
+				Price:       250000,
+				TotalRows:   30,
+				SeatsPerRow: 50,
+			},
+		}
+		db.Create(&zones)
 
-	// ============================================================
-	// 3. EVENT ZONES
-	// ============================================================
-	fmt.Println("🎭 Creating event zones...")
-
-	zones := []models.EventZone{
-		{
-			EventID:     event.ID,
-			Name:        "VIP",
-			Price:       1500000,
-			TotalRows:   10,
-			SeatsPerRow: 50,
-		},
-		{
-			EventID:     event.ID,
-			Name:        "STANDARD",
-			Price:       500000,
-			TotalRows:   60,
-			SeatsPerRow: 50,
-		},
-		{
-			EventID:     event.ID,
-			Name:        "ECONOMY",
-			Price:       250000,
-			TotalRows:   30,
-			SeatsPerRow: 50,
-		},
-	}
-	db.Create(&zones)
-
-	// ============================================================
-	// 4. SEATS
-	// ============================================================
-	fmt.Println("💺 Creating seats...")
-
-	var seatCount = 0
-	for _, zone := range zones {
-		for row := 1; row <= zone.TotalRows; row++ {
-			for col := 1; col <= zone.SeatsPerRow; col++ {
+		// Create seats for each zone
+		for _, zone := range zones {
+			var seats []models.Seat
+			for row := 1; row <= zone.TotalRows; row++ {
 				rowLabel := fmt.Sprintf("%c", rune('A'+row-1))
-				seat := models.Seat{
-					ZoneID:     zone.ID,
-					RowLabel:   rowLabel,
-					SeatNumber: col,
-					Status:     models.SeatAvailable,
-				}
-				db.Create(&seat)
-				seatCount++
-				if seatCount%1000 == 0 {
-					fmt.Printf("  ✓ Created %d seats\n", seatCount)
+				for col := 1; col <= zone.SeatsPerRow; col++ {
+					seats = append(seats, models.Seat{
+						ZoneID:     zone.ID,
+						RowLabel:   rowLabel,
+						SeatNumber: col,
+						Status:     models.SeatAvailable,
+					})
 				}
 			}
+			db.Create(&seats)
 		}
 	}
-	fmt.Printf("✓ Total seats created: %d\n", seatCount)
 
-	fmt.Println("✅ Auto-seeding completed successfully!")
+	fmt.Println("Auto-seeding completed successfully!")
 }

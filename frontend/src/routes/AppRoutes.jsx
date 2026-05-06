@@ -24,7 +24,7 @@ export default function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<Home />} />
-      <Route path="/events/:eventId" element={<EventDetail />} />
+      <Route path="/events/:slug" element={<EventDetail />} />
 
       <Route element={<ProtectedRoute />}>
         <Route path="/my-tickets" element={<MyTickets />} />

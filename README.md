@@ -48,8 +48,12 @@ The project follows modern software design principles:
 
 ## Quick Start Guide (Docker - Recommended)
 
+### Prerequisites
+- Docker & Docker Compose installed
+- Copy `.env.example` to `.env` (or use defaults for Docker)
+
 ### One-Command Setup
-The entire system (PostgreSQL, Redis, Backend, Frontend) starts automatically with database migrations and sample data pre-seeded:
+The entire system (PostgreSQL, Redis, Backend, Frontend) starts automatically with **fresh database seeding** on every run:
 
 ```bash
 docker compose up --build
@@ -57,28 +61,45 @@ docker compose up --build
 
 ✅ **What happens automatically:**
 - Builds backend and frontend images
-- Starts PostgreSQL, Redis, Backend, and Frontend containers
-- Runs database migrations
-- **Auto-seeds sample data** (events, zones, seats, and test accounts)
+- Starts PostgreSQL (port 5433), Redis (port 6379), Backend (port 8080), and Frontend (port 5173)
+- Entrypoint waits for PostgreSQL to be ready
+- **Drops all tables** and runs fresh migrations
+- **Seeds rich sample data**: 6 events with banner images (Jack 97, Sơn Tùng M-TP, Rap Việt All-Star, Hà Anh Tuấn, Ravolution EDM Festival, Mỹ Tâm), 10 users, zones, seats, sample orders & tickets
 - Backend API available at: `http://localhost:8080`
 - Frontend available at: `http://localhost:5173`
+
+> **Note:** Every `docker compose up` on a fresh volume will re-seed the database. Use `docker compose down -v` to wipe volumes and start completely fresh.
+
+### Sample Events (Auto-Seeded)
+| Event | Category | Zones | Banner |
+| :--- | :--- | :--- | :--- |
+| Jack - J97: Đom Đóm In The Stars | Âm nhạc & Lễ hội | VVIP, VIP, Standard A, Standard B | ✅ |
+| Sơn Tùng M-TP: Sky Tour 2026 | Âm nhạc & Lễ hội | Diamond, VVIP, VIP, General A, General B | ✅ |
+| Rap Việt All-Star Concert 2026 | Âm nhạc & Lễ hội | VIP Standing, Premium Seated, Standard | ✅ |
+| Hà Anh Tuấn: Sketch A Rose | Âm nhạc & Lễ hội | Hạng Nhất, Hạng Nhì, Hạng Ba | ✅ |
+| Ravolution Music Festival 2026 | Giải trí & Trải nghiệm | Backstage Pass, VIP Area, General Admission | ✅ |
+| Mỹ Tâm: Tri Ân (Draft) | Âm nhạc & Lễ hội | VIP, Standard | ✅ |
 
 ### Test Accounts (Password: `password`)
 | Role | Email | Status |
 | :--- | :--- | :--- |
 | **Admin** | `admin@ticketrush.com` | Full access |
-| **Customer** | `customer@ticketrush.com` | Standard user |
-| **Customer** | `linhchi@gmail.com` | Standard user |
-| **Customer** | `minhduc@gmail.com` | Standard user |
-| **Customer** | `thuytrang@gmail.com` | Standard user |
-| **Customer** | `hoangnam@gmail.com` | Standard user |
+| **Customer** | `customer@ticketrush.com` | Has sample orders |
+| **Customer** | `linhchi@gmail.com` | Has sample orders |
+| **Customer** | `minhduc@gmail.com` | Has PENDING order |
+| **Customer** | `thuytrang@gmail.com` | Has sample orders |
+| **Customer** | `hoangnam@gmail.com` | Has sample orders |
+| **Customer** | `ngocanhh@gmail.com` | Has sample orders |
+| **Customer** | `quanghai@gmail.com` | Has sample orders |
+| **Customer** | `thanhhuyen@gmail.com` | Has sample orders |
+| **Customer** | `ducmanh@gmail.com` | Has sample orders |
 
 ### Stop & Clean Up
 ```bash
 # Stop running containers
 docker compose down
 
-# Stop and remove all data (fresh database next time)
+# Stop and remove all data (fresh seed next time)
 docker compose down -v
 ```
 

@@ -11,6 +11,7 @@ import (
 	"ticketrush/internal/config"
 	"ticketrush/internal/models"
 	"ticketrush/internal/repository"
+	"ticketrush/internal/utils"
 )
 
 func main() {
@@ -38,6 +39,8 @@ func main() {
 
 	fmt.Println("🔄 Running migrations...")
 	repository.RunMigrations(cfg)
+
+	fmt.Println("🌱 Seeding fresh data...")
 
 	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
 
@@ -259,6 +262,7 @@ func main() {
 	}
 
 	for i, es := range eventSeeds {
+		es.event.Slug = utils.GenerateSlug(es.event.Title)
 		db.Create(&es.event)
 		eventSeeds[i].event = es.event
 

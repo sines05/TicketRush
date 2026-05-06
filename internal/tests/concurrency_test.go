@@ -36,7 +36,7 @@ func TestSeatLockConcurrency(t *testing.T) {
 	db.Create(&seat)
 
 	orderRepo := repository.NewOrderRepository(db)
-	orderSvc := service.NewOrderService(orderRepo, &mockBroadcaster{})
+	orderSvc := service.NewOrderService(orderRepo, &mockQueueRepo{}, &mockBroadcaster{})
 
 	var wg sync.WaitGroup
 	successCount := 0

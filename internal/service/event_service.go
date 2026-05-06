@@ -8,6 +8,7 @@ import (
 
 	"ticketrush/internal/models"
 	"ticketrush/internal/repository"
+	"ticketrush/internal/utils"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -36,6 +37,7 @@ type EventCreateRequest struct {
 type EventService interface {
 	CreateEvent(req EventCreateRequest) (*models.Event, error)
 	GetEvent(id uuid.UUID) (*models.Event, error)
+	GetEventBySlug(slug string) (*models.Event, error)
 	ListEvents(search string) ([]models.Event, error)
 	ListFeaturedEvents(limit int) ([]models.Event, error)
 	ListTrendingEvents(ctx context.Context, limit int) ([]TrendingEvent, error)
@@ -49,6 +51,7 @@ type EventService interface {
 type TrendingEvent struct {
 	ID        uuid.UUID `json:"id"`
 	Title     string    `json:"title"`
+	Slug      string    `json:"slug"`
 	BannerURL string    `json:"banner_url"`
 	Category  string    `json:"category"`
 	StartTime time.Time `json:"start_time"`
@@ -81,6 +84,7 @@ func (s *eventService) CreateEvent(req EventCreateRequest) (*models.Event, error
 
 		event = models.Event{
 			Title:       req.Title,
+			Slug:        utils.GenerateSlug(req.Title),
 			Description: req.Description,
 			BannerURL:   req.BannerURL,
 			Category:    req.Category,
@@ -135,6 +139,10 @@ func (s *eventService) CreateEvent(req EventCreateRequest) (*models.Event, error
 
 func (s *eventService) GetEvent(id uuid.UUID) (*models.Event, error) {
 	return s.eventRepo.GetEventByID(id)
+}
+
+func (s *eventService) GetEventBySlug(slug string) (*models.Event, error) {
+	return s.eventRepo.GetEventBySlug(slug)
 }
 
 func (s *eventService) ListEvents(search string) ([]models.Event, error) {
@@ -197,6 +205,7 @@ func (s *eventService) ListTrendingEvents(ctx context.Context, limit int) ([]Tre
 		out = append(out, TrendingEvent{
 			ID:        row.ID,
 			Title:     row.Title,
+			Slug:      row.Slug,
 			BannerURL: row.BannerURL,
 			Category:  row.Category,
 			StartTime: row.StartTime,
@@ -353,7 +362,10 @@ func (s *eventService) UpdateEvent(id uuid.UUID, req EventCreateRequest) (*model
 	startTime, _ := time.Parse(time.RFC3339, req.StartTime)
 	endTime, _ := time.Parse(time.RFC3339, req.EndTime)
 
-	event.Title = req.Title
+	if event.Title != req.Title {
+		event.Title = req.Title
+		event.Slug = utils.GenerateSlug(req.Title)
+	}
 	event.Description = req.Description
 	if req.Category != "" {
 		event.Category = req.Category

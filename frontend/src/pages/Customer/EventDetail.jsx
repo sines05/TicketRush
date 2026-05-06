@@ -8,7 +8,7 @@ import bannerFallback from '../../assets/banner-sample.svg';
 import { resolveMediaUrl } from '../../utils/media.js';
 
 export default function EventDetail() {
-  const { eventId } = useParams();
+  const { slug } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -22,7 +22,7 @@ export default function EventDetail() {
   useEffect(() => {
     let mounted = true;
 
-    Promise.all([eventService.getEventDetail(eventId), eventService.getSeatMap(eventId)])
+    Promise.all([eventService.getEventDetail(slug), eventService.getSeatMap(slug)])
       .then(([evt, sm]) => {
         if (!mounted) return;
         setEvent(evt);
@@ -40,7 +40,7 @@ export default function EventDetail() {
     return () => {
       mounted = false;
     };
-  }, [eventId]);
+  }, [slug]);
 
   const minPrice = useMemo(() => {
     const prices = seatMap?.zones?.map((z) => z.price).filter(Boolean) ?? [];

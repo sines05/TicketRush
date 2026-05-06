@@ -126,7 +126,7 @@ export default function HeroSlider() {
                     <div className="flex flex-wrap gap-3 pt-2">
                       {isValidUUID(event.id) ? (
                         <Link
-                          to={`/events/${event.id}`}
+                          to={`/events/${event.slug || event.id}`}
                           className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-brand-600 to-accent px-5 py-3 text-sm font-semibold text-on-brand shadow-lg shadow-brand-600/20 transition hover:translate-y-[-1px]"
                         >
                           Xem chi tiết

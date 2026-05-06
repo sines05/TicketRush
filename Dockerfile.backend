@@ -3,6 +3,9 @@
 # Use the official Golang image as the base image
 FROM golang:1.25-alpine AS builder
 
+# Install pg_isready for health checks
+RUN apk add --no-cache postgresql-client
+
 # Set the working directory inside the container
 WORKDIR /app
 
@@ -15,23 +18,32 @@ RUN go mod download
 # Copy the rest of the application code
 COPY . .
 
-# Build the Go application
+# Build both server and seed binaries
 RUN go build -o main ./cmd/server/main.go
+RUN go build -o seed ./cmd/seed/main.go
 
 # Use a minimal image for the final build
 FROM alpine:latest
 
+# Install pg_isready for entrypoint health checks
+RUN apk add --no-cache postgresql-client
+
 # Set the working directory inside the container
 WORKDIR /app
 
-# Copy the built binary from the builder stage
+# Copy the built binaries from the builder stage
 COPY --from=builder /app/main .
+COPY --from=builder /app/seed .
 
 # Copy the migrations directory
 COPY --from=builder /app/migrations ./migrations
 
+# Copy the entrypoint script
+COPY docker-entrypoint.sh .
+RUN chmod +x docker-entrypoint.sh
+
 # Expose the application port
 EXPOSE 8080
 
-# Command to run the application
-CMD ["./main"]
+# Use entrypoint that runs seed first, then starts the server
+ENTRYPOINT ["./docker-entrypoint.sh"]
