@@ -37,24 +37,28 @@ html[data-theme='dark'] {
 }
 
 html[data-theme='light'] {
-  /* Palette (color2.jpg):
-     Ghost White #F8F7FF, Antique White #FFEEDD, Peach Fuzz #FFD8BE,
-     Periwinkle #B8B8FF, Soft Periwinkle #938BFF */
-  --tr-bg: 248 247 255; /* Ghost White */
-  --tr-surface: 255 255 255; /* Pure white for cards/surfaces */
-  --tr-text: 39 21 61; /* Dark Amethyst (brand text for contrast) */
-  --tr-muted: 100 116 139; /* slate-ish gray for timestamps */
+  /* Ocean Breeze (Biển xanh & Cát trắng)
+    Tropic Wave (Teal đậm): #0096a5
+    Ocean Blue (Xanh biển sáng): #4ebdd5
+    Tide Mint (Xanh ngọc): #9bc6c0
+    Sky Blue (Xanh lơ nhạt): #b6dbe5
+    Shell Cream (Kem/cát): #e5ded6
+    Foam White (near-white for gradient start): #f8fcfd */
+  --tr-bg: 248 252 253; /* Foam White */
+  --tr-surface: 182 219 229; /* Sky Blue (used as glass tint) */
+  --tr-text: 15 23 42; /* slate-900 */
+  --tr-muted: 71 85 105; /* slate-600 */
 
-  --tr-brand-50: 248 247 255; /* Ghost White */
-  --tr-brand-600: 39 21 61; /* Dark Amethyst (primary brand) */
-  --tr-brand-700: 25 13 40; /* Deeper brand for hover/accents */
+  --tr-brand-50: 248 252 253; /* Foam White */
+  --tr-brand-600: 0 150 165; /* Tropic Wave */
+  --tr-brand-700: 78 189 213; /* Ocean Blue (hover) */
 
-  --tr-accent: 255 216 190; /* Peach Fuzz */
+  --tr-accent: 155 198 192; /* Tide Mint */
 
-  --tr-on-brand: 255 255 255; /* white text on purple buttons */
+  --tr-on-brand: 255 255 255; /* white text on teal buttons */
 
-  --tr-card-shadow: 0 18px 60px -34px rgb(var(--tr-brand-700) / 0.28);
-  --tr-card-shadow-hover: 0 26px 70px -34px rgb(var(--tr-brand-700) / 0.34);
+  --tr-card-shadow: 0 18px 60px -40px rgb(var(--tr-brand-600) / 0.18);
+  --tr-card-shadow-hover: 0 26px 70px -42px rgb(var(--tr-brand-600) / 0.24);
 
   --tr-danger: 239 68 68;
   --tr-success: 34 197 94;
@@ -112,6 +116,30 @@ body {
   color: rgb(var(--tr-text));
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+html[data-theme='light'] body {
+  /* Main Background: bg-gradient-to-br from-[#f8fcfd] via-[#b6dbe5]/20 to-[#e5ded6]/40 */
+  background: linear-gradient(
+    to bottom right,
+    rgb(248 252 253),
+    rgb(182 219 229 / 0.2),
+    rgb(229 222 214 / 0.4)
+  );
+}
+
+@layer utilities {
+  /* Glassmorphism for all light-mode surfaces using `bg-surface` */
+  html[data-theme='light'] .bg-surface {
+    background-color: rgb(var(--tr-surface) / 0.25);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+  }
+
+  /* Thin border tint for light mode cards/containers that use `border-text/10` */
+  html[data-theme='light'] .border-text\/10 {
+    border-color: rgb(var(--tr-surface) / 0.4);
+  }
 }
 
 * {

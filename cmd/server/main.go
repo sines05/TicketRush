@@ -4,14 +4,15 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/gin-contrib/cors"
-	"github.com/gin-gonic/gin"
 	"ticketrush/internal/config"
 	"ticketrush/internal/handler"
 	"ticketrush/internal/middleware"
 	"ticketrush/internal/models"
 	"ticketrush/internal/repository"
 	"ticketrush/internal/service"
+
+	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
@@ -43,7 +44,8 @@ func main() {
 	authHandler := handler.NewAuthHandler(authService)
 
 	eventRepo := repository.NewEventRepository(db)
-	eventService := service.NewEventService(eventRepo, db)
+	eventMetricsRepo := repository.NewEventMetricsRepository(rdb)
+	eventService := service.NewEventService(eventRepo, eventMetricsRepo, db)
 	eventHandler := handler.NewEventHandler(eventService)
 
 	queueRepo := repository.NewQueueRepository(rdb)
@@ -85,6 +87,7 @@ func main() {
 
 		// Public Routes
 		v1.GET("/events", eventHandler.ListEvents)
+		v1.GET("/events/trending", eventHandler.ListTrendingEvents)
 		v1.GET("/events/featured", eventHandler.ListFeaturedEvents)
 		v1.GET("/events/:id", eventHandler.GetEvent)
 		v1.GET("/events/:id/seat-map", eventHandler.GetSeatMap)

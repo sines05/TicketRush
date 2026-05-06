@@ -8,6 +8,7 @@ export default {
         surface: 'rgb(var(--tr-surface) / <alpha-value>)',
         text: 'rgb(var(--tr-text) / <alpha-value>)',
         muted: 'rgb(var(--tr-muted) / <alpha-value>)',
+        accent: 'rgb(var(--tr-accent) / <alpha-value>)',
         onBrand: 'rgb(var(--tr-on-brand) / <alpha-value>)',
         brand: {
           50: 'rgb(var(--tr-brand-50) / <alpha-value>)',

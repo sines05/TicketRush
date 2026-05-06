@@ -1,6 +1,7 @@
 import { QRCodeCanvas } from 'qrcode.react';
 import { formatVND } from '../../utils/formatters.js';
 import bannerFallback from '../../assets/banner-sample.svg';
+import { resolveMediaUrl } from '../../utils/media.js';
 
 export default function TicketItem({ ticket }) {
   if (!ticket) return null;
@@ -8,17 +9,17 @@ export default function TicketItem({ ticket }) {
   const rowLabel = ticket.row_label || String(ticket.seat_label || '').split('-')[0] || '—';
   const seatNumber = (ticket.seat_number ?? String(ticket.seat_label || '').split('-')[1]) || '—';
   const gate = ticket.zone_name || '—';
-  const bannerUrl = ticket.event_banner_url || bannerFallback;
+  const bannerUrl = resolveMediaUrl(ticket.event_banner_url) || bannerFallback;
 
   return (
     <div className="overflow-hidden rounded-2xl border border-text/10 bg-surface"> 
       <div className="grid md:grid-cols-[1.6fr_1fr]">
-        <div className="relative">
-          <img src={bannerUrl} alt={ticket.event_title} className="h-52 w-full object-cover md:h-52" loading="lazy" />
+        <div className="relative h-52 overflow-hidden">
+          <img src={bannerUrl} alt={ticket.event_title} className="w-full h-full object-cover object-center" loading="lazy" />
         </div>
 
         <div className="relative p-4">
-          <div className="pointer-events-none absolute inset-y-0 left-0 hidden border-l border-dashed border-text/20 md:block" />
+          <div className="pointer-events-none absolute inset-y-0 left-0 hidden border-l-2 border-dashed border-text/20 md:block" />
           <div className="pointer-events-none absolute -left-3 top-9 hidden h-6 w-6 rounded-full border border-text/10 bg-bg md:block" />
           <div className="pointer-events-none absolute -left-3 bottom-9 hidden h-6 w-6 rounded-full border border-text/10 bg-bg md:block" />
 
@@ -38,7 +39,7 @@ export default function TicketItem({ ticket }) {
                 <div className="mt-1 text-sm text-muted break-all">Mã vé: {ticket.ticket_id}</div>
                 {ticket.price != null && <div className="mt-2 text-base font-semibold text-muted">{formatVND(ticket.price)}</div>}
               </div>
-              <div className="shrink-0 rounded-lg bg-white p-2">
+              <div className="shrink-0 rounded-lg border border-text/10 bg-surface/40 p-2 backdrop-blur-md">
                 <QRCodeCanvas value={ticket.qr_code_token} size={96} includeMargin />
               </div>
             </div>

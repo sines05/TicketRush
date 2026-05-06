@@ -7,6 +7,7 @@ import { useAuth } from '../../hooks/useAuth.js';
 import { GENDER } from '../../constants/gender.js';
 import userService from '../../services/userService.js';
 import uploadService from '../../services/uploadService.js';
+import { resolveMediaUrl } from '../../utils/media.js';
 
 function toDateInputValue(value) {
   if (!value) return '';
@@ -51,7 +52,7 @@ export default function Profile() {
   const avatarPreview = useMemo(() => {
     if (avatarFile) return URL.createObjectURL(avatarFile);
     const trimmed = String(avatarUrl || '').trim();
-    return trimmed || '';
+    return resolveMediaUrl(trimmed) || '';
   }, [avatarFile, avatarUrl]);
 
   useEffect(() => {

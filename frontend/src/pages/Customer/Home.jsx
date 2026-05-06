@@ -6,6 +6,7 @@ import eventService from '../../services/eventService.js';
 import { formatDateTime } from '../../utils/formatters.js';
 import bannerFallback from '../../assets/banner-sample.svg';
 import { getCategoryKey, getCategoryLabel, CATEGORY_ALL } from '../../constants/categories.js';
+import { resolveMediaUrl } from '../../utils/media.js';
 
 const USE_MOCK = import.meta.env.VITE_USE_MOCK !== 'false';
 
@@ -64,7 +65,7 @@ export default function Home() {
   return (
     <div className="space-y-6">
       <section className="relative overflow-hidden rounded-2xl border border-text/10 bg-surface p-5">
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-brand-600/15 to-warning/15" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-brand-600/15 to-accent/25" />
         <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
           <div className="relative">
             <h1 className="text-lg font-semibold">Sự kiện nổi bật</h1>
@@ -99,46 +100,48 @@ export default function Home() {
         </div>
       )}
 
-      <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <section className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {filtered.map((evt) => (
           <article
             key={evt.id}
-            className="tr-event-card group overflow-hidden rounded-2xl border border-text/10 bg-surface transition duration-200 hover:-translate-y-0.5 hover:border-brand-600/35 hover:ring-2 hover:ring-brand-600/15"
+            className="tr-event-card group flex h-full flex-col overflow-hidden rounded-2xl border border-text/10 bg-surface transition-all duration-300 hover:-translate-y-2 hover:border-brand-600/35 hover:ring-2 hover:ring-brand-600/15 hover:shadow-xl hover:shadow-[#0096a5]/20 dark:hover:shadow-[#4ebdd5]/25"
           >
-            <div className="relative">
+            <div className="relative overflow-hidden rounded-t-xl">
               <img
-                src={evt.banner_url || bannerFallback}
+                src={resolveMediaUrl(evt.banner_url) || bannerFallback}
                 alt={evt.title}
-                className="h-48 w-full object-cover transition duration-300 group-hover:scale-[1.02]"
+                className="aspect-video w-full object-cover transition-transform duration-500 group-hover:scale-110"
               />
               <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-bg/70 via-transparent to-transparent opacity-0 transition group-hover:opacity-100" />
             </div>
-            <div className="space-y-3 p-4">
-              <div>
-                <div className="text-base font-semibold tracking-tight text-text md:text-lg">
-                  {evt.title}
+            <div className="flex flex-1 flex-col p-4">
+              <div className="flex-1 space-y-3">
+                <div>
+                  <div className="text-base font-semibold tracking-tight text-text md:text-lg">
+                    {evt.title}
+                  </div>
+                  <div className="mt-1 flex items-center gap-1.5 text-base font-semibold text-muted">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="h-4 w-4"
+                      aria-hidden="true"
+                    >
+                      <circle cx="12" cy="12" r="9" />
+                      <path d="M12 7v5l3 2" />
+                    </svg>
+                    <span>{formatDateTime(evt.start_time)}</span>
+                  </div>
                 </div>
-                <div className="mt-1 flex items-center gap-1.5 text-base font-semibold text-muted">
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="h-4 w-4"
-                    aria-hidden="true"
-                  >
-                    <circle cx="12" cy="12" r="9" />
-                    <path d="M12 7v5l3 2" />
-                  </svg>
-                  <span>{formatDateTime(evt.start_time)}</span>
-                </div>
+
+                <p className="line-clamp-2 text-sm text-muted">{evt.description}</p>
               </div>
 
-              <div className="text-sm text-muted overflow-hidden">{evt.description}</div>
-
-              <div className="flex items-center justify-end">
+              <div className="mt-auto flex justify-end">
                 <Link to={`/events/${evt.id}`}>
                   <Button size="sm">Xem chi tiết</Button>
                 </Link>

@@ -7,6 +7,7 @@ import { SEAT_STATUS } from '../../constants/status.js';
 import { formatVND } from '../../utils/formatters.js';
 import eventService from '../../services/eventService.js';
 import uploadService from '../../services/uploadService.js';
+import { resolveMediaUrl } from '../../utils/media.js';
 import { CATEGORY_OPTIONS, getCategoryKey, getCategoryLabel } from '../../constants/categories.js';
 
 function rowIndexToLabel(index) {
@@ -650,7 +651,7 @@ export default function EventForm() {
             {(bannerPreview || existingBannerUrl) && (
               <div className="mt-2 overflow-hidden rounded-xl border border-text/10 bg-bg/40">
                 <img
-                  src={bannerPreview || existingBannerUrl}
+                  src={bannerPreview || resolveMediaUrl(existingBannerUrl)}
                   alt="banner preview"
                   className="h-32 w-full object-cover"
                 />

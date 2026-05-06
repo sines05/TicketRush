@@ -66,6 +66,32 @@ async function getFeaturedEvents() {
   }).slice(0, 5);
 }
 
+async function getTrendingEvents(limit = 5) {
+  const safeLimit = Math.max(1, Math.min(Number(limit) || 5, 20));
+
+  if (!USE_MOCK) {
+    const res = await api.get(`${API_ROUTES.TRENDING_EVENTS}?limit=${safeLimit}`);
+    return unwrap(res);
+  }
+
+  await sleep(250);
+  // Mock: prioritize featured first, then by nearest start_time.
+  const sorted = EVENTS.slice().sort((a, b) => {
+    const af = a.is_featured ? 1 : 0;
+    const bf = b.is_featured ? 1 : 0;
+    if (af !== bf) return bf - af;
+    return new Date(a.start_time).getTime() - new Date(b.start_time).getTime();
+  });
+
+  return sorted.slice(0, safeLimit).map((e, idx) => ({
+    ...e,
+    rank: idx + 1,
+    sold_7d: 0,
+    views_7d: 0,
+    score: 0
+  }));
+}
+
 async function getEventDetail(eventId) {
   if (!USE_MOCK) {
     const res = await api.get(API_ROUTES.EVENT_DETAIL(eventId));
@@ -183,4 +209,4 @@ async function getDashboardStats(eventId) {
   return mockStats;
 }
 
-export default { getEvents, getFeaturedEvents, getEventDetail, getSeatMap, createEvent, getAdminEvents, updateEvent, deleteEvent, getDashboardStats };
+export default { getEvents, getFeaturedEvents, getTrendingEvents, getEventDetail, getSeatMap, createEvent, getAdminEvents, updateEvent, deleteEvent, getDashboardStats };

@@ -5,6 +5,7 @@ import Loading from '../../components/common/Loading.jsx';
 import eventService from '../../services/eventService.js';
 import { formatDateTime, formatVND } from '../../utils/formatters.js';
 import bannerFallback from '../../assets/banner-sample.svg';
+import { resolveMediaUrl } from '../../utils/media.js';
 
 export default function EventDetail() {
   const { eventId } = useParams();
@@ -71,7 +72,7 @@ export default function EventDetail() {
         <div className="grid md:grid-cols-[1.6fr_1fr]">
           <div className="relative">
             <img
-              src={event.banner_url || bannerFallback}
+              src={resolveMediaUrl(event.banner_url) || bannerFallback}
               alt={event.title}
               className="h-64 w-full object-cover md:h-[19rem]"
               loading="lazy"

@@ -1,12 +1,14 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import AppRoutes from './routes/AppRoutes.jsx';
 import { CATEGORY_ALL, CATEGORY_ALL_LABEL, CATEGORY_OPTIONS, getCategoryKey } from './constants/categories.js';
+import { resolveMediaUrl } from './utils/media.js';
 import Button from './components/common/Button.jsx';
 import { useAuth } from './hooks/useAuth.js';
 import { ROLES } from './constants/roles.js';
 import logoUrl from './assets/Logo1.png';
 import { useEffect, useState } from 'react';
 import HeroSlider from './components/home/HeroSlider.jsx';
+import TrendingEvents from './components/home/TrendingEvents.jsx';
 
 const THEME_KEY = 'tr_theme';
 
@@ -70,13 +72,13 @@ export default function App() {
     <div className="min-h-screen">
       {!isAuthPage && (
         <header className="sticky top-0 z-20 border-b border-text/10 bg-bg/80 backdrop-blur">
-          <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
+          <div className="mx-auto flex w-full max-w-[1440px] items-center justify-between px-4 md:px-8 lg:px-12 py-4">
             <Link to="/" className="group flex items-center gap-3 transition-transform duration-300 hover:scale-[1.02]">
       
               {/* Container của Logo */}
               <div className="relative flex items-center justify-center">
                 {/* Hiệu ứng Glow tỏa sáng phía sau logo khi hover (rất xịn cho Dark Mode) */}
-                <div className="absolute -inset-1 rounded-full bg-gradient-to-r from-blue-400 to-purple-500 opacity-0 blur transition duration-500 group-hover:opacity-30 dark:group-hover:opacity-50"></div>
+                <div className="absolute -inset-1 rounded-full bg-gradient-to-r from-brand-600 to-brand-700 opacity-0 blur transition duration-500 group-hover:opacity-30 dark:group-hover:opacity-50"></div>
         
                 {/* Logo chính: Bắt sáng nhẹ ở Dark Mode, shadow tinh tế ở Light Mode */}
                 <img 
@@ -93,7 +95,7 @@ export default function App() {
                 - Sáng: Gradient Tím Đậm - Xanh Indigo 
                 - Tối: Gradient Xanh Lam - Tím (như trang Login)
                 */}
-                <div className="text-lg font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-indigo-700 to-purple-600 dark:from-blue-400 dark:via-indigo-400 dark:to-purple-400">
+                <div className="text-lg font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-brand-600 to-brand-700 dark:from-blue-400 dark:via-indigo-400 dark:to-purple-400">
                   TicketRush
                 </div>
         
@@ -212,7 +214,7 @@ export default function App() {
                     >
                       {user.avatar_url && !avatarFailed ? (
                         <img
-                          src={user.avatar_url}
+                          src={resolveMediaUrl(user.avatar_url)}
                           alt="avatar"
                           className="h-full w-full object-cover"
                           onError={() => setAvatarFailed(true)}
@@ -245,7 +247,7 @@ export default function App() {
 
       {location.pathname === '/' && (
         <div className="border-b border-text/10 bg-bg/80 backdrop-blur">
-          <div className="mx-auto max-w-6xl px-4">
+          <div className="mx-auto w-full max-w-[1440px] px-4 md:px-8 lg:px-12">
             {/* Thêm class ẩn thanh cuộn (scrollbar) để giao diện vuốt ngang nhìn mượt và sạch hơn */}
             <nav className="flex items-center gap-2 overflow-x-auto py-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
               {(() => {
@@ -275,7 +277,7 @@ export default function App() {
                       
                       {/* Đường gạch chân khi đang Active (có màu gradient và phát sáng nhẹ) */}
                       {active === CATEGORY_ALL && (
-                        <span className="absolute bottom-0 left-0 h-[2px] w-full bg-gradient-to-r from-blue-400 to-purple-500 shadow-[0_-2px_8px_rgba(56,189,248,0.5)]"></span>
+                        <span className="absolute bottom-0 left-0 h-[2px] w-full bg-gradient-to-r from-brand-600 to-brand-700 shadow-[0_-2px_8px_rgb(var(--tr-brand-600)/0.45)]"></span>
                       )}
                       {/* Đường gạch chân trượt mượt mà khi Hover (chỉ hiện khi chưa Active) */}
                       {active !== CATEGORY_ALL && (
@@ -295,7 +297,7 @@ export default function App() {
 
                         {/* Đường gạch chân khi đang Active */}
                         {active === c.key && (
-                          <span className="absolute bottom-0 left-0 h-[2px] w-full bg-gradient-to-r from-blue-400 to-purple-500 shadow-[0_-2px_8px_rgba(56,189,248,0.5)]"></span>
+                          <span className="absolute bottom-0 left-0 h-[2px] w-full bg-gradient-to-r from-brand-600 to-brand-700 shadow-[0_-2px_8px_rgb(var(--tr-brand-600)/0.45)]"></span>
                         )}
                         {/* Đường gạch chân trượt khi Hover */}
                         {active !== c.key && (
@@ -312,18 +314,24 @@ export default function App() {
       )}
 
       {showHeroSlider && (
-        <div className="mx-auto max-w-6xl px-4 pt-5">
+        <div className="mx-auto w-full max-w-[1440px] px-4 md:px-8 lg:px-12 pt-5">
           <HeroSlider />
         </div>
       )}
 
-      <main className="mx-auto max-w-6xl px-4 py-6">
+      {showHeroSlider && (
+        <div className="mx-auto w-full max-w-[1440px] px-4 md:px-8 lg:px-12 pt-5">
+          <TrendingEvents />
+        </div>
+      )}
+
+      <main className="mx-auto w-full max-w-[1440px] px-4 md:px-8 lg:px-12 py-6">
         <AppRoutes />
       </main>
 
       {!isAuthPage && (
         <footer className="border-t border-text/10">
-          <div className="mx-auto max-w-6xl px-4 py-6 text-xs text-muted">
+          <div className="mx-auto w-full max-w-[1440px] px-4 md:px-8 lg:px-12 py-6 text-xs text-muted">
             TicketRush • Demo UI (React) • Có hỗ trợ light/dark
           </div>
         </footer>

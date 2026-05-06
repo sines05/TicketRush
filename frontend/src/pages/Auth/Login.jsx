@@ -42,7 +42,7 @@ export default function Login() {
       <div className="rounded-2xl border border-text/10 bg-surface p-6">
         <div className="mb-6 flex flex-col items-center text-center">
           <img src={logoPng} alt="TicketRush" className="h-24 w-24 object-contain drop-shadow-[0_0_15px_rgba(56,189,248,0.5)] drop-shadow-md" />
-          <div className="mt-4 text-2xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400">TicketRush</div>
+          <div className="mt-4 text-2xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-brand-600 via-brand-700 to-accent">TicketRush</div>
           <div className="mt-1.5 text-sm font-medium text-muted/80 tracking-wide">Săn vé nhanh • Trải nghiệm mượt</div>
         </div>
 

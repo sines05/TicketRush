@@ -1,21 +1,24 @@
 package service
 
 import (
+	"context"
 	"fmt"
+	"sort"
 	"time"
+
+	"ticketrush/internal/models"
+	"ticketrush/internal/repository"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
-	"ticketrush/internal/models"
-	"ticketrush/internal/repository"
 )
 
 type ZoneConfig struct {
-	Name       string     `json:"name"`
-	Price      float64    `json:"price"`
-	TotalRows  int        `json:"total_rows"`
-	SeatsPerRow int       `json:"seats_per_row"`
-	LayoutMeta models.JSONMap `json:"layout_meta"`
+	Name        string         `json:"name"`
+	Price       float64        `json:"price"`
+	TotalRows   int            `json:"total_rows"`
+	SeatsPerRow int            `json:"seats_per_row"`
+	LayoutMeta  models.JSONMap `json:"layout_meta"`
 }
 
 type EventCreateRequest struct {
@@ -35,21 +38,38 @@ type EventService interface {
 	GetEvent(id uuid.UUID) (*models.Event, error)
 	ListEvents(search string) ([]models.Event, error)
 	ListFeaturedEvents(limit int) ([]models.Event, error)
+	ListTrendingEvents(ctx context.Context, limit int) ([]TrendingEvent, error)
+	TrackEventView(ctx context.Context, eventID uuid.UUID) error
 	GetSeatMap(eventID uuid.UUID) (map[string]interface{}, error)
 	GetAdminStats(eventID *uuid.UUID) (map[string]interface{}, error)
 	UpdateEvent(id uuid.UUID, req EventCreateRequest) (*models.Event, error)
 	DeleteEvent(id uuid.UUID) error
 }
 
-type eventService struct {
-	eventRepo repository.EventRepository
-	db        *gorm.DB
+type TrendingEvent struct {
+	ID        uuid.UUID `json:"id"`
+	Title     string    `json:"title"`
+	BannerURL string    `json:"banner_url"`
+	Category  string    `json:"category"`
+	StartTime time.Time `json:"start_time"`
+
+	Rank    int   `json:"rank"`
+	Sold7d  int64 `json:"sold_7d"`
+	Views7d int64 `json:"views_7d"`
+	Score   int64 `json:"score"`
 }
 
-func NewEventService(eventRepo repository.EventRepository, db *gorm.DB) EventService {
+type eventService struct {
+	eventRepo   repository.EventRepository
+	metricsRepo repository.EventMetricsRepository
+	db          *gorm.DB
+}
+
+func NewEventService(eventRepo repository.EventRepository, metricsRepo repository.EventMetricsRepository, db *gorm.DB) EventService {
 	return &eventService{
-		eventRepo: eventRepo,
-		db:        db,
+		eventRepo:   eventRepo,
+		metricsRepo: metricsRepo,
+		db:          db,
 	}
 }
 
@@ -123,6 +143,84 @@ func (s *eventService) ListEvents(search string) ([]models.Event, error) {
 
 func (s *eventService) ListFeaturedEvents(limit int) ([]models.Event, error) {
 	return s.eventRepo.GetFeaturedEvents(limit)
+}
+
+func (s *eventService) TrackEventView(ctx context.Context, eventID uuid.UUID) error {
+	if s.metricsRepo == nil {
+		return nil
+	}
+	return s.metricsRepo.IncrEventView(ctx, eventID, time.Now().UTC())
+}
+
+func (s *eventService) ListTrendingEvents(ctx context.Context, limit int) ([]TrendingEvent, error) {
+	if limit <= 0 {
+		limit = 5
+	}
+	if limit > 20 {
+		limit = 20
+	}
+
+	// Fetch a larger candidate set from DB, then re-rank with views.
+	candidateLimit := limit * 10
+	if candidateLimit < 30 {
+		candidateLimit = 30
+	}
+	if candidateLimit > 80 {
+		candidateLimit = 80
+	}
+
+	since := time.Now().UTC().AddDate(0, 0, -7)
+	stats, err := s.eventRepo.GetTrendingTicketStats(candidateLimit, since)
+	if err != nil {
+		return nil, err
+	}
+	if len(stats) == 0 {
+		return []TrendingEvent{}, nil
+	}
+
+	ids := make([]uuid.UUID, 0, len(stats))
+	for _, row := range stats {
+		ids = append(ids, row.ID)
+	}
+
+	viewsMap := map[uuid.UUID]int64{}
+	if s.metricsRepo != nil {
+		viewsMap, _ = s.metricsRepo.GetEventViewsLastDays(ctx, ids, 7, time.Now().UTC())
+	}
+
+	out := make([]TrendingEvent, 0, len(stats))
+	for _, row := range stats {
+		views := viewsMap[row.ID]
+		// Score heuristic: tickets sold matters much more than views.
+		// Keep a small all-time factor so brand new events don't dominate solely by a few views.
+		score := row.Sold7d*1000 + views + row.SoldAll*10
+		out = append(out, TrendingEvent{
+			ID:        row.ID,
+			Title:     row.Title,
+			BannerURL: row.BannerURL,
+			Category:  row.Category,
+			StartTime: row.StartTime,
+			Sold7d:    row.Sold7d,
+			Views7d:   views,
+			Score:     score,
+		})
+	}
+
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Score != out[j].Score {
+			return out[i].Score > out[j].Score
+		}
+		return out[i].StartTime.Before(out[j].StartTime)
+	})
+
+	if len(out) > limit {
+		out = out[:limit]
+	}
+	for i := range out {
+		out[i].Rank = i + 1
+	}
+
+	return out, nil
 }
 
 func (s *eventService) GetSeatMap(eventID uuid.UUID) (map[string]interface{}, error) {
@@ -257,12 +355,16 @@ func (s *eventService) UpdateEvent(id uuid.UUID, req EventCreateRequest) (*model
 
 	event.Title = req.Title
 	event.Description = req.Description
+	if req.Category != "" {
+		event.Category = req.Category
+	}
 	if req.BannerURL != "" {
 		event.BannerURL = req.BannerURL
 	}
 	event.StartTime = startTime
 	event.EndTime = endTime
 	event.IsPublished = req.IsPublished
+	event.IsFeatured = req.IsFeatured
 
 	if err := s.eventRepo.UpdateEvent(event); err != nil {
 		return nil, err

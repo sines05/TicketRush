@@ -5,6 +5,7 @@ export const API_ROUTES = Object.freeze({
   AUTH_RESET_PASSWORD: '/auth/reset-password',
 
   EVENTS: '/events',
+  TRENDING_EVENTS: '/events/trending',
   FEATURED_EVENTS: '/events/featured',
   EVENT_DETAIL: (eventId) => `/events/${eventId}`,
   SEAT_MAP: (eventId) => `/events/${eventId}/seat-map`,

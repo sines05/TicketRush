@@ -9,6 +9,7 @@ import bannerFallback from '../../assets/banner-sample.svg';
 import { getCategoryLabel } from '../../constants/categories.js';
 import eventService from '../../services/eventService.js';
 import { formatDateTime } from '../../utils/formatters.js';
+import { resolveMediaUrl } from '../../utils/media.js';
 
 const isValidUUID = (s) => typeof s === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
 
@@ -85,7 +86,7 @@ export default function HeroSlider() {
           <SwiperSlide key={event.id}>
             <article className="relative isolate min-h-[24rem] overflow-hidden md:min-h-[26rem]">
               <img
-                src={event.banner_url || bannerFallback}
+                src={resolveMediaUrl(event.banner_url) || bannerFallback}
                 alt={event.title}
                 className="absolute inset-0 h-full w-full object-cover"
                 loading="lazy"
@@ -168,7 +169,7 @@ export default function HeroSlider() {
                       </div>
                       <div className="mt-3 overflow-hidden rounded-2xl border border-text/10 bg-bg/60">
                         <img
-                          src={event.banner_url || bannerFallback}
+                          src={resolveMediaUrl(event.banner_url) || bannerFallback}
                           alt={event.title}
                           className="h-56 w-full object-cover"
                           loading="lazy"
