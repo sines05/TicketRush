@@ -31,44 +31,46 @@ export default function SeatMap() {
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  // WebSocket real-time seat updates
-  const { status: wsStatus, lastMessage } = useWebSocket(
+  // WebSocket real-time seat updates — use callback to bypass React 18 batching
+  const { status: wsStatus, setOnMessage } = useWebSocket(
     `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`,
     { enabled: !!eventId }
   );
 
+  // Register the WebSocket message handler — fires immediately for EACH message
   useEffect(() => {
-    if (!lastMessage) return;
-    try {
-      const msg = JSON.parse(lastMessage);
-      if (!msg.type || !msg.seat_id) return;
+    setOnMessage((data) => {
+      try {
+        const msg = JSON.parse(data);
+        if (!msg.type || !msg.seat_id) return;
 
-      setSeatMap((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          zones: prev.zones.map((zone) => ({
-            ...zone,
-            seats: zone.seats.map((seat) => {
-              if (seat.seat_id !== msg.seat_id) return seat;
-              switch (msg.type) {
-                case 'SEAT_LOCKED':
-                  return { ...seat, status: 'LOCKED' };
-                case 'SEAT_SOLD':
-                  return { ...seat, status: 'SOLD' };
-                case 'SEAT_RELEASED':
-                  return { ...seat, status: 'AVAILABLE', locked_by_user_id: null };
-                default:
-                  return seat;
-              }
-            })
-          }))
-        };
-      });
-    } catch {
-      // Ignore malformed messages
-    }
-  }, [lastMessage]);
+        setSeatMap((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            zones: prev.zones.map((zone) => ({
+              ...zone,
+              seats: zone.seats.map((seat) => {
+                if (seat.seat_id !== msg.seat_id) return seat;
+                switch (msg.type) {
+                  case 'SEAT_LOCKED':
+                    return { ...seat, status: 'LOCKED' };
+                  case 'SEAT_SOLD':
+                    return { ...seat, status: 'SOLD' };
+                  case 'SEAT_RELEASED':
+                    return { ...seat, status: 'AVAILABLE', locked_by_user_id: null };
+                  default:
+                    return seat;
+                }
+              })
+            }))
+          };
+        });
+      } catch {
+        // Ignore malformed messages
+      }
+    });
+  }, [setOnMessage]);
 
   useEffect(() => {
     if (!eventId) {

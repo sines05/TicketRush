@@ -17,7 +17,7 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true
         },
         '/ws': {
-          target: 'ws://localhost:8080',
+          target: apiTarget.replace('http://', 'ws://'),
           ws: true
         }
       }
