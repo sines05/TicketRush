@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useEffect, useMemo, useState } from 'react';
 import { sanitizeString } from '../utils/security.js';
 import authService from '../services/authService.js';
+import userService from '../services/userService.js';
 
 const STORAGE_TOKEN = 'tr_access_token';
 const STORAGE_USER = 'tr_user';
@@ -56,6 +57,36 @@ export function AuthProvider({ children }) {
     return { user: nextUser, access_token: data.access_token };
   }, []);
 
+  const loginWithToken = useCallback(async (newToken) => {
+    setToken(newToken);
+    localStorage.setItem(STORAGE_TOKEN, newToken);
+
+    try {
+      const userData = await userService.getMe();
+
+      const nextUser = {
+        user_id: userData.id || userData.user_id,
+        email: userData.email,
+        full_name: userData.full_name,
+        role: userData.role,
+        avatar_url: userData.avatar_url ?? null,
+        gender: userData.gender ?? null,
+        date_of_birth: userData.date_of_birth ?? null
+      };
+
+      setUser(nextUser);
+      localStorage.setItem(STORAGE_USER, JSON.stringify(nextUser));
+
+      return { user: nextUser, access_token: newToken };
+    } catch (error) {
+      setToken(null);
+      setUser(null);
+      localStorage.removeItem(STORAGE_TOKEN);
+      localStorage.removeItem(STORAGE_USER);
+      throw error;
+    }
+  }, []);
+
   const register = useCallback(async ({ email, password, full_name, gender, date_of_birth }) => {
     const cleanEmail = sanitizeString(email);
     const cleanPassword = sanitizeString(password);
@@ -76,6 +107,27 @@ export function AuthProvider({ children }) {
       avatar_url: data.avatar_url ?? null,
       gender: data.gender ?? gender ?? null,
       date_of_birth: data.date_of_birth ?? date_of_birth ?? null
+    };
+
+    setToken(data.access_token);
+    setUser(nextUser);
+    localStorage.setItem(STORAGE_TOKEN, data.access_token);
+    localStorage.setItem(STORAGE_USER, JSON.stringify(nextUser));
+
+    return { user: nextUser, access_token: data.access_token };
+  }, []);
+
+  const verify2FA = useCallback(async (userId, code) => {
+    const data = await authService.verify2FALogin(userId, code);
+
+    const nextUser = {
+      user_id: data.user_id,
+      email: data.email,
+      full_name: data.full_name,
+      role: data.role,
+      avatar_url: data.avatar_url ?? null,
+      gender: data.gender ?? null,
+      date_of_birth: data.date_of_birth ?? null
     };
 
     setToken(data.access_token);
@@ -112,11 +164,13 @@ export function AuthProvider({ children }) {
       isAuthenticated: Boolean(token && user),
       role: user?.role ?? null,
       login,
+      loginWithToken,
       register,
+      verify2FA,
       updateUser,
       logout
     };
-  }, [token, user, loading, login, register, updateUser, logout]);
+  }, [token, user, loading, login, loginWithToken, register, verify2FA, updateUser, logout]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

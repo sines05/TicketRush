@@ -1,0 +1,16 @@
+package queue
+
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
+
+type QueueSession struct {
+	Token     string     `json:"token"`
+	UserID    uuid.UUID  `json:"user_id"`
+	EventID   uuid.UUID  `json:"event_id"`
+	Status    string     `json:"status"`                 // "waiting" or "allowed"
+	OrderID   *uuid.UUID `json:"order_id,omitempty"`     // populated if they locked a seat
+	ExpiresAt *time.Time `json:"expires_at,omitempty"`   // populated if they locked a seat
+}

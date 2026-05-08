@@ -6,6 +6,17 @@ import './index.css';
 
 import { AuthProvider } from './context/AuthContext.jsx';
 import { BookingProvider } from './context/BookingContext.jsx';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+      staleTime: 5 * 60 * 1000
+    }
+  }
+});
 
 const THEME_KEY = 'tr_theme';
 
@@ -26,11 +37,13 @@ applyTheme(getInitialTheme());
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>
-      <AuthProvider>
-        <BookingProvider>
-          <App />
-        </BookingProvider>
-      </AuthProvider>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <BookingProvider>
+            <App />
+          </BookingProvider>
+        </AuthProvider>
+      </QueryClientProvider>
     </BrowserRouter>
   </React.StrictMode>
 );

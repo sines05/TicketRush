@@ -21,7 +21,9 @@ type OrderRepository interface {
 	ReleaseOrder(ctx context.Context, orderID uuid.UUID) ([]uuid.UUID, error)
 	GetTicketsByUserID(userID uuid.UUID) ([]models.Ticket, error)
 	GetTicketsByEventID(eventID *uuid.UUID) ([]models.Ticket, error)
+	GetTicketsByOrderID(orderID uuid.UUID) ([]models.Ticket, error)
 	CheckInTicket(ctx context.Context, qrCodeToken string) (*models.Ticket, error)
+	GetRevenueStats(ctx context.Context, eventID *uuid.UUID) (float64, int64, error)
 }
 
 type orderRepo struct {
@@ -36,6 +38,12 @@ func (r *orderRepo) LockSeats(ctx context.Context, userID uuid.UUID, eventID uui
 	var order models.Order
 
 	err := r.db.Transaction(func(tx *gorm.DB) error {
+		// 0. Get user and membership tier
+		var user models.User
+		if err := tx.Preload("MembershipTier").First(&user, userID).Error; err != nil {
+			return err
+		}
+
 		// 1. Check if seats are available and lock them for update
 		var seats []models.Seat
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
@@ -52,27 +60,34 @@ func (r *orderRepo) LockSeats(ctx context.Context, userID uuid.UUID, eventID uui
 		var totalAmount float64
 		var orderItems []models.OrderItem
 
-		for _, seatIDs := range seatIDs {
+		for _, seatID := range seatIDs {
 			// Need price from zone
 			var zone models.EventZone
 			if err := tx.Joins("JOIN seats ON seats.zone_id = event_zones.id").
-				Where("seats.id = ?", seatIDs).First(&zone).Error; err != nil {
+				Where("seats.id = ?", seatID).First(&zone).Error; err != nil {
 				return err
 			}
 			totalAmount += zone.Price
 			orderItems = append(orderItems, models.OrderItem{
-				SeatID: seatIDs,
+				SeatID: seatID,
 				Price:  zone.Price,
 			})
 		}
 
-		// 3. Create Order
+		// 3. Determine expiration time based on membership tier
+		lockDuration := 10 * time.Minute
+		if user.MembershipTier != nil {
+			// Give extra time based on priority level (e.g., 2 mins extra per level)
+			lockDuration += time.Duration(user.MembershipTier.PriorityLevel*2) * time.Minute
+		}
+
+		// 4. Create Order
 		order = models.Order{
 			UserID:      userID,
 			EventID:     eventID,
 			TotalAmount: totalAmount,
 			Status:      models.OrderPending,
-			ExpiresAt:   time.Now().Add(10 * time.Minute),
+			ExpiresAt:   time.Now().Add(lockDuration),
 			OrderItems:  orderItems,
 		}
 
@@ -80,7 +95,7 @@ func (r *orderRepo) LockSeats(ctx context.Context, userID uuid.UUID, eventID uui
 			return err
 		}
 
-		// 4. Update Seats status to LOCKED
+		// 5. Update Seats status to LOCKED
 		now := time.Now()
 		if err := tx.Model(&models.Seat{}).
 			Where("id IN ?", seatIDs).
@@ -324,4 +339,37 @@ func (r *orderRepo) CheckInTicket(ctx context.Context, qrCodeToken string) (*mod
 		return nil, err
 	}
 	return &ticket, nil
+}
+
+func (r *orderRepo) GetRevenueStats(ctx context.Context, eventID *uuid.UUID) (float64, int64, error) {
+	var totalRevenue float64
+	var totalSold int64
+
+	query := r.db.Model(&models.Order{}).Where("status = ?", models.OrderCompleted)
+	if eventID != nil {
+		query = query.Where("event_id = ?", *eventID)
+	}
+
+	if err := query.Select("COALESCE(SUM(total_amount), 0)").Scan(&totalRevenue).Error; err != nil {
+		return 0, 0, err
+	}
+
+	ticketQuery := r.db.Model(&models.Ticket{})
+	if eventID != nil {
+		ticketQuery = ticketQuery.Joins("JOIN orders ON orders.id = tickets.order_id").Where("orders.event_id = ?", *eventID)
+	}
+
+	if err := ticketQuery.Count(&totalSold).Error; err != nil {
+		return 0, 0, err
+	}
+
+	return totalRevenue, totalSold, nil
+}
+
+func (r *orderRepo) GetTicketsByOrderID(orderID uuid.UUID) ([]models.Ticket, error) {
+	var tickets []models.Ticket
+	if err := r.db.Preload("Seat.Zone.Event").Where("order_id = ?", orderID).Find(&tickets).Error; err != nil {
+		return nil, err
+	}
+	return tickets, nil
 }

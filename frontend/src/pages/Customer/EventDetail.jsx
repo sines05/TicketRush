@@ -1,21 +1,30 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Button from '../../components/common/Button.jsx';
 import Loading from '../../components/common/Loading.jsx';
 import eventService from '../../services/eventService.js';
+import feedbackService from '../../services/feedbackService.js';
 import { formatDateTime, formatVND } from '../../utils/formatters.js';
 import bannerFallback from '../../assets/banner-sample.svg';
 import { resolveMediaUrl } from '../../utils/media.js';
+import GoogleMapLocation from '../../components/Maps/GoogleMapLocation';
+import { useAuth } from '../../hooks/useAuth.js';
 
 export default function EventDetail() {
   const { slug } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   const [loading, setLoading] = useState(true);
   const [event, setEvent] = useState(null);
   const [seatMap, setSeatMap] = useState(null);
   const [error, setError] = useState('');
+
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState('');
 
   const highlight = searchParams.get('hl');
 
@@ -41,6 +50,30 @@ export default function EventDetail() {
       mounted = false;
     };
   }, [slug]);
+
+  const { data: reviews, isLoading: reviewsLoading } = useQuery({
+    queryKey: ['reviews', event?.id],
+    queryFn: () => feedbackService.getReviews(event?.id),
+    enabled: !!event?.id
+  });
+
+  const reviewMutation = useMutation({
+    mutationFn: feedbackService.submitReview,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['reviews', event?.id] });
+      setComment('');
+      setRating(5);
+    }
+  });
+
+  const handleReviewSubmit = (e) => {
+    e.preventDefault();
+    if (!user) {
+      navigate('/auth/login');
+      return;
+    }
+    reviewMutation.mutate({ event_id: event.id, rating, comment });
+  };
 
   const minPrice = useMemo(() => {
     const prices = seatMap?.zones?.map((z) => z.price).filter(Boolean) ?? [];
@@ -88,6 +121,13 @@ export default function EventDetail() {
               <div>
                 <h1 className="text-lg font-semibold">{event.title}</h1>
                 <div className="mt-1 text-sm text-muted">{formatDateTime(event.start_time)}</div>
+                <div className="mt-1 text-sm text-muted flex items-center gap-1">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  {event.location}
+                </div>
                 {highlight && <div className="mt-2 text-xs text-warning">Highlight: {highlight}</div>}
               </div>
 
@@ -146,19 +186,13 @@ export default function EventDetail() {
 
       <section className="grid gap-4 md:grid-cols-3">
         <div className="rounded-2xl border border-text/10 bg-surface p-5 md:col-span-2">
-          <div className="text-sm font-semibold">Giới thiệu</div>
-          <div className="mt-3 space-y-3 text-sm text-muted">
-            <p>
-              {event.description || 'Sự kiện này hiện chưa có mô tả chi tiết. Bạn có thể xem khu vực & giá và đặt vé ngay bên dưới.'}
-            </p>
-            <div className="rounded-xl border border-text/10 bg-bg/40 p-4">
-              <div className="text-sm font-semibold text-text">Bạn sẽ nhận được gì?</div>
-              <ul className="mt-2 list-disc space-y-1 pl-5">
-                <li>Vé QR Code để check-in nhanh</li>
-                <li>Giữ chỗ 10 phút trong bước thanh toán</li>
-                <li>Chọn ghế trực tiếp theo khu vực</li>
-              </ul>
-            </div>
+          <div className="text-sm font-semibold">Địa điểm</div>
+          <div className="mt-3 text-sm text-muted mb-4">{event.address || event.location}</div>
+          <div className="h-[400px] w-full overflow-hidden rounded-xl border border-text/10">
+            <GoogleMapLocation
+              initialLocation={{ lat: event.latitude, lng: event.longitude }}
+              readOnly={true}
+            />
           </div>
         </div>
 
@@ -178,6 +212,109 @@ export default function EventDetail() {
             ))}
             {(seatMap?.zones ?? []).length === 0 && (
               <div className="text-sm text-muted">Chưa có thông tin gói vé.</div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-text/10 bg-surface p-5">
+        <div className="text-sm font-semibold">Giới thiệu</div>
+        <div className="mt-3 space-y-3 text-sm text-muted">
+          <p>
+            {event.description || 'Sự kiện này hiện chưa có mô tả chi tiết. Bạn có thể xem khu vực & giá và đặt vé ngay bên dưới.'}
+          </p>
+          <div className="rounded-xl border border-text/10 bg-bg/40 p-4">
+            <div className="text-sm font-semibold text-text">Bạn sẽ nhận được gì?</div>
+            <ul className="mt-2 list-disc space-y-1 pl-5">
+              <li>Vé QR Code để check-in nhanh</li>
+              <li>Giữ chỗ 10 phút trong bước thanh toán</li>
+              <li>Chọn ghế trực tiếp theo khu vực</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Đánh giá từ cộng đồng</h2>
+          <div className="flex items-center gap-2">
+            <span className="text-2xl font-bold text-brand-600">
+              {reviews?.length > 0
+                ? (reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length).toFixed(1)
+                : '0.0'}
+            </span>
+            <div className="text-xs text-muted">
+              <div>/ 5.0</div>
+              <div>{reviews?.length || 0} đánh giá</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid gap-6 md:grid-cols-[1fr_2fr]">
+          <div className="rounded-2xl border border-text/10 bg-surface p-5 h-fit">
+            <h3 className="text-sm font-semibold mb-4">Gửi đánh giá của bạn</h3>
+            <form onSubmit={handleReviewSubmit} className="space-y-4">
+              <div>
+                <label className="text-xs text-muted block mb-1">Xếp hạng</label>
+                <div className="flex gap-1">
+                  {[1, 2, 3, 4, 5].map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setRating(s)}
+                      className={`text-xl transition-colors ${
+                        s <= rating ? 'text-warning' : 'text-text/10'
+                      }`}
+                    >
+                      ★
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-muted block mb-1">Bình luận</label>
+                <textarea
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  placeholder="Chia sẻ trải nghiệm của bạn..."
+                  className="w-full rounded-xl border border-text/10 bg-bg px-3 py-2 text-sm outline-none focus:border-brand-600"
+                  rows="3"
+                  required
+                />
+              </div>
+              <Button type="submit" className="w-full" disabled={reviewMutation.isPending}>
+                {reviewMutation.isPending ? 'Đang gửi...' : 'Gửi đánh giá'}
+              </Button>
+            </form>
+          </div>
+
+          <div className="space-y-4">
+            {reviewsLoading ? (
+              <div className="text-center py-10 text-muted">Đang tải đánh giá...</div>
+            ) : reviews?.length === 0 ? (
+              <div className="text-center py-10 border border-dashed border-text/10 rounded-2xl text-muted">
+                Chưa có đánh giá nào cho sự kiện này.
+              </div>
+            ) : (
+              reviews?.map((r) => (
+                <div key={r.id} className="rounded-2xl border border-text/10 bg-surface p-5">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="font-semibold text-sm">{r.user_name || 'Người dùng TicketRush'}</div>
+                    <div className="text-xs text-muted">{formatDateTime(r.created_at)}</div>
+                  </div>
+                  <div className="flex gap-0.5 mb-2">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <span
+                        key={i}
+                        className={`text-xs ${i < r.rating ? 'text-warning' : 'text-text/10'}`}
+                      >
+                        ★
+                      </span>
+                    ))}
+                  </div>
+                  <p className="text-sm text-muted/90">{r.comment}</p>
+                </div>
+              ))
             )}
           </div>
         </div>

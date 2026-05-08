@@ -119,4 +119,27 @@ async function resetPassword({ reset_token, new_password }) {
   return { ok: true };
 }
 
-export default { login, register, forgotPassword, resetPassword };
+async function socialLogin(provider) {
+  if (provider === 'google') {
+    window.location.href = `${import.meta.env.VITE_API_BASE_URL}${API_ROUTES.AUTH_GOOGLE_LOGIN}`;
+  } else if (provider === 'facebook') {
+    window.location.href = `${import.meta.env.VITE_API_BASE_URL}${API_ROUTES.AUTH_FACEBOOK_LOGIN}`;
+  }
+}
+
+async function setup2FA() {
+  const res = await api.post(API_ROUTES.AUTH_SETUP_2FA);
+  return unwrap(res);
+}
+
+async function enable2FA(code) {
+  const res = await api.post(API_ROUTES.AUTH_ENABLE_2FA, { code });
+  return unwrap(res);
+}
+
+async function verify2FALogin(user_id, code) {
+  const res = await api.post(API_ROUTES.AUTH_VERIFY_2FA, { user_id, code });
+  return unwrap(res);
+}
+
+export default { login, register, forgotPassword, resetPassword, socialLogin, setup2FA, enable2FA, verify2FALogin };

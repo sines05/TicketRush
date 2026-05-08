@@ -8,16 +8,21 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"ticketrush/internal/models"
+	"ticketrush/internal/queue"
 	"ticketrush/internal/service"
 	"ticketrush/internal/utils"
 )
 
 type OrderHandler struct {
 	orderService service.OrderService
+	queueService queue.Service
 }
 
-func NewOrderHandler(orderService service.OrderService) *OrderHandler {
-	return &OrderHandler{orderService: orderService}
+func NewOrderHandler(orderService service.OrderService, queueService queue.Service) *OrderHandler {
+	return &OrderHandler{
+		orderService: orderService,
+		queueService: queueService,
+	}
 }
 
 type lockSeatsRequest struct {
@@ -35,7 +40,10 @@ func (h *OrderHandler) LockSeats(c *gin.Context) {
 	user, _ := c.Get("user")
 	u := user.(*models.User)
 
-	order, err := h.orderService.LockSeats(c.Request.Context(), u.ID, req.EventID, req.SeatIDs)
+	// Verify X-Queue-Token (will be thoroughly verified in service if IsQueueMode is true)
+	token := c.GetHeader("X-Queue-Token")
+
+	order, err := h.orderService.LockSeats(c.Request.Context(), u.ID, req.EventID, req.SeatIDs, token)
 	if err != nil {
 		if errors.Is(err, utils.ErrQueueNotAllowed) {
 			utils.SendError(c, http.StatusForbidden, err.Error(), "QUEUE_NOT_ALLOWED")
@@ -46,6 +54,9 @@ func (h *OrderHandler) LockSeats(c *gin.Context) {
 		}
 		return
 	}
+
+	// Update session with Order ID so frontend can recover
+	_ = h.queueService.UpdateSessionOrder(c.Request.Context(), token, order.ID, order.ExpiresAt)
 
 	utils.SendSuccess(c, http.StatusOK, gin.H{
 		"order_id":     order.ID,

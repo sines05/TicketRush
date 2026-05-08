@@ -1,11 +1,29 @@
-import React, { createContext, useCallback, useMemo, useReducer } from 'react';
+import React, { createContext, useCallback, useMemo } from 'react';
 import { SEAT_STATUS } from '../constants/status.js';
 
 export const BookingContext = createContext(null);
 
+const STORAGE_KEY = 'booking_state';
+
 const initialState = {
   eventId: null,
   selectedSeats: []
+};
+
+const getInitialState = () => {
+  const saved = window.sessionStorage.getItem(STORAGE_KEY);
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved);
+      // Validate hydrated state
+      if (parsed && Array.isArray(parsed.selectedSeats)) {
+        return parsed;
+      }
+    } catch (e) {
+      console.error('Failed to parse booking state', e);
+    }
+  }
+  return initialState;
 };
 
 function reducer(state, action) {
@@ -46,7 +64,11 @@ function reducer(state, action) {
 }
 
 export function BookingProvider({ children }) {
-  const [state, dispatch] = useReducer(reducer, initialState);
+  const [state, dispatch] = React.useReducer(reducer, undefined, getInitialState);
+
+  React.useEffect(() => {
+    window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }, [state]);
 
   const startBooking = useCallback((newEventId) => {
     dispatch({ type: 'START', eventId: newEventId });

@@ -11,10 +11,13 @@ import (
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/facebook"
 	"golang.org/x/oauth2/google"
 	"ticketrush/internal/config"
 	"ticketrush/internal/models"
 	"ticketrush/internal/repository"
+
+	"github.com/pquerna/otp/totp"
 )
 
 type RegisterRequest struct {
@@ -27,21 +30,29 @@ type RegisterRequest struct {
 
 type AuthService interface {
 	Register(req RegisterRequest) (*models.User, error)
-	Login(email, password string) (string, *models.User, error)
+	Login(email, password string) (string, *models.User, bool, error)
 	ValidateToken(tokenString string) (*models.User, error)
 	ForgotPassword(email string) error
 	ResetPassword(token, newPassword string) error
-	GoogleLoginURL() string
+	GoogleLoginURL(state string) string
 	GoogleLoginCallback(code string) (string, *models.User, error)
+	FacebookLoginURL(state string) string
+	FacebookLoginCallback(code string) (string, *models.User, error)
+	Generate2FA(userID uuid.UUID) (string, string, error)
+	Enable2FA(userID uuid.UUID, code string) error
+	Verify2FA(userID uuid.UUID, code string) (string, error)
+	UpdateNotificationToken(userID uuid.UUID, token string) error
 }
 
 type authService struct {
-	userRepo  repository.UserRepository
-	jwtSecret string
-	googleCfg *oauth2.Config
+	userRepo         repository.UserRepository
+	notificationServ NotificationService
+	jwtSecret        string
+	googleCfg        *oauth2.Config
+	facebookCfg      *oauth2.Config
 }
 
-func NewAuthService(userRepo repository.UserRepository, cfg *config.Config) AuthService {
+func NewAuthService(userRepo repository.UserRepository, notificationServ NotificationService, cfg *config.Config) AuthService {
 	googleCfg := &oauth2.Config{
 		ClientID:     cfg.GoogleClientID,
 		ClientSecret: cfg.GoogleClientSecret,
@@ -53,10 +64,20 @@ func NewAuthService(userRepo repository.UserRepository, cfg *config.Config) Auth
 		Endpoint: google.Endpoint,
 	}
 
+	facebookCfg := &oauth2.Config{
+		ClientID:     cfg.FacebookClientID,
+		ClientSecret: cfg.FacebookClientSecret,
+		RedirectURL:  cfg.FacebookRedirectURL,
+		Scopes:       []string{"email", "public_profile"},
+		Endpoint:     facebook.Endpoint,
+	}
+
 	return &authService{
-		userRepo:  userRepo,
-		jwtSecret: cfg.JWTSecret,
-		googleCfg: googleCfg,
+		userRepo:         userRepo,
+		notificationServ: notificationServ,
+		jwtSecret:        cfg.JWTSecret,
+		googleCfg:        googleCfg,
+		facebookCfg:      facebookCfg,
 	}
 }
 
@@ -90,17 +111,24 @@ func (s *authService) Register(req RegisterRequest) (*models.User, error) {
 		return nil, err
 	}
 
+	// Trigger Welcome Email
+	s.notificationServ.NotifyWelcome(user)
+
 	return user, nil
 }
 
-func (s *authService) Login(email, password string) (string, *models.User, error) {
+func (s *authService) Login(email, password string) (string, *models.User, bool, error) {
 	user, err := s.userRepo.FindByEmail(email)
 	if err != nil {
-		return "", nil, errors.New("invalid email or password")
+		return "", nil, false, errors.New("invalid email or password")
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
-		return "", nil, errors.New("invalid email or password")
+		return "", nil, false, errors.New("invalid email or password")
+	}
+
+	if user.TwoFactorEnabled {
+		return "", user, true, nil
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
@@ -111,10 +139,10 @@ func (s *authService) Login(email, password string) (string, *models.User, error
 
 	tokenString, err := token.SignedString([]byte(s.jwtSecret))
 	if err != nil {
-		return "", nil, err
+		return "", nil, false, err
 	}
 
-	return tokenString, user, nil
+	return tokenString, user, false, nil
 }
 
 func (s *authService) ValidateToken(tokenString string) (*models.User, error) {
@@ -160,8 +188,8 @@ func (s *authService) ValidateToken(tokenString string) (*models.User, error) {
 	return user, nil
 }
 
-func (s *authService) GoogleLoginURL() string {
-	return s.googleCfg.AuthCodeURL("state") // Note: In production, generate a random state string and verify it
+func (s *authService) GoogleLoginURL(state string) string {
+	return s.googleCfg.AuthCodeURL(state)
 }
 
 func (s *authService) GoogleLoginCallback(code string) (string, *models.User, error) {
@@ -194,7 +222,8 @@ func (s *authService) GoogleLoginCallback(code string) (string, *models.User, er
 		// Create new user
 		user = &models.User{
 			Email:        userInfo.Email,
-			PasswordHash: "[OAUTH2_GOOGLE_USER]", // Dummy password for oauth users
+			PasswordHash: "", // No password for oauth users
+			IsOAuth:      true,
 			FullName:     userInfo.Name,
 			Role:         models.RoleCustomer,
 			Gender:       models.GenderOther, // Default or prompt later
@@ -203,6 +232,13 @@ func (s *authService) GoogleLoginCallback(code string) (string, *models.User, er
 		if err := s.userRepo.Create(user); err != nil {
 			return "", nil, fmt.Errorf("failed to create oauth user: %v", err)
 		}
+		// Trigger Welcome Email for new OAuth user
+		s.notificationServ.NotifyWelcome(user)
+	}
+
+	// 2FA check for social login
+	if user.TwoFactorEnabled {
+		return "", user, nil
 	}
 
 	// 4. Generate JWT
@@ -273,4 +309,127 @@ func (s *authService) ResetPassword(token, newPassword string) error {
 	s.userRepo.DeletePasswordReset(token)
 
 	return nil
+}
+
+func (s *authService) FacebookLoginURL(state string) string {
+	return s.facebookCfg.AuthCodeURL(state)
+}
+
+func (s *authService) FacebookLoginCallback(code string) (string, *models.User, error) {
+	token, err := s.facebookCfg.Exchange(context.Background(), code)
+	if err != nil {
+		return "", nil, fmt.Errorf("facebook code exchange failed: %v", err)
+	}
+
+	client := s.facebookCfg.Client(context.Background(), token)
+	resp, err := client.Get("https://graph.facebook.com/me?fields=id,name,email")
+	if err != nil {
+		return "", nil, fmt.Errorf("failed getting facebook user info: %v", err)
+	}
+	defer resp.Body.Close()
+
+	var userInfo struct {
+		ID    string `json:"id"`
+		Name  string `json:"name"`
+		Email string `json:"email"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&userInfo); err != nil {
+		return "", nil, fmt.Errorf("failed parsing facebook user info: %v", err)
+	}
+
+	user, err := s.userRepo.FindByEmail(userInfo.Email)
+	if err != nil {
+		user = &models.User{
+			Email:        userInfo.Email,
+			PasswordHash: "",
+			IsOAuth:      true,
+			FullName:     userInfo.Name,
+			Role:         models.RoleCustomer,
+			Gender:       models.GenderOther,
+			DateOfBirth:  time.Now(),
+		}
+		if err := s.userRepo.Create(user); err != nil {
+			return "", nil, fmt.Errorf("failed to create facebook oauth user: %v", err)
+		}
+		// Trigger Welcome Email for new OAuth user
+		s.notificationServ.NotifyWelcome(user)
+	}
+
+	// 2FA check for social login
+	if user.TwoFactorEnabled {
+		return "", user, nil
+	}
+
+	jwtToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"user_id": user.ID.String(),
+		"role":    user.Role,
+		"exp":     time.Now().Add(time.Hour * 24).Unix(),
+	})
+
+	tokenString, err := jwtToken.SignedString([]byte(s.jwtSecret))
+	if err != nil {
+		return "", nil, err
+	}
+
+	return tokenString, user, nil
+}
+
+func (s *authService) Generate2FA(userID uuid.UUID) (string, string, error) {
+	user, err := s.userRepo.FindByID(userID)
+	if err != nil {
+		return "", "", err
+	}
+
+	key, err := totp.Generate(totp.GenerateOpts{
+		Issuer:      "TicketRush",
+		AccountName: user.Email,
+	})
+	if err != nil {
+		return "", "", err
+	}
+
+	// Store secret temporarily but not enabled yet
+	if err := s.userRepo.Update2FA(userID, false, key.Secret()); err != nil {
+		return "", "", err
+	}
+
+	return key.Secret(), key.URL(), nil
+}
+
+func (s *authService) Enable2FA(userID uuid.UUID, code string) error {
+	user, err := s.userRepo.FindByID(userID)
+	if err != nil {
+		return err
+	}
+
+	valid := totp.Validate(code, user.TwoFactorSecret)
+	if !valid {
+		return errors.New("invalid verification code")
+	}
+
+	return s.userRepo.Update2FA(userID, true, user.TwoFactorSecret)
+}
+
+func (s *authService) Verify2FA(userID uuid.UUID, code string) (string, error) {
+	user, err := s.userRepo.FindByID(userID)
+	if err != nil {
+		return "", err
+	}
+
+	valid := totp.Validate(code, user.TwoFactorSecret)
+	if !valid {
+		return "", errors.New("invalid verification code")
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"user_id": user.ID.String(),
+		"role":    user.Role,
+		"exp":     time.Now().Add(time.Hour * 24).Unix(),
+	})
+
+	return token.SignedString([]byte(s.jwtSecret))
+}
+
+func (s *authService) UpdateNotificationToken(userID uuid.UUID, token string) error {
+	return s.userRepo.UpdateNotificationToken(userID, token)
 }

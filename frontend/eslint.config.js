@@ -9,7 +9,7 @@ export default [
   },
   js.configs.recommended,
   {
-    files: ['**/*.{js,jsx}'],
+    files: ['**/*.{js,jsx,ts,tsx}'],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'module',
@@ -30,7 +30,9 @@ export default [
         setInterval: 'readonly',
         clearInterval: 'readonly',
         requestAnimationFrame: 'readonly',
-        cancelAnimationFrame: 'readonly'
+        cancelAnimationFrame: 'readonly',
+        process: 'readonly',
+        google: 'readonly'
       },
       parserOptions: {
         ecmaFeatures: { jsx: true }

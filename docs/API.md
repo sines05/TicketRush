@@ -38,6 +38,30 @@ Protected routes require a JWT token in the header:
 `POST /auth/login`
 - **Body**: `{ "email": "...", "password": "..." }`
 - **Success Data**: `{ "user_id": "...", "full_name": "...", "role": "CUSTOMER|ADMIN", "access_token": "..." }`
+- **Partial Success (2FA Required)**: `{ "success": true, "data": { "requires_2fa": true, "user_id": "..." }, "message": "..." }`
+
+### Verify 2FA Login
+`POST /auth/verify-2fa`
+- **Body**: `{ "user_id": "...", "code": "..." }`
+- **Success Data**: `{ "user_id": "...", "full_name": "...", "role": "...", "access_token": "..." }`
+
+### Social Login
+- `GET /auth/google/login` -> Redirects to Google
+- `GET /auth/facebook/login` -> Redirects to Facebook
+
+### Setup 2FA (Protected)
+`POST /auth/setup-2fa`
+- **Success Data**: `{ "secret": "...", "qr_url": "..." }`
+
+### Enable 2FA (Protected)
+`POST /auth/enable-2fa`
+- **Body**: `{ "code": "..." }`
+- **Success Data**: `null`
+
+### Update Notification Token (Protected)
+`POST /users/notification-token`
+- **Body**: `{ "token": "..." }`
+- **Success Data**: `null`
 
 ---
 

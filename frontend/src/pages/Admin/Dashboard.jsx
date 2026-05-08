@@ -10,8 +10,9 @@ import {
   XAxis,
   YAxis
 } from 'recharts';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import eventService from '../../services/eventService.js';
 import { formatVND } from '../../utils/formatters.js';
 import Button from '../../components/common/Button.jsx';
@@ -25,257 +26,217 @@ const GENDER_COLORS = {
 const AGE_GROUP_ORDER = ['18-24', '25-34', '35+'];
 
 export default function Dashboard() {
+  const queryClient = useQueryClient();
   const [selectedEventId, setSelectedEventId] = useState('');
-  const [statsLoading, setStatsLoading] = useState(false);
-  const [statsError, setStatsError] = useState('');
 
-  const [eventsLoading, setEventsLoading] = useState(true);
-  const [eventsError, setEventsError] = useState('');
-  const [events, setEvents] = useState([]);
-
-  const [dashboardStats, setDashboardStats] = useState({
-    total_revenue: 0,
-    total_sold: 0,
-    occupancy_rate: 0,
-    gender_dist: [],
-    age_dist: {}
-  });
-
-  async function loadEvents() {
-    setEventsLoading(true);
-    setEventsError('');
-    try {
-      const data = await eventService.getAdminEvents();
-      setEvents(Array.isArray(data) ? data : []);
-      if (Array.isArray(data) && data.length > 0) {
+  const { data: events, isLoading: eventsLoading } = useQuery({
+    queryKey: ['admin', 'events'],
+    queryFn: eventService.getAdminEvents,
+    onSuccess: (data) => {
+      if (data && data.length > 0 && !selectedEventId) {
         setSelectedEventId(data[0].id);
       }
-    } catch (e) {
-      setEventsError(e?.message || 'Không tải được danh sách sự kiện');
-    } finally {
-      setEventsLoading(false);
     }
-  }
+  });
 
-  async function loadDashboardStats(eventId) {
-    setStatsLoading(true);
-    setStatsError('');
-    try {
-      const data = await eventService.getDashboardStats(eventId);
-      setDashboardStats(data || {
-        total_revenue: 0,
-        total_sold: 0,
-        occupancy_rate: 0,
-        gender_dist: [],
-        age_dist: {}
-      });
-    } catch (e) {
-      setStatsError(e?.message || 'Không tải được thống kê');
-    } finally {
-      setStatsLoading(false);
+  const { data: stats, isLoading: statsLoading } = useQuery({
+    queryKey: ['admin', 'stats', selectedEventId],
+    queryFn: () => eventService.getDashboardStats(selectedEventId),
+    enabled: !!selectedEventId || selectedEventId === ''
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: eventService.deleteEvent,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'events'] });
     }
-  }
+  });
 
-  useEffect(() => {
-    loadEvents();
-  }, []);
-
-  useEffect(() => {
-    if (selectedEventId) {
-      loadDashboardStats(selectedEventId);
+  const handleDelete = (eventId) => {
+    if (window.confirm('Bạn có chắc chắn muốn xóa sự kiện này?')) {
+      deleteMutation.mutate(eventId);
     }
-  }, [selectedEventId]);
+  };
 
-  async function handleDelete(eventId) {
-    if (!eventId) return;
-    const ok = window.confirm('Xoá sự kiện này?');
-    if (!ok) return;
-
-    try {
-      await eventService.deleteEvent(eventId);
-      await loadEvents();
-    } catch (e) {
-      setEventsError(e?.message || 'Xoá sự kiện thất bại');
-    }
-  }
-
-  // Transform gender_dist từ API format sang recharts format
-  const genderData = dashboardStats.gender_dist?.map((item) => ({
+  const genderData = stats?.gender_dist?.map((item) => ({
     name: item.gender || item.name,
     value: item.count || item.value
   })) || [];
 
-  // Transform age_dist từ API format sang recharts format
-  const ageData = dashboardStats.age_dist
+  const ageData = stats?.age_dist
     ? AGE_GROUP_ORDER.map((group) => ({
         name: group,
-        value: dashboardStats.age_dist[group] || 0
+        value: stats.age_dist[group] || 0
       }))
     : [];
 
-  const currentEvent = events.find((e) => e.id === selectedEventId);
-
   return (
-    <div className="space-y-6">
-      <section className="rounded-2xl border border-text/10 bg-surface p-5">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-lg font-semibold">Admin Dashboard</h1>
-            <div className="mt-1 text-sm text-muted">Thống kê theo sự kiện</div>
-          </div>
+    <div className="space-y-8 animate-in fade-in duration-700">
+      {/* Header & Quick Actions */}
+      <section className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-text">Hệ thống Quản trị</h1>
+          <p className="mt-1 text-sm text-muted">Theo dõi hiệu suất và quản lý tài nguyên TicketRush.</p>
         </div>
+        <div className="flex flex-wrap gap-3">
+          <Link to="/admin/users">
+            <Button variant="secondary" className="bg-surface/50 backdrop-blur-sm border-text/10">Quản lý User</Button>
+          </Link>
+          <Link to="/admin/check-in">
+            <Button variant="secondary" className="bg-surface/50 backdrop-blur-sm border-text/10">Check-in vé</Button>
+          </Link>
+          <Link to="/admin/events/new">
+            <Button className="shadow-lg shadow-brand-600/20">Tạo sự kiện mới</Button>
+          </Link>
+        </div>
+      </section>
 
-        {statsError && (
-          <div className="mt-4 rounded-xl border border-danger/40 bg-danger/10 p-3 text-sm">{statsError}</div>
-        )}
-
-        <div className="mt-5 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-          <div className="flex-1">
-            <label className="text-sm font-semibold">Chọn sự kiện</label>
+      {/* KPI & Stats Selection */}
+      <section className="rounded-3xl border border-text/10 bg-surface/50 backdrop-blur-xl p-8 shadow-2xl">
+        <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+          <div className="space-y-2">
+            <label className="text-xs font-bold uppercase tracking-widest text-muted">Lọc theo sự kiện</label>
             <select
               value={selectedEventId}
               onChange={(e) => setSelectedEventId(e.target.value)}
-              className="mt-2 w-full rounded-lg border border-text/20 bg-bg px-3 py-2 text-sm outline-none transition-all focus:border-brand focus:ring-2 focus:ring-brand/10 md:w-auto"
+              className="block w-full rounded-xl border border-text/10 bg-bg px-4 py-3 text-sm font-medium outline-none transition-all focus:border-brand-600 focus:ring-4 focus:ring-brand-600/10 md:w-80 cursor-pointer"
             >
-              <option value="">-- Tất cả sự kiện --</option>
-              {events.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.title}
-                </option>
+              <option value="">Tất cả sự kiện</option>
+              {events?.map((e) => (
+                <option key={e.id} value={e.id}>{e.title}</option>
               ))}
             </select>
           </div>
-        </div>
-
-        <div className="mt-5 grid gap-3 md:grid-cols-4">
-          <KpiCard label="Doanh thu" value={statsLoading ? '...' : formatVND(dashboardStats.total_revenue)} />
-          <KpiCard label="Vé đã bán" value={statsLoading ? '...' : dashboardStats.total_sold} />
-          <KpiCard label="Fill rate" value={statsLoading ? '...' : `${(dashboardStats.occupancy_rate * 100).toFixed(1)}%`} />
-          <KpiCard label="Sự kiện" value={currentEvent?.title || '—'} />
+          
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:flex lg:gap-8">
+            <KpiItem label="Doanh thu" value={statsLoading ? '...' : formatVND(stats?.total_revenue || 0)} highlight />
+            <KpiItem label="Vé đã bán" value={statsLoading ? '...' : stats?.total_sold || 0} />
+            <KpiItem label="Tỉ lệ lấp đầy" value={statsLoading ? '...' : `${((stats?.occupancy_rate || 0) * 100).toFixed(1)}%`} />
+          </div>
         </div>
       </section>
 
-      <section className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-2xl border border-text/10 bg-surface p-5">
-          <div className="text-sm font-semibold">Demographics • Gender</div>
-          <div className="mt-4 h-72">
+      {/* Charts Section */}
+      <section className="grid gap-6 lg:grid-cols-2">
+        <ChartCard title="Phân bố Giới tính" subtitle="Thống kê khán giả tham gia">
+          <div className="h-72">
             {statsLoading ? (
-              <div className="flex items-center justify-center h-full text-sm text-muted">Đang tải...</div>
+              <LoadingSpinner />
             ) : genderData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={genderData} dataKey="value" nameKey="name" innerRadius={55} outerRadius={90}>
+                  <Pie data={genderData} dataKey="value" nameKey="name" innerRadius={60} outerRadius={100} paddingAngle={5}>
                     {genderData.map((entry) => (
-                      <Cell key={entry.name} fill={GENDER_COLORS[entry.name] ?? 'rgb(var(--tr-muted))'} />
+                      <Cell key={entry.name} fill={GENDER_COLORS[entry.name] ?? 'rgb(var(--tr-muted))'} stroke="none" />
                     ))}
                   </Pie>
-                  <Tooltip />
+                  <Tooltip 
+                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                  />
                 </PieChart>
               </ResponsiveContainer>
-            ) : (
-              <div className="flex items-center justify-center h-full text-sm text-muted">Chưa có dữ liệu</div>
-            )}
+            ) : <EmptyState />}
           </div>
-        </div>
+        </ChartCard>
 
-        <div className="rounded-2xl border border-text/10 bg-surface p-5">
-          <div className="text-sm font-semibold">Demographics • Age groups</div>
-          <div className="mt-4 h-72">
+        <ChartCard title="Nhóm tuổi" subtitle="Độ tuổi quan tâm đến sự kiện">
+          <div className="h-72">
             {statsLoading ? (
-              <div className="flex items-center justify-center h-full text-sm text-muted">Đang tải...</div>
+              <LoadingSpinner />
             ) : ageData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={ageData}>
-                  <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-                  <XAxis dataKey="name" stroke="#94a3b8" />
-                  <YAxis stroke="#94a3b8" />
-                  <Tooltip />
-                  <Bar dataKey="value" fill={'rgb(var(--tr-brand-600))'} radius={[6, 6, 0, 0]} />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.1} />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'rgb(var(--tr-muted))' }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'rgb(var(--tr-muted))' }} />
+                  <Tooltip 
+                    cursor={{ fill: 'rgba(var(--tr-brand-600), 0.05)' }}
+                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                  />
+                  <Bar dataKey="value" fill="rgb(var(--tr-brand-600))" radius={[8, 8, 0, 0]} barSize={40} />
                 </BarChart>
               </ResponsiveContainer>
-            ) : (
-              <div className="flex items-center justify-center h-full text-sm text-muted">Chưa có dữ liệu</div>
-            )}
+            ) : <EmptyState />}
           </div>
-        </div>
+        </ChartCard>
       </section>
 
-      <section className="rounded-2xl border border-text/10 bg-surface p-5">
-        <div className="text-sm font-semibold">Ghi chú</div>
-        <div className="mt-2 text-sm text-muted">
-          Dashboard lấy dữ liệu demographic từ API thực. Chọn sự kiện để xem thống kê chi tiết.
+      {/* Events List Table-like UI */}
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-bold">Danh sách Sự kiện</h2>
+          <span className="text-xs text-muted font-medium uppercase tracking-wider">{events?.length || 0} Sự kiện</span>
         </div>
-      </section>
-
-      <section className="rounded-2xl border border-text/10 bg-surface p-5">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="text-sm font-semibold">Sự kiện</div>
-            <div className="mt-1 text-sm text-muted">Quản lý sự kiện (Sửa / Xoá)</div>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Link to="/admin/check-in">
-              <Button variant="secondary">Check-in vé</Button>
-            </Link>
-            <Link to="/admin/events/new">
-              <Button>Tạo sự kiện</Button>
-            </Link>
-          </div>
-        </div>
-
-        {eventsError && (
-          <div className="mt-4 rounded-xl border border-danger/40 bg-danger/10 p-3 text-sm">{eventsError}</div>
-        )}
-
-        <div className="mt-4 space-y-3">
+        
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {eventsLoading ? (
-            <div className="text-sm text-muted">Đang tải...</div>
-          ) : events.length === 0 ? (
-            <div className="text-sm text-muted">Chưa có sự kiện nào.</div>
-          ) : (
-            events.map((e) => (
-              <div
-                key={e.id}
-                className="flex flex-col gap-3 rounded-xl border border-text/10 bg-bg/40 p-4 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <div className="truncate text-sm font-semibold">{e.title}</div>
-                    <span
-                      className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
-                        e.is_published
-                          ? 'border-success/30 bg-success/15 text-success'
-                          : 'border-warning/30 bg-warning/15 text-warning'
-                      }`}
-                    >
-                      {e.is_published ? 'Published' : 'Draft'}
-                    </span>
-                  </div>
-                  <div className="mt-1 text-xs text-muted">{e.start_time ? new Date(e.start_time).toLocaleString('vi-VN') : '—'}</div>
-                </div>
-
-                <div className="flex shrink-0 gap-2">
-                  <Link to={`/admin/events/${e.id}/edit`}>
-                    <Button variant="secondary" size="sm">Sửa</Button>
-                  </Link>
-                  <Button variant="secondary" size="sm" onClick={() => handleDelete(e.id)}>
-                    Xoá
-                  </Button>
-                </div>
-              </div>
+             Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="h-40 animate-pulse rounded-2xl bg-surface border border-text/10"></div>
             ))
-          )}
+          ) : events?.map((e) => (
+            <div key={e.id} className="group relative overflow-hidden rounded-2xl border border-text/10 bg-surface/30 p-5 transition-all hover:bg-surface/80 hover:shadow-xl hover:-translate-y-1">
+              <div className="flex justify-between items-start">
+                <div className="space-y-1 pr-8">
+                  <h3 className="font-bold text-text truncate group-hover:text-brand-600 transition-colors">{e.title}</h3>
+                  <p className="text-xs text-muted">{new Date(e.start_time).toLocaleString('vi-VN')}</p>
+                </div>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-tighter ${e.is_published ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'}`}>
+                  {e.is_published ? 'Live' : 'Draft'}
+                </span>
+              </div>
+              
+              <div className="mt-6 flex gap-2">
+                <Link to={`/admin/events/${e.id}/edit`} className="flex-1">
+                  <Button variant="secondary" size="sm" className="w-full text-[11px] h-8 bg-bg">Sửa</Button>
+                </Link>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="flex-1 text-[11px] h-8 hover:bg-danger/10 hover:text-danger"
+                  onClick={() => handleDelete(e.id)}
+                >
+                  Xóa
+                </Button>
+              </div>
+            </div>
+          ))}
         </div>
       </section>
     </div>
   );
 }
 
-function KpiCard({ label, value }) {
+function KpiItem({ label, value, highlight }) {
   return (
-    <div className="rounded-xl border border-text/10 bg-bg/40 p-4">
-      <div className="text-xs text-muted">{label}</div>
-      <div className="mt-1 text-lg font-semibold">{value}</div>
+    <div className="space-y-1">
+      <div className="text-[10px] font-bold uppercase tracking-widest text-muted">{label}</div>
+      <div className={`text-xl font-black ${highlight ? 'text-brand-600 dark:text-brand-400' : 'text-text'}`}>{value}</div>
     </div>
+  );
+}
+
+function ChartCard({ title, subtitle, children }) {
+  return (
+    <div className="rounded-3xl border border-text/10 bg-surface p-6 shadow-lg">
+      <div className="mb-6">
+        <h3 className="font-bold text-text">{title}</h3>
+        <p className="text-xs text-muted mt-0.5">{subtitle}</p>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function LoadingSpinner() {
+  return (
+    <div className="flex items-center justify-center h-full">
+      <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand-600 border-t-transparent"></div>
+    </div>
+  );
+}
+
+function EmptyState() {
+  return (
+    <div className="flex items-center justify-center h-full text-sm text-muted italic">Chưa có dữ liệu thống kê</div>
   );
 }

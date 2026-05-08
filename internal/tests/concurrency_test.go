@@ -18,7 +18,7 @@ import (
 func TestSeatLockConcurrency(t *testing.T) {
 	config.LoadConfig() // Ensure env is loaded
 	// Use a test-specific DSN if needed, but for simplicity we'll try to connect to the local DB
-	dsn := "host=localhost user=user password=password dbname=ticketrush port=5432 sslmode=disable"
+	dsn := "host=localhost user=user password=password dbname=ticketrush port=5433 sslmode=disable"
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		t.Skip("Database not available for concurrency test")
@@ -36,7 +36,7 @@ func TestSeatLockConcurrency(t *testing.T) {
 	db.Create(&seat)
 
 	orderRepo := repository.NewOrderRepository(db)
-	orderSvc := service.NewOrderService(orderRepo, &mockQueueRepo{}, &mockBroadcaster{})
+	orderSvc := service.NewOrderService(orderRepo, &mockEventRepo{}, &mockQueueRepo{}, &mockBroadcaster{}, &mockNotifier{}, &mockUserRepo{})
 
 	var wg sync.WaitGroup
 	successCount := 0
@@ -48,7 +48,7 @@ func TestSeatLockConcurrency(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			_, err := orderSvc.LockSeats(context.Background(), user.ID, event.ID, []uuid.UUID{seat.ID})
+			_, err := orderSvc.LockSeats(context.Background(), user.ID, event.ID, []uuid.UUID{seat.ID}, "")
 			mu.Lock()
 			if err == nil {
 				successCount++

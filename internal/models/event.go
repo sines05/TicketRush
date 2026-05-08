@@ -42,6 +42,7 @@ type Event struct {
 	IsPublished bool        `gorm:"default:false" json:"is_published"`
 	IsFeatured  bool        `gorm:"default:false" json:"is_featured"`
 	Category    string      `gorm:"type:varchar(50);not null;default:'Âm nhạc & Lễ hội'" json:"category"`
+	IsQueueMode bool        `gorm:"default:false" json:"is_queue_mode"`
 	Zones       []EventZone `gorm:"foreignKey:EventID" json:"zones,omitempty"`
 }
 

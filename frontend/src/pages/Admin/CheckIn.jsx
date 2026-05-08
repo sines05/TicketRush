@@ -31,8 +31,9 @@ export default function AdminCheckIn() {
         if (!mounted) return;
         setError(err?.message || 'Không tải được danh sách sự kiện');
       } finally {
-        if (!mounted) return;
-        setLoading(false);
+        if (mounted) {
+          setLoading(false);
+        }
       }
     }
 
@@ -63,8 +64,9 @@ export default function AdminCheckIn() {
         setError(err?.message || 'Không tải được danh sách vé');
       })
       .finally(() => {
-        if (!mounted) return;
-        setLoading(false);
+        if (mounted) {
+          setLoading(false);
+        }
       });
 
     return () => {

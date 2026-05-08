@@ -31,18 +31,27 @@ export default function SeatMap() {
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  // WebSocket real-time seat updates — use callback to bypass React 18 batching
-  const { status: wsStatus, setOnMessage } = useWebSocket(
-    `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`,
-    { enabled: !!eventId }
-  );
+  // WebSocket real-time seat updates
+  const { status: wsStatus, setOnMessage, send } = useWebSocket('/ws', { enabled: !!eventId });
 
-  // Register the WebSocket message handler — fires immediately for EACH message
+  // Handle subscription
+  useEffect(() => {
+    if (wsStatus === 'CONNECTED' && eventId) {
+      send({ action: 'subscribe', channel: `event:${eventId}` });
+    }
+  }, [wsStatus, eventId, send]);
+
+  // Register the WebSocket message handler
   useEffect(() => {
     setOnMessage((data) => {
       try {
         const msg = JSON.parse(data);
-        if (!msg.type || !msg.seat_id) return;
+        if (!msg.type) return;
+
+        // Support both single seat_id and batched seat_ids
+        const type = msg.type;
+        const targetIds = msg.seat_ids || (msg.seat_id ? [msg.seat_id] : []);
+        if (targetIds.length === 0) return;
 
         setSeatMap((prev) => {
           if (!prev) return prev;
@@ -51,13 +60,16 @@ export default function SeatMap() {
             zones: prev.zones.map((zone) => ({
               ...zone,
               seats: zone.seats.map((seat) => {
-                if (seat.seat_id !== msg.seat_id) return seat;
-                switch (msg.type) {
+                if (!targetIds.includes(seat.seat_id)) return seat;
+                switch (type) {
                   case 'SEAT_LOCKED':
+                  case 'SEATS_LOCKED':
                     return { ...seat, status: 'LOCKED' };
                   case 'SEAT_SOLD':
+                  case 'SEATS_SOLD':
                     return { ...seat, status: 'SOLD' };
                   case 'SEAT_RELEASED':
+                  case 'SEATS_RELEASED':
                     return { ...seat, status: 'AVAILABLE', locked_by_user_id: null };
                   default:
                     return seat;

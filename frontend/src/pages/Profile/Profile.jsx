@@ -7,6 +7,7 @@ import { useAuth } from '../../hooks/useAuth.js';
 import { GENDER } from '../../constants/gender.js';
 import userService from '../../services/userService.js';
 import uploadService from '../../services/uploadService.js';
+import authService from '../../services/authService.js';
 import { resolveMediaUrl } from '../../utils/media.js';
 
 function toDateInputValue(value) {
@@ -41,12 +42,20 @@ export default function Profile() {
   const [gender, setGender] = useState(user?.gender || '');
   const [dateOfBirth, setDateOfBirth] = useState(toDateInputValue(user?.date_of_birth || ''));
 
+  // 2FA state
+  const [is2FAEnabled, setIs2FAEnabled] = useState(user?.is_2fa_enabled || false);
+  const [show2FASetup, setShow2FASetup] = useState(false);
+  const [twoFAData, setTwoFAData] = useState(null); // { qr_code, secret }
+  const [twoFACode, setTwoFACode] = useState('');
+  const [twoFALoading, setTwoFALoading] = useState(false);
+
   const [lastLoaded, setLastLoaded] = useState({
     email: user?.email || '',
     full_name: user?.full_name || '',
     avatar_url: user?.avatar_url || '',
     gender: user?.gender || '',
-    date_of_birth: toDateInputValue(user?.date_of_birth || '')
+    date_of_birth: toDateInputValue(user?.date_of_birth || ''),
+    is_2fa_enabled: user?.is_2fa_enabled || false
   });
 
   const avatarPreview = useMemo(() => {
@@ -81,7 +90,8 @@ export default function Profile() {
           full_name: me?.full_name || user?.full_name || '',
           avatar_url: me?.avatar_url || user?.avatar_url || '',
           gender: me?.gender || user?.gender || '',
-          date_of_birth: toDateInputValue(me?.date_of_birth || user?.date_of_birth || '')
+          date_of_birth: toDateInputValue(me?.date_of_birth || user?.date_of_birth || ''),
+          is_2fa_enabled: me?.is_2fa_enabled || false
         };
         setLastLoaded(next);
         setEmail(next.email);
@@ -89,6 +99,7 @@ export default function Profile() {
         setAvatarUrl(next.avatar_url);
         setGender(next.gender);
         setDateOfBirth(next.date_of_birth);
+        setIs2FAEnabled(next.is_2fa_enabled);
       })
       .catch((e) => {
         if (!mounted) return;
@@ -157,6 +168,38 @@ export default function Profile() {
     setAvatarFile(null);
     setGender(lastLoaded.gender);
     setDateOfBirth(lastLoaded.date_of_birth);
+  }
+
+  async function handleSetup2FA() {
+    setTwoFALoading(true);
+    setError('');
+    try {
+      const data = await authService.setup2FA();
+      setTwoFAData(data);
+      setShow2FASetup(true);
+    } catch (e) {
+      setError(e?.message || 'Không thể thiết lập 2FA');
+    } finally {
+      setTwoFALoading(false);
+    }
+  }
+
+  async function handleEnable2FA() {
+    setTwoFALoading(true);
+    setError('');
+    try {
+      await authService.enable2FA(twoFACode);
+      setIs2FAEnabled(true);
+      setShow2FASetup(false);
+      setTwoFAData(null);
+      setTwoFACode('');
+      setSuccess('Đã kích hoạt 2FA thành công');
+      updateUser?.({ is_2fa_enabled: true });
+    } catch (e) {
+      setError(e?.message || 'Mã xác thực không chính xác');
+    } finally {
+      setTwoFALoading(false);
+    }
   }
 
   if (loading) return <Loading title="Đang tải hồ sơ..." />;
@@ -260,6 +303,73 @@ export default function Profile() {
               </div>
             </div>
           </div>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-text/10 bg-surface p-5">
+        <h2 className="text-lg font-semibold">Bảo mật</h2>
+        <p className="mt-1 text-sm text-muted">Quản lý các thiết lập bảo mật cho tài khoản của bạn</p>
+
+        <div className="mt-5 rounded-2xl border border-text/10 bg-bg/40 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="font-semibold">Xác thực 2 lớp (2FA)</div>
+              <p className="text-sm text-muted">Sử dụng ứng dụng Authenticator để lấy mã xác thực khi đăng nhập.</p>
+            </div>
+            <div className="flex items-center gap-3">
+              {is2FAEnabled ? (
+                <span className="rounded-full bg-success/10 px-3 py-1 text-xs font-medium text-success border border-success/20">
+                  Đang bật
+                </span>
+              ) : (
+                <span className="rounded-full bg-muted/10 px-3 py-1 text-xs font-medium text-muted border border-muted/20">
+                  Đang tắt
+                </span>
+              )}
+              {!is2FAEnabled && !show2FASetup && (
+                <Button size="sm" onClick={handleSetup2FA} disabled={twoFALoading}>
+                  Thiết lập 2FA
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {show2FASetup && twoFAData && (
+            <div className="mt-6 border-t border-text/10 pt-6">
+              <div className="grid gap-6 md:grid-cols-2">
+                <div className="flex flex-col items-center justify-center rounded-xl bg-white p-4">
+                  <img src={twoFAData.qr_code} alt="2FA QR Code" className="h-48 w-48" />
+                  <p className="mt-2 text-center text-xs text-gray-500">Quét mã này bằng ứng dụng Google Authenticator hoặc Authy</p>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <div className="text-sm font-medium">Mã bí mật (Secret Key)</div>
+                    <div className="mt-1 flex items-center gap-2">
+                      <code className="flex-1 rounded-md bg-bg/60 px-3 py-2 text-sm font-mono">{twoFAData.secret}</code>
+                    </div>
+                    <p className="mt-1 text-xs text-muted">Dùng mã này nếu bạn không thể quét mã QR.</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Input
+                      label="Nhập mã xác thực để kích hoạt"
+                      value={twoFACode}
+                      onChange={(e) => setTwoFACode(e.target.value)}
+                      placeholder="123456"
+                    />
+                    <div className="flex gap-2">
+                      <Button className="flex-1" onClick={handleEnable2FA} disabled={twoFALoading || !twoFACode}>
+                        {twoFALoading ? 'Đang kích hoạt...' : 'Kích hoạt 2FA'}
+                      </Button>
+                      <Button variant="secondary" onClick={() => setShow2FASetup(false)}>
+                        Hủy
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </section>
     </div>

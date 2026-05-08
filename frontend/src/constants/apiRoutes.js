@@ -1,8 +1,13 @@
 export const API_ROUTES = Object.freeze({
   AUTH_LOGIN: '/auth/login',
+  AUTH_VERIFY_2FA: '/auth/verify-2fa',
   AUTH_REGISTER: '/auth/register',
   AUTH_FORGOT_PASSWORD: '/auth/forgot-password',
   AUTH_RESET_PASSWORD: '/auth/reset-password',
+  AUTH_GOOGLE_LOGIN: '/auth/google/login',
+  AUTH_FACEBOOK_LOGIN: '/auth/facebook/login',
+  AUTH_SETUP_2FA: '/auth/setup-2fa',
+  AUTH_ENABLE_2FA: '/auth/enable-2fa',
 
   EVENTS: '/events',
   TRENDING_EVENTS: '/events/trending',
@@ -28,5 +33,14 @@ export const API_ROUTES = Object.freeze({
   ADMIN_CREATE_EVENT: '/admin/events',
   ADMIN_EVENTS: '/admin/events',
   ADMIN_EVENT: (eventId) => `/admin/events/${eventId}`,
-  ADMIN_STATS: '/admin/dashboard/stats'
+  ADMIN_STATS: '/admin/dashboard/stats',
+
+  MEMBERSHIP_TIERS: '/membership/tiers',
+  MY_MEMBERSHIP: '/membership/me',
+  MEMBERSHIP_UPGRADE: '/membership/upgrade',
+  COMPLAINTS: '/feedback/complaints',
+  REVIEWS: '/feedback/reviews',
+  ADMIN_USERS: '/admin/users',
+  ADMIN_USER_ROLE: (userId) => `/admin/users/${userId}/role`,
+  ADMIN_USER_MEMBERSHIP: (userId) => `/admin/users/${userId}/membership`
 });

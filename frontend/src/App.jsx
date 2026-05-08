@@ -9,6 +9,7 @@ import logoUrl from './assets/Logo1.png';
 import { useEffect, useState } from 'react';
 import HeroSlider from './components/home/HeroSlider.jsx';
 import TrendingEvents from './components/home/TrendingEvents.jsx';
+import notificationService from './services/notificationService.js';
 
 const THEME_KEY = 'tr_theme';
 
@@ -25,6 +26,10 @@ export default function App() {
 
   const navItemClass =
     "relative rounded-md px-3 py-2 text-sm text-muted transition-colors hover:bg-text/5 hover:text-text after:content-[''] after:absolute after:bottom-1 after:left-3 after:right-3 after:h-px after:origin-center after:scale-x-0 after:bg-current after:opacity-80 after:transition-transform after:duration-200 hover:after:scale-x-100";
+
+  useEffect(() => {
+    notificationService.registerPush().catch(console.error);
+  }, []);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -133,12 +138,11 @@ export default function App() {
               </Link>
 
               {user && (
-                <Link
-                  to="/my-tickets"
-                  className={navItemClass}
-                >
-                  Vé của tôi
-                </Link>
+                <>
+                  <Link to="/membership" className={navItemClass}>Thành viên</Link>
+                  <Link to="/feedback" className={navItemClass}>Hỗ trợ</Link>
+                  <Link to="/my-tickets" className={navItemClass}>Vé của tôi</Link>
+                </>
               )}
 
               {user?.role === ROLES.ADMIN && (

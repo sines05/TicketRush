@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"ticketrush/internal/models"
 	"time"
 
@@ -18,6 +19,7 @@ type EventRepository interface {
 	UpdateEvent(event *models.Event) error
 	DeleteEvent(id uuid.UUID) error
 	GetSeatMap(eventID uuid.UUID) ([]models.EventZone, error)
+	GetTotalSeats(ctx context.Context, eventID uuid.UUID) (int64, error)
 }
 
 type EventTrendingTicketStats struct {
@@ -135,4 +137,13 @@ func (r *eventRepo) GetSeatMap(eventID uuid.UUID) ([]models.EventZone, error) {
 		return nil, err
 	}
 	return zones, nil
+}
+
+func (r *eventRepo) GetTotalSeats(ctx context.Context, eventID uuid.UUID) (int64, error) {
+	var count int64
+	err := r.db.Model(&models.Seat{}).
+		Joins("JOIN event_zones ON event_zones.id = seats.zone_id").
+		Where("event_zones.event_id = ?", eventID).
+		Count(&count).Error
+	return count, err
 }

@@ -15,6 +15,8 @@ type UserRepository interface {
 	CreatePasswordReset(reset *models.PasswordReset) error
 	FindPasswordResetByToken(token string) (*models.PasswordReset, error)
 	DeletePasswordReset(token string) error
+	Update2FA(userID uuid.UUID, enabled bool, secret string) error
+	UpdateNotificationToken(userID uuid.UUID, token string) error
 }
 
 type userRepo struct {
@@ -31,7 +33,7 @@ func (r *userRepo) Create(user *models.User) error {
 
 func (r *userRepo) FindByEmail(email string) (*models.User, error) {
 	var user models.User
-	if err := r.db.Where("email = ?", email).First(&user).Error; err != nil {
+	if err := r.db.Preload("MembershipTier").Where("email = ?", email).First(&user).Error; err != nil {
 		return nil, err
 	}
 	return &user, nil
@@ -39,7 +41,7 @@ func (r *userRepo) FindByEmail(email string) (*models.User, error) {
 
 func (r *userRepo) FindByID(id uuid.UUID) (*models.User, error) {
 	var user models.User
-	if err := r.db.First(&user, id).Error; err != nil {
+	if err := r.db.Preload("MembershipTier").First(&user, id).Error; err != nil {
 		return nil, err
 	}
 	return &user, nil
@@ -63,4 +65,15 @@ func (r *userRepo) FindPasswordResetByToken(token string) (*models.PasswordReset
 
 func (r *userRepo) DeletePasswordReset(token string) error {
 	return r.db.Where("token = ?", token).Delete(&models.PasswordReset{}).Error
+}
+
+func (r *userRepo) Update2FA(userID uuid.UUID, enabled bool, secret string) error {
+	return r.db.Model(&models.User{}).Where("id = ?", userID).Updates(map[string]interface{}{
+		"two_factor_enabled": enabled,
+		"two_factor_secret":  secret,
+	}).Error
+}
+
+func (r *userRepo) UpdateNotificationToken(userID uuid.UUID, token string) error {
+	return r.db.Model(&models.User{}).Where("id = ?", userID).Update("notification_token", token).Error
 }

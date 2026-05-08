@@ -6,15 +6,15 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"ticketrush/internal/models"
-	"ticketrush/internal/service"
+	"ticketrush/internal/queue"
 	"ticketrush/internal/utils"
 )
 
 type QueueHandler struct {
-	queueService service.QueueService
+	queueService queue.Service
 }
 
-func NewQueueHandler(queueService service.QueueService) *QueueHandler {
+func NewQueueHandler(queueService queue.Service) *QueueHandler {
 	return &QueueHandler{queueService: queueService}
 }
 
@@ -32,13 +32,17 @@ func (h *QueueHandler) JoinQueue(c *gin.Context) {
 	user, _ := c.Get("user")
 	u := user.(*models.User)
 
-	status, err := h.queueService.JoinQueue(c.Request.Context(), req.EventID, u.ID)
+	status, token, err := h.queueService.JoinQueue(c.Request.Context(), req.EventID, u.ID)
 	if err != nil {
 		utils.SendError(c, http.StatusInternalServerError, err.Error(), "QUEUE_JOIN_FAILED")
 		return
 	}
 
-	utils.SendSuccess(c, http.StatusOK, gin.H{"status": status}, "Thành công")
+	c.Header("X-Queue-Token", token)
+	utils.SendSuccess(c, http.StatusOK, gin.H{
+		"status":      status,
+		"queue_token": token,
+	}, "Thành công")
 }
 
 func (h *QueueHandler) GetStatus(c *gin.Context) {
@@ -52,14 +56,16 @@ func (h *QueueHandler) GetStatus(c *gin.Context) {
 	user, _ := c.Get("user")
 	u := user.(*models.User)
 
-	status, pos, err := h.queueService.GetStatus(c.Request.Context(), eventID, u.ID)
+	status, pos, token, err := h.queueService.GetStatus(c.Request.Context(), eventID, u.ID)
 	if err != nil {
 		utils.SendError(c, http.StatusInternalServerError, err.Error(), "FETCH_FAILED")
 		return
 	}
 
+	c.Header("X-Queue-Token", token)
 	utils.SendSuccess(c, http.StatusOK, gin.H{
-		"status":   status,
-		"position": pos,
+		"status":      status,
+		"position":    pos,
+		"queue_token": token,
 	}, "Thành công")
 }

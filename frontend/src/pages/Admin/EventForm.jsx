@@ -330,14 +330,6 @@ export default function EventForm() {
     };
   }, [activeZone]);
 
-  const maxSeatsPerRow = useMemo(() => {
-    return zones.reduce((max, z) => Math.max(max, Number(z.seatsPerRow) || 0, ...(buildRowSeatCounts(z) || [])), 0);
-  }, [zones]);
-
-  const maxRows = useMemo(() => {
-    return zones.reduce((max, z) => Math.max(max, Number(z.totalRows) || 0, (buildRowSeatCounts(z) || []).length), 0);
-  }, [zones]);
-
   const totalSeatsInActiveZone = useMemo(() => rowSeatCounts.reduce((sum, v) => sum + (Number(v) || 0), 0), [rowSeatCounts]);
 
   const bannerPreview = useMemo(() => {

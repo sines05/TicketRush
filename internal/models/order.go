@@ -21,6 +21,7 @@ type Order struct {
 	Status      OrderStatus `gorm:"type:varchar(20);default:'PENDING';index:idx_orders_status_event" json:"status"`
 	ExpiresAt   time.Time   `gorm:"not null" json:"expires_at"`
 	OrderItems  []OrderItem `gorm:"foreignKey:OrderID" json:"order_items,omitempty"`
+	Event       Event       `gorm:"foreignKey:EventID" json:"event,omitempty"`
 }
 
 type OrderItem struct {

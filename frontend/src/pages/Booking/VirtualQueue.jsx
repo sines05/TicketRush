@@ -35,8 +35,8 @@ export default function VirtualQueue() {
         if (st.status === 'WAITING') setPosition(st.queue_position ?? null);
         if (st.status === 'waiting') setPosition(st.position ?? null);
       },
-      onPassed: () => {
-        navigate(`/booking/seats?eventId=${eventId}`, {
+      onPassed: (st) => {
+        navigate(`/booking/seats?eventId=${eventId}&queueToken=${st?.queue_token || ''}`, {
           replace: true
         });
       },

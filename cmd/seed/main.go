@@ -24,18 +24,10 @@ func main() {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 
-	fmt.Println("🗑️  Dropping all tables...")
-	db.Exec("DROP TABLE IF EXISTS schema_migrations")
-	db.Migrator().DropTable(
-		&models.PasswordReset{},
-		&models.Ticket{},
-		&models.OrderItem{},
-		&models.Order{},
-		&models.Seat{},
-		&models.EventZone{},
-		&models.Event{},
-		&models.User{},
-	)
+	fmt.Println("🗑️ Cleaning database...")
+	if err := db.Exec("DROP SCHEMA public CASCADE; CREATE SCHEMA public;").Error; err != nil {
+		log.Fatalf("Failed to clean database: %v", err)
+	}
 
 	fmt.Println("🔄 Running migrations...")
 	repository.RunMigrations(cfg)
@@ -160,6 +152,7 @@ func main() {
 				IsPublished: true,
 				IsFeatured:  true,
 				Category:    "Âm nhạc & Lễ hội",
+				IsQueueMode: false,
 			},
 			zones: []models.EventZone{
 				{Name: "VVIP - Sân khấu gần", Price: 3500000, TotalRows: 3, SeatsPerRow: 12},

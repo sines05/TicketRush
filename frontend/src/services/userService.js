@@ -53,4 +53,36 @@ async function updateMe({ full_name, avatar_url, gender, date_of_birth } = {}) {
   return unwrap(res);
 }
 
-export default { getMe, updateMe };
+async function getUsers() {
+  if (USE_MOCK) {
+    await sleep(400);
+    return [
+      { id: 'u1', email: 'admin@ticketrush.com', full_name: 'Admin User', role: 'ADMIN', membership_tier: 'PLATINUM' },
+      { id: 'u2', email: 'customer1@gmail.com', full_name: 'Nguyen Van A', role: 'CUSTOMER', membership_tier: 'SILVER' },
+      { id: 'u3', email: 'customer2@yahoo.com', full_name: 'Tran Thi B', role: 'CUSTOMER', membership_tier: 'BRONZE' },
+      { id: 'u4', email: 'vip@star.com', full_name: 'Vip Guest', role: 'CUSTOMER', membership_tier: 'GOLD' }
+    ];
+  }
+  const res = await api.get(API_ROUTES.ADMIN_USERS);
+  return unwrap(res);
+}
+
+async function updateUserRole(userId, role) {
+  if (USE_MOCK) {
+    await sleep(300);
+    return { id: userId, role };
+  }
+  const res = await api.patch(API_ROUTES.ADMIN_USER_ROLE(userId), { role });
+  return unwrap(res);
+}
+
+async function updateUserMembership(userId, membership_tier_id) {
+  if (USE_MOCK) {
+    await sleep(300);
+    return { id: userId, membership_tier_id };
+  }
+  const res = await api.patch(API_ROUTES.ADMIN_USER_MEMBERSHIP(userId), { membership_tier_id });
+  return unwrap(res);
+}
+
+export default { getMe, updateMe, getUsers, updateUserRole, updateUserMembership };

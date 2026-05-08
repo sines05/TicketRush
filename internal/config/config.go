@@ -20,6 +20,14 @@ type Config struct {
 	GoogleClientID    string
 	GoogleClientSecret string
 	GoogleRedirectURL  string
+	FacebookClientID     string
+	FacebookClientSecret string
+	FacebookRedirectURL  string
+	SMTPHost             string
+	SMTPPort             string
+	SMTPUser             string
+	SMTPPass             string
+	SMTPFrom             string
 }
 
 func LoadConfig() *Config {
@@ -27,7 +35,7 @@ func LoadConfig() *Config {
 		log.Println("No .env file found, using environment variables")
 	}
 
-	return &Config{
+	cfg := &Config{
 		DBHost:            getEnv("DB_HOST", "localhost"),
 		DBPort:            getEnv("DB_PORT", "5432"),
 		DBUser:            getEnv("DB_USER", "user"),
@@ -40,7 +48,24 @@ func LoadConfig() *Config {
 		GoogleClientID:    getEnv("GOOGLE_CLIENT_ID", ""),
 		GoogleClientSecret: getEnv("GOOGLE_CLIENT_SECRET", ""),
 		GoogleRedirectURL:  getEnv("GOOGLE_REDIRECT_URL", "http://localhost:8080/api/v1/auth/google/callback"),
+		FacebookClientID:     getEnv("FACEBOOK_CLIENT_ID", ""),
+		FacebookClientSecret: getEnv("FACEBOOK_CLIENT_SECRET", ""),
+		FacebookRedirectURL:  getEnv("FACEBOOK_REDIRECT_URL", "http://localhost:8080/api/v1/auth/facebook/callback"),
+		SMTPHost:             getEnv("SMTP_HOST", "smtp.gmail.com"),
+		SMTPPort:             getEnv("SMTP_PORT", "587"),
+		SMTPUser:             getEnv("SMTP_USER", ""),
+		SMTPPass:             getEnv("SMTP_PASS", ""),
+		SMTPFrom:             getEnv("SMTP_FROM", "no-reply@ticketrush.com"),
 	}
+
+	if cfg.GoogleClientID == "" || cfg.GoogleClientSecret == "" {
+		log.Printf("WARNING: OAuth credentials missing for %s", "Google")
+	}
+	if cfg.FacebookClientID == "" {
+		log.Printf("WARNING: OAuth credentials missing for %s", "Facebook")
+	}
+
+	return cfg
 }
 
 func getEnv(key, fallback string) string {

@@ -14,7 +14,11 @@ export function useWebSocket(url, { enabled = true } = {}) {
   useEffect(() => {
     if (!enabled || !url) return;
 
-    const ws = new WebSocket(url);
+    // Use current location protocol to prevent Mixed Content errors
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const socketUrl = url.startsWith('ws') ? url : `${wsProtocol}//${window.location.host}${url}`;
+
+    const ws = new WebSocket(socketUrl);
     wsRef.current = ws;
     setStatus('CONNECTING');
 

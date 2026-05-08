@@ -4,15 +4,15 @@ services:
     container_name: ticketrush-db
     restart: always
     environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: ticketrush
+      POSTGRES_USER: ${POSTGRES_USER:-user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: ${POSTGRES_DB:-ticketrush}
     ports:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user -d ticketrush"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-user} -d ${POSTGRES_DB:-ticketrush}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -24,7 +24,7 @@ services:
     container_name: ticketrush-redis
     restart: always
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
     networks:
       - ticketrush-net
 
@@ -39,12 +39,10 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+    env_file: .env
     environment:
       DB_HOST: db
       DB_PORT: 5432
-      DB_USER: user
-      DB_PASSWORD: password
-      DB_NAME: ticketrush
       REDIS_HOST: redis
       REDIS_PORT: 6379
     ports:
@@ -62,6 +60,7 @@ services:
       - backend
     environment:
       VITE_API_URL: http://backend:8080
+      VITE_USE_MOCK: "false"
     ports:
       - "5173:5173"
     networks:

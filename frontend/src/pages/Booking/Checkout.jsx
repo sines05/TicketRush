@@ -7,6 +7,7 @@ import { useCountdown, formatCountdown } from '../../hooks/useCountdown.js';
 import { formatVND } from '../../utils/formatters.js';
 import eventService from '../../services/eventService.js';
 import orderService from '../../services/orderService.js';
+import notificationService from '../../services/notificationService.js';
 
 const USE_MOCK = import.meta.env.VITE_USE_MOCK !== 'false';
 
@@ -95,6 +96,11 @@ export default function Checkout() {
 
     try {
       const result = await orderService.checkout({ order_id: order.order_id });
+
+      notificationService.showLocalNotification(
+        'Thanh toán thành công!',
+        `Bạn đã đặt thành công ${selectedSeats.length} vé cho sự kiện ${event?.title || ''}.`
+      );
 
       if (!USE_MOCK) {
         setPaid(true);
