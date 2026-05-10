@@ -6,11 +6,8 @@ import { useAuth } from './hooks/useAuth.js';
 import { ROLES } from './constants/roles.js';
 import logoUrl from './assets/Logo1.png';
 import { useEffect, useState } from 'react';
-import HeroSlider from './components/home/HeroSlider.jsx';
-import TrendingEvents from './components/home/TrendingEvents.jsx';
 import notificationService from './services/notificationService.js';
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { 
   Search, 
@@ -21,6 +18,8 @@ import {
   Menu,
   X
 } from "lucide-react";
+import ErrorBoundary from './components/common/ErrorBoundary.jsx';
+import SearchOverlay from './components/common/SearchOverlay.jsx';
 
 const THEME_KEY = 'tr_theme';
 
@@ -31,6 +30,7 @@ export default function App() {
 
   const [avatarFailed, setAvatarFailed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   const [theme, setTheme] = useState(() => {
     const saved = localStorage.getItem(THEME_KEY);
@@ -45,6 +45,17 @@ export default function App() {
 
   useEffect(() => {
     notificationService.registerPush().catch(console.error);
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setIsSearchOpen(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   useEffect(() => {
@@ -91,15 +102,13 @@ export default function App() {
   }, [eventSearch, location.pathname, location.search, navigate]);
 
   const isAuthPage = location.pathname.startsWith('/auth');
-  const activeCategoryParam = new URLSearchParams(location.search).get('category');
-  const activeCategoryKey = getCategoryKey(activeCategoryParam || '');
-  const showHeroSlider = location.pathname === '/' && (!activeCategoryParam || !String(activeCategoryParam).trim() || activeCategoryKey === CATEGORY_ALL);
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
+      <SearchOverlay isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
       {!isAuthPage && (
-        <header className="sticky top-0 z-50 w-full glass-surface glass-border border-b-0 shadow-lg shadow-black/5">
-          <div className="mx-auto flex h-18 max-w-[1440px] items-center justify-between px-6 md:px-10 lg:px-14">
+        <header className="sticky top-0 z-50 w-full glass-surface glass-border border-b-0 shadow-lg shadow-black/5 backdrop-blur-xl">
+          <div className="mx-auto flex h-20 max-w-[1440px] items-center justify-between px-6 md:px-10 lg:px-14">
             <div className="flex items-center gap-4 md:gap-10">
               <Link to="/" className="flex items-center space-x-3 transition-all hover:scale-[1.03] active:scale-95">
                 <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 shadow-inner">
@@ -134,17 +143,16 @@ export default function App() {
             </div>
 
             <div className="flex flex-1 items-center justify-end space-x-5">
-              <div className="hidden lg:flex w-full max-w-[280px] items-center space-x-2">
-                <div className="relative w-full group">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground transition-colors group-focus-within:text-primary" />
-                  <Input
-                    type="search"
-                    placeholder="Tìm sự kiện..."
-                    className="pl-9 h-10 bg-muted/30 border-none focus-visible:ring-2 focus-visible:ring-primary/20 transition-all rounded-xl"
-                    value={eventSearch}
-                    onChange={(e) => setEventSearch(e.target.value)}
-                  />
-                </div>
+              <div className="hidden lg:flex flex-1 items-center justify-center px-4">
+                <button 
+                  onClick={() => setIsSearchOpen(true)}
+                  className="w-full max-w-[500px] flex items-center bg-white dark:bg-white/10 rounded-full h-11 px-4 shadow-sm border border-black/5 dark:border-white/10 group transition-all hover:shadow-md"
+                >
+                  <Search className="h-5 w-5 text-gray-400 dark:text-white/40 mr-3" />
+                  <span className="text-sm text-gray-400 dark:text-white/40 flex-1 text-left">Bạn tìm gì hôm nay?</span>
+                  <div className="h-6 w-[1px] bg-gray-200 dark:bg-white/10 mx-3" />
+                  <span className="text-sm font-bold text-gray-900 dark:text-white/80 group-hover:text-primary transition-colors">Tìm kiếm</span>
+                </button>
               </div>
               
               <div className="flex items-center space-x-3">
@@ -201,13 +209,13 @@ export default function App() {
 
           {/* Mobile Menu Slide-over */}
           <div className={cn(
-            "fixed inset-0 z-[100] md:hidden transition-all duration-500",
+            "fixed inset-0 z-[100] md:hidden transition-all duration-500 ease-spring",
             isMobileMenuOpen ? "visible" : "invisible"
           )}>
             {/* Backdrop */}
             <div 
               className={cn(
-                "absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-500",
+                "absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-500 ease-spring",
                 isMobileMenuOpen ? "opacity-100" : "opacity-0"
               )}
               onClick={() => setIsMobileMenuOpen(false)}
@@ -215,7 +223,7 @@ export default function App() {
             
             {/* Panel */}
             <div className={cn(
-              "absolute right-0 top-0 h-full w-[300px] glass-surface glass-border border-y-0 border-r-0 p-8 shadow-2xl transition-transform duration-500 ease-out flex flex-col",
+              "absolute right-0 top-0 h-full w-[300px] glass-surface glass-border border-y-0 border-r-0 p-8 shadow-2xl transition-transform duration-500 ease-spring flex flex-col",
               isMobileMenuOpen ? "translate-x-0" : "translate-x-full"
             )}>
               <div className="flex items-center justify-between mb-10">
@@ -225,16 +233,16 @@ export default function App() {
                 </Button>
               </div>
 
-              <div className="relative w-full mb-8">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="search"
-                  placeholder="Tìm sự kiện..."
-                  className="pl-9 h-11 bg-muted/30 border-none rounded-xl"
-                  value={eventSearch}
-                  onChange={(e) => setEventSearch(e.target.value)}
-                />
-              </div>
+              <button 
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  setIsSearchOpen(true);
+                }}
+                className="relative w-full mb-8 flex items-center space-x-3 px-4 h-12 bg-muted/30 rounded-xl text-muted-foreground"
+              >
+                <Search className="h-5 w-5" />
+                <span className="text-base font-bold">Tìm sự kiện...</span>
+              </button>
 
               <nav className="flex flex-col space-y-1 flex-1">
                 <Link to="/booking/queue" className="px-4 py-3 text-base font-bold hover:text-primary hover:bg-primary/5 rounded-xl transition-all">Hàng chờ</Link>
@@ -279,11 +287,10 @@ export default function App() {
                 const active = params.get('category') || CATEGORY_ALL;
 
                 function go(next) {
-                  const p = new URLSearchParams(location.search);
-                  if (!next || next === CATEGORY_ALL) p.delete('category');
-                  else p.set('category', next);
+                  const p = new URLSearchParams();
+                  if (next && next !== CATEGORY_ALL) p.set('category', next);
                   const nextSearch = p.toString();
-                  navigate({ pathname: '/', search: nextSearch ? `?${nextSearch}` : '' }, { replace: true });
+                  navigate({ pathname: '/search', search: nextSearch ? `?${nextSearch}` : '' });
                 }
 
                 return (
@@ -323,20 +330,10 @@ export default function App() {
       )}
 
       <div className="flex-1">
-        {showHeroSlider && (
-          <div className="mx-auto w-full max-w-[1440px] px-4 md:px-8 lg:px-12 pt-6">
-            <HeroSlider />
-          </div>
-        )}
-
-        {showHeroSlider && (
-          <div className="mx-auto w-full max-w-[1440px] px-4 md:px-8 lg:px-12 pt-8">
-            <TrendingEvents />
-          </div>
-        )}
-
-        <main className="mx-auto w-full max-w-[1440px] px-4 md:px-8 lg:px-12 py-8">
-          <AppRoutes />
+        <main className="mx-auto w-full max-w-[1440px] px-4 md:px-8 lg:px-12 py-12">
+          <ErrorBoundary>
+            <AppRoutes />
+          </ErrorBoundary>
         </main>
       </div>
 

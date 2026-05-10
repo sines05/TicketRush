@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"math/rand"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
@@ -15,6 +16,7 @@ import (
 )
 
 func main() {
+	rand.Seed(time.Now().UnixNano())
 	cfg := config.LoadConfig()
 	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
 		cfg.DBHost, cfg.DBUser, cfg.DBPassword, cfg.DBName, cfg.DBPort)
@@ -140,118 +142,154 @@ func main() {
 		zones []models.EventZone
 	}
 
-	eventSeeds := []eventSeed{
-		// --- Event 1: Jack 97 - Đom Đóm Fanclub ---
-		{
-			event: models.Event{
-				Title:       "Jack - J97 Concert: Đom Đóm In The Stars",
-				Description: "Đêm nhạc hoành tráng của Jack - J97 cùng Đom Đóm Fanclub. Một hành trình âm nhạc đầy cảm xúc với những bản hit triệu view: Hoa Hải Đường, Bạc Phận, Là 1 Thằng Con Trai,... Hãy cùng thắp sáng hàng ngàn đom đóm trong đêm Hà Nội!",
-				BannerURL:   "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?auto=format&fit=crop&w=1200&q=80",
-				StartTime:   time.Now().UTC().AddDate(0, 0, 14),
-				EndTime:     time.Now().UTC().AddDate(0, 0, 14).Add(4 * time.Hour),
-				IsPublished: true,
-				IsFeatured:  true,
-				Category:    "Âm nhạc & Lễ hội",
-				IsQueueMode: false,
-			},
-			zones: []models.EventZone{
-				{Name: "VVIP - Sân khấu gần", Price: 3500000, TotalRows: 3, SeatsPerRow: 12},
-				{Name: "VIP", Price: 2000000, TotalRows: 5, SeatsPerRow: 15},
-				{Name: "Standard A", Price: 1200000, TotalRows: 8, SeatsPerRow: 20},
-				{Name: "Standard B", Price: 800000, TotalRows: 10, SeatsPerRow: 25},
-			},
-		},
-		// --- Event 2: Sơn Tùng M-TP ---
-		{
-			event: models.Event{
-				Title:       "Sơn Tùng M-TP: Sky Tour 2026",
-				Description: "Sky Tour trở lại! Sơn Tùng M-TP mang đến đêm diễn lịch sử tại SVĐ Mỹ Đình với dàn sản xuất đẳng cấp quốc tế. Trải nghiệm những bản hit Chạy Ngay Đi, Hãy Trao Cho Anh, Muộn Rồi Mà Sao Còn,... cùng hiệu ứng ánh sáng mãn nhãn.",
-				BannerURL:   "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=1200&q=80",
-				StartTime:   time.Now().UTC().AddDate(0, 1, 0),
-				EndTime:     time.Now().UTC().AddDate(0, 1, 0).Add(5 * time.Hour),
-				IsPublished: true,
-				IsFeatured:  true,
-				Category:    "Âm nhạc & Lễ hội",
-			},
-			zones: []models.EventZone{
-				{Name: "Diamond - Hàng đầu", Price: 5000000, TotalRows: 2, SeatsPerRow: 10},
-				{Name: "VVIP", Price: 3500000, TotalRows: 4, SeatsPerRow: 15},
-				{Name: "VIP", Price: 2200000, TotalRows: 6, SeatsPerRow: 20},
-				{Name: "General A", Price: 1500000, TotalRows: 10, SeatsPerRow: 25},
-				{Name: "General B", Price: 900000, TotalRows: 12, SeatsPerRow: 30},
-			},
-		},
-		// --- Event 3: Rap Việt All-Star ---
-		{
-			event: models.Event{
-				Title:       "Rap Việt All-Star Concert 2026",
-				Description: "Tất cả các ngôi sao Rap Việt hội tụ trong một đêm duy nhất! Với sự góp mặt của Karik, Binz, Rhymastic, Wowy, Double2T, MCK, tlinh và nhiều rapper đình đám khác. Bữa tiệc Hip-Hop lớn nhất Việt Nam!",
-				BannerURL:   "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?auto=format&fit=crop&w=1200&q=80",
-				StartTime:   time.Now().UTC().AddDate(0, 0, 21),
-				EndTime:     time.Now().UTC().AddDate(0, 0, 21).Add(5 * time.Hour),
-				IsPublished: true,
-				IsFeatured:  true,
-				Category:    "Âm nhạc & Lễ hội",
-			},
-			zones: []models.EventZone{
-				{Name: "VIP Standing", Price: 2500000, TotalRows: 3, SeatsPerRow: 15},
-				{Name: "Premium Seated", Price: 1800000, TotalRows: 6, SeatsPerRow: 18},
-				{Name: "Standard", Price: 1000000, TotalRows: 10, SeatsPerRow: 22},
-			},
-		},
-		// --- Event 4: Hà Anh Tuấn ---
-		{
-			event: models.Event{
-				Title:       "Hà Anh Tuấn: Sketch A Rose - Vẽ Một Bông Hồng",
-				Description: "Liveconcert mới nhất của Hà Anh Tuấn tại Nhà hát Lớn Hà Nội. Một đêm nhạc acoustic ấm áp với Tháng Tư Là Lời Nói Dối Của Em, Người Tình Mùa Đông, Truyện Ngắn,... Không gian thân mật, âm thanh hoàn hảo.",
-				BannerURL:   "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=1200&q=80",
-				StartTime:   time.Now().UTC().AddDate(0, 0, 30),
-				EndTime:     time.Now().UTC().AddDate(0, 0, 30).Add(3 * time.Hour),
-				IsPublished: true,
-				IsFeatured:  false,
-				Category:    "Âm nhạc & Lễ hội",
-			},
-			zones: []models.EventZone{
-				{Name: "Hạng Nhất", Price: 4000000, TotalRows: 3, SeatsPerRow: 8},
-				{Name: "Hạng Nhì", Price: 2800000, TotalRows: 5, SeatsPerRow: 10},
-				{Name: "Hạng Ba", Price: 1800000, TotalRows: 6, SeatsPerRow: 12},
-			},
-		},
-		// --- Event 5: EDM Festival ---
-		{
-			event: models.Event{
-				Title:       "Ravolution Music Festival 2026",
-				Description: "Lễ hội âm nhạc điện tử lớn nhất Đông Nam Á trở lại Hà Nội! Lineup đỉnh cao với DJ quốc tế và Việt Nam. 3 sân khấu, hàng trăm nghệ sĩ, trải nghiệm âm nhạc không giới hạn từ House, Techno đến Trance.",
-				BannerURL:   "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=1200&q=80",
-				StartTime:   time.Now().UTC().AddDate(0, 2, 0),
-				EndTime:     time.Now().UTC().AddDate(0, 2, 1),
-				IsPublished: true,
-				IsFeatured:  false,
-				Category:    "Giải trí & Trải nghiệm",
-			},
-			zones: []models.EventZone{
-				{Name: "Backstage Pass", Price: 6000000, TotalRows: 2, SeatsPerRow: 8},
-				{Name: "VIP Area", Price: 3000000, TotalRows: 5, SeatsPerRow: 15},
-				{Name: "General Admission", Price: 1200000, TotalRows: 15, SeatsPerRow: 30},
-			},
-		},
-		// --- Event 6: Upcoming / Draft ---
-		{
-			event: models.Event{
-				Title:       "Mỹ Tâm: Tri Ân - The Gratitude Show",
-				Description: "Đêm nhạc đặc biệt kỷ niệm 25 năm ca hát của Mỹ Tâm. Hành trình xuyên suốt sự nghiệp với những bản hit Ước Gì, Cây Đàn Sinh Viên, Đừng Hỏi Em,...",
-				BannerURL:   "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?auto=format&fit=crop&w=1200&q=80",
-				StartTime:   time.Now().UTC().AddDate(0, 3, 0),
-				EndTime:     time.Now().UTC().AddDate(0, 3, 0).Add(4 * time.Hour),
-				IsPublished: false, // Draft event - not yet published
-				IsFeatured:  false,
-				Category:    "Âm nhạc & Lễ hội",
-			},
-			zones: []models.EventZone{
-				{Name: "VIP", Price: 3000000, TotalRows: 4, SeatsPerRow: 12},
-				{Name: "Standard", Price: 1500000, TotalRows: 8, SeatsPerRow: 20},
-			},
-		},
+	titles := []string{
+		"Mỹ Tâm Live Concert: Tri Ân",
+		"Sơn Tùng M-TP: Sky Tour 2026",
+		"Đen Vâu: Show của Đen",
+		"Hoàng Thùy Linh: Vietnamese Concert",
+		"V-League 2026: Hà Nội FC vs HAGL",
+		"VBA 2026: Saigon Heat vs Thang Long Warriors",
+		"Workshop: Tương lai của AI trong Nghệ thuật",
+		"Kịch: Ngày Xửa Ngày Xưa",
+		"Triển lãm Nghệ thuật Đương đại",
+		"Lễ hội Ẩm thực Đường phố",
+		"Hà Anh Tuấn: Sketch A Rose",
+		"Rap Việt All-Star Concert",
+		"Ravolution Music Festival",
+		"Phú Quốc Sunset: Acoustic Night",
+	}
+
+	descriptions := []string{
+		"Một đêm nhạc hoành tráng với sự góp mặt của nhiều nghệ sĩ nổi tiếng. Đừng bỏ lỡ cơ hội trải nghiệm không gian âm nhạc đỉnh cao.",
+		"Sự kiện thể thao kịch tính nhất trong năm, quy tụ những đội bóng hàng đầu. Hãy đến và cổ vũ cho đội bóng yêu thích của bạn!",
+		"Khám phá những góc nhìn mới về nghệ thuật và công nghệ thông qua buổi workshop chuyên sâu này.",
+		"Trải nghiệm văn hóa và ẩm thực đặc sắc trong không gian lễ hội sôi động. Phù hợp cho cả gia đình và bạn bè.",
+		"Đêm diễn đặc biệt đánh dấu chặng đường nghệ thuật đầy cảm xúc. Những bản hit quen thuộc sẽ được làm mới hoàn toàn.",
+	}
+
+	banners := []string{
+		"https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?auto=format&fit=crop&w=1200&q=80",
+		"https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=1200&q=80",
+		"https://images.unsplash.com/photo-1459749411175-04bf5292ceea?auto=format&fit=crop&w=1200&q=80",
+		"https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=1200&q=80",
+		"https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=1200&q=80",
+		"https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?auto=format&fit=crop&w=1200&q=80",
+		"https://images.unsplash.com/photo-1589394815804-964ed0be2eb5?auto=format&fit=crop&w=1200&q=80",
+		"https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?auto=format&fit=crop&w=1200&q=80",
+		"https://images.unsplash.com/photo-1506157786151-b8491531f063?auto=format&fit=crop&w=1200&q=80",
+		"https://images.unsplash.com/photo-1429962714451-bb934ecdc4ec?auto=format&fit=crop&w=1200&q=80",
+	}
+
+	categories := []string{"music_festival", "sports", "arts_stage", "education_workshop", "experience_entertainment", "other"}
+	locations := []string{"Hồ Chí Minh", "Hà Nội", "Đà Nẵng", "Cần Thơ", "Đà Lạt", "Nha Trang"}
+
+	var eventSeeds []eventSeed
+
+	for i := 0; i < 60; i++ {
+		var es eventSeed
+		if i == 0 {
+			es = eventSeed{
+				event: models.Event{
+					Title:       "Jack - J97 Concert: Đom Đóm In The Stars",
+					Description: "Đêm nhạc hoành tráng của Jack - J97 cùng Đom Đóm Fanclub. Một hành trình âm nhạc đầy cảm xúc với những bản hit triệu view: Hoa Hải Đường, Bạc Phận, Là 1 Thằng Con Trai,... Hãy cùng thắp sáng hàng ngàn đom đóm trong đêm Hà Nội!",
+					BannerURL:   "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?auto=format&fit=crop&w=1200&q=80",
+					Location:    "Hà Nội",
+					Address:     "Sân vận động Quốc gia Mỹ Đình, Hà Nội",
+					StartTime:   time.Now().UTC().AddDate(0, 0, 14),
+					EndTime:     time.Now().UTC().AddDate(0, 0, 14).Add(4 * time.Hour),
+					IsPublished: true,
+					IsFeatured:  true,
+					IsHero:      true,
+					Category:    "music_festival",
+					IsQueueMode: false,
+				},
+				zones: []models.EventZone{
+					{Name: "VVIP - Sân khấu gần", Price: 3500000, TotalRows: 3, SeatsPerRow: 12},
+					{Name: "VIP", Price: 2000000, TotalRows: 5, SeatsPerRow: 15},
+					{Name: "Standard A", Price: 1200000, TotalRows: 8, SeatsPerRow: 20},
+					{Name: "Standard B", Price: 800000, TotalRows: 10, SeatsPerRow: 25},
+				},
+			}
+		} else if i == 1 {
+			es = eventSeed{
+				event: models.Event{
+					Title:       "Sơn Tùng M-TP: Sky Tour 2026",
+					Description: "Sky Tour trở lại! Sơn Tùng M-TP mang đến đêm diễn lịch sử tại SVĐ Mỹ Đình với dàn sản xuất đẳng cấp quốc tế. Trải nghiệm những bản hit Chạy Ngay Đi, Hãy Trao Cho Anh, Muộn Rồi Mà Sao Còn,... cùng hiệu ứng ánh sáng mãn nhãn.",
+					BannerURL:   "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=1200&q=80",
+					Location:    "Hà Nội",
+					Address:     "Sân vận động Quốc gia Mỹ Đình, Hà Nội",
+					StartTime:   time.Now().UTC().AddDate(0, 1, 0),
+					EndTime:     time.Now().UTC().AddDate(0, 1, 0).Add(5 * time.Hour),
+					IsPublished: true,
+					IsFeatured:  true,
+					IsHero:      true,
+					Category:    "music_festival",
+				},
+				zones: []models.EventZone{
+					{Name: "Diamond - Hàng đầu", Price: 5000000, TotalRows: 2, SeatsPerRow: 10},
+					{Name: "VVIP", Price: 3500000, TotalRows: 4, SeatsPerRow: 15},
+					{Name: "VIP", Price: 2200000, TotalRows: 6, SeatsPerRow: 20},
+					{Name: "General A", Price: 1500000, TotalRows: 10, SeatsPerRow: 25},
+					{Name: "General B", Price: 900000, TotalRows: 12, SeatsPerRow: 30},
+				},
+			}
+		} else if i == 2 {
+			es = eventSeed{
+				event: models.Event{
+					Title:       "Rap Việt All-Star Concert 2026",
+					Description: "Tất cả các ngôi sao Rap Việt hội tụ trong một đêm duy nhất! Với sự góp mặt của Karik, Binz, Rhymastic, Wowy, Double2T, MCK, tlinh và nhiều rapper đình đám khác. Bữa tiệc Hip-Hop lớn nhất Việt Nam!",
+					BannerURL:   "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?auto=format&fit=crop&w=1200&q=80",
+					Location:    "Hồ Chí Minh",
+					Address:     "Sân vận động Quân khu 7, TP.HCM",
+					StartTime:   time.Now().UTC().AddDate(0, 0, 21),
+					EndTime:     time.Now().UTC().AddDate(0, 0, 21).Add(5 * time.Hour),
+					IsPublished: true,
+					IsFeatured:  true,
+					Category:    "music_festival",
+				},
+				zones: []models.EventZone{
+					{Name: "VIP Standing", Price: 2500000, TotalRows: 3, SeatsPerRow: 15},
+					{Name: "Premium Seated", Price: 1800000, TotalRows: 6, SeatsPerRow: 18},
+					{Name: "Standard", Price: 1000000, TotalRows: 10, SeatsPerRow: 22},
+				},
+			}
+		} else {
+			title := titles[rand.Intn(len(titles))]
+			title = fmt.Sprintf("%s #%d", title, i+1)
+			startTime := time.Now().UTC().AddDate(0, 0, rand.Intn(90)-30)
+
+			es = eventSeed{
+				event: models.Event{
+					Title:       title,
+					Description: descriptions[rand.Intn(len(descriptions))],
+					BannerURL:   banners[rand.Intn(len(banners))],
+					Location:    locations[rand.Intn(len(locations))],
+					Address:     fmt.Sprintf("Địa điểm tổ chức tại %s", locations[rand.Intn(len(locations))]),
+					StartTime:   startTime,
+					EndTime:     startTime.Add(time.Duration(2+rand.Intn(4)) * time.Hour),
+					IsPublished: rand.Intn(100) < 90,
+					IsFeatured:  rand.Intn(100) < 20,
+					IsHero:      rand.Intn(100) < 10,
+					IsQueueMode: rand.Intn(100) < 10,
+					Category:    categories[rand.Intn(len(categories))],
+				},
+				zones: []models.EventZone{
+					{
+						Name:        "Standard",
+						Price:       float64((500 + rand.Intn(501)) * 1000),
+						TotalRows:   5 + rand.Intn(6),
+						SeatsPerRow: 10 + rand.Intn(6),
+					},
+					{
+						Name:        "VIP",
+						Price:       float64((1500 + rand.Intn(1501)) * 1000),
+						TotalRows:   3 + rand.Intn(3),
+						SeatsPerRow: 8 + rand.Intn(5),
+					},
+				},
+			}
+		}
+		eventSeeds = append(eventSeeds, es)
 	}
 
 	for i, es := range eventSeeds {
@@ -488,7 +526,16 @@ func main() {
 	fmt.Println()
 	fmt.Println("📊 Summary:")
 	fmt.Printf("   • Users:  1 admin + %d customers\n", len(customers))
-	fmt.Printf("   • Events: %d (%d published, 1 draft)\n", len(eventSeeds), len(eventSeeds)-1)
+	publishedCount := 0
+	draftCount := 0
+	for _, es := range eventSeeds {
+		if es.event.IsPublished {
+			publishedCount++
+		} else {
+			draftCount++
+		}
+	}
+	fmt.Printf("   • Events: %d (%d published, %d draft)\n", len(eventSeeds), publishedCount, draftCount)
 
 	totalSeats := 0
 	for _, es := range eventSeeds {

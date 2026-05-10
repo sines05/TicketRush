@@ -3,12 +3,12 @@ import { Link } from 'react-router-dom';
 import eventService from '@/services/eventService';
 import bannerFallback from '@/assets/banner-sample.svg';
 import { resolveMediaUrl } from '@/utils/media';
-import { formatDateTime } from '@/utils/formatters';
+import { formatVND } from '@/utils/formatters';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, TrendingUp } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
-const isValidUUID = (s) => typeof s === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+import { Skeleton } from '@/components/common/Skeleton';
+
 
 export default function TrendingEvents() {
   const [items, setItems] = useState([]);
@@ -20,10 +20,10 @@ export default function TrendingEvents() {
     let mounted = true;
 
     eventService
-      .getTrendingEvents(5)
+      .getTrendingEvents(10)
       .then((data) => {
         if (!mounted) return;
-        setItems(Array.isArray(data) ? data.slice(0, 5) : []);
+        setItems(Array.isArray(data) ? data : []);
       })
       .catch((e) => {
         if (!mounted) return;
@@ -39,50 +39,43 @@ export default function TrendingEvents() {
     };
   }, []);
 
-  const scrollLeft = () => {
+  const scroll = (direction) => {
     if (scrollRef.current) {
-      scrollRef.current.scrollBy({ left: -300, behavior: 'smooth' });
-    }
-  };
-
-  const scrollRight = () => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollBy({ left: 300, behavior: 'smooth' });
+      const scrollAmount = direction === 'left' ? -400 : 400;
+      scrollRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
     }
   };
 
   if (loading) {
     return (
-      <section className="space-y-4">
-        <div className="h-8 w-48 animate-pulse rounded-md bg-muted" />
+      <section className="space-y-6">
+        <Skeleton className="h-8 w-64 rounded-xl" />
         <div className="flex gap-6 overflow-hidden">
           {Array.from({ length: 4 }).map((_, idx) => (
-            <div key={idx} className="h-48 w-72 shrink-0 animate-pulse rounded-2xl bg-muted" />
+            <div key={idx} className="shrink-0 w-[280px] md:w-[400px]">
+              <Skeleton className="aspect-[16/9] w-full rounded-2xl" />
+            </div>
           ))}
         </div>
       </section>
     );
   }
 
-  if (error || items.length === 0) {
-    return null;
-  }
+  if (error || items.length === 0) return null;
 
   return (
-    <section className="space-y-6">
+    <section className="space-y-8 group/section">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
-            <TrendingUp className="h-5 w-5" />
-          </div>
-          <h2 className="text-2xl font-bold tracking-tight">Sự kiện xu hướng</h2>
+        <div className="flex items-center gap-3">
+          <span className="text-3xl">🔥</span>
+          <h2 className="text-2xl font-bold tracking-tight text-foreground uppercase italic">Sự kiện xu hướng</h2>
         </div>
         <div className="hidden md:flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={scrollLeft} className="rounded-full">
-            <ChevronLeft className="h-4 w-4" />
+          <Button variant="ghost" size="icon" onClick={() => scroll('left')} className="rounded-full bg-white/5 hover:bg-white/10 text-foreground">
+            <ChevronLeft className="h-5 w-5" />
           </Button>
-          <Button variant="outline" size="icon" onClick={scrollRight} className="rounded-full">
-            <ChevronRight className="h-4 w-4" />
+          <Button variant="ghost" size="icon" onClick={() => scroll('right')} className="rounded-full bg-white/5 hover:bg-white/10 text-foreground">
+            <ChevronRight className="h-5 w-5" />
           </Button>
         </div>
       </div>
@@ -90,49 +83,42 @@ export default function TrendingEvents() {
       <div className="relative">
         <div
           ref={scrollRef}
-          className="flex overflow-x-auto scroll-smooth snap-x snap-mandatory gap-6 pb-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+          className="flex overflow-x-auto scroll-smooth snap-x snap-mandatory gap-8 pb-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
         >
           {items.map((evt, idx) => {
-            const rank = Number(evt?.rank) || idx + 1;
+            const rank = idx + 1;
             const bannerUrl = resolveMediaUrl(evt?.banner_url) || bannerFallback;
-            const canNavigate = isValidUUID(evt?.id);
-            const to = canNavigate ? `/events/${evt.slug || evt.id}` : undefined;
-
-            const Wrapper = canNavigate ? Link : 'div';
-            const wrapperProps = canNavigate ? { to } : { role: 'button', 'aria-disabled': true };
 
             return (
-              <Wrapper
+              <Link
                 key={evt?.id || idx}
-                {...wrapperProps}
-                className="group relative shrink-0 w-[280px] md:w-[350px] snap-start cursor-pointer"
+                to={`/events/${evt.slug || evt.id}`}
+                className="group relative shrink-0 w-[300px] md:w-[450px] snap-start flex items-center gap-4"
               >
-                <div className="relative aspect-[16/9] overflow-hidden rounded-2xl border bg-card shadow-sm transition-all duration-300 group-hover:shadow-xl group-hover:-translate-y-1">
+                {/* Ranking Number */}
+                <span className="text-7xl md:text-8xl font-black text-teal-400 italic opacity-80 select-none -mr-4 md:-mr-6 z-10 drop-shadow-[0_4px_8px_rgba(45,212,191,0.4)]">
+                  {rank}
+                </span>
+
+                <div className="relative flex-1 aspect-[16/9] overflow-hidden rounded-2xl border border-white/10 bg-card shadow-2xl transition-all duration-500 group-hover:border-teal-400/50">
                   <img
                     src={bannerUrl}
-                    alt={evt?.title || 'Trending event'}
+                    alt={evt?.title}
                     loading="lazy"
-                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+                    className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-80" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-80" />
                   
-                  {/* Rank Badge */}
-                  <div className="absolute -left-2 -top-2 z-10 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-2xl font-black text-primary-foreground shadow-lg">
-                    {rank}
-                  </div>
-
-                  <div className="absolute bottom-0 left-0 right-0 p-4">
-                    <h3 className="line-clamp-1 text-lg font-bold text-white">
+                  <div className="absolute bottom-0 left-0 right-0 p-5">
+                    <h3 className="line-clamp-1 text-lg font-bold text-white uppercase tracking-tight group-hover:text-teal-300 transition-colors">
                       {evt?.title}
                     </h3>
-                    {evt?.start_time && (
-                      <p className="mt-1 text-xs font-medium text-white/80">
-                        {formatDateTime(evt.start_time)}
-                      </p>
-                    )}
+                    <p className="mt-1 text-sm font-bold text-primary">
+                      {formatVND(evt.min_price || 0)}
+                    </p>
                   </div>
                 </div>
-              </Wrapper>
+              </Link>
             );
           })}
         </div>

@@ -3,6 +3,9 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App.jsx';
 import './index.css';
+import 'swiper/css';
+import 'swiper/css/navigation';
+import 'swiper/css/pagination';
 
 import { AuthProvider } from './context/AuthContext.jsx';
 import { BookingProvider } from './context/BookingContext.jsx';
@@ -34,16 +37,20 @@ function applyTheme(theme) {
 
 applyTheme(getInitialTheme());
 
+import { HelmetProvider } from 'react-helmet-async';
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <BrowserRouter>
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <BookingProvider>
-            <App />
-          </BookingProvider>
-        </AuthProvider>
-      </QueryClientProvider>
-    </BrowserRouter>
+    <HelmetProvider>
+      <BrowserRouter>
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>
+            <BookingProvider>
+              <App />
+            </BookingProvider>
+          </AuthProvider>
+        </QueryClientProvider>
+      </BrowserRouter>
+    </HelmetProvider>
   </React.StrictMode>
 );

@@ -10,6 +10,7 @@ export const API_ROUTES = Object.freeze({
   AUTH_ENABLE_2FA: '/auth/enable-2fa',
 
   EVENTS: '/events',
+  HERO_EVENTS: '/events/hero',
   TRENDING_EVENTS: '/events/trending',
   FEATURED_EVENTS: '/events/featured',
   EVENT_DETAIL: (idOrSlug) => `/events/${idOrSlug}`,

@@ -15,6 +15,7 @@ const (
 	NotificationWelcome     NotificationType = "WELCOME"
 	NotificationOrderConf   NotificationType = "ORDER_CONFIRMATION"
 	NotificationSystem      NotificationType = "SYSTEM_MESSAGE"
+	NotificationSecurity    NotificationType = "SECURITY_EVENT"
 )
 
 type NotificationTask struct {
@@ -27,6 +28,7 @@ type NotificationService interface {
 	NotifyTicketPurchased(user *models.User, tickets []models.Ticket, event *models.Event)
 	NotifyWelcome(user *models.User)
 	NotifyOrderConfirmation(user *models.User, order *models.Order)
+	NotifySecurityEvent(user *models.User, eventName string)
 	SendSystemNotification(userID uuid.UUID, title, message string)
 	StartWorker()
 }
@@ -94,6 +96,10 @@ func (s *notificationService) processTask(task NotificationTask) {
 		title := task.Payload["title"].(string)
 		message := task.Payload["message"].(string)
 		log.Printf("[SYSTEM NOTIFICATION to %s]: %s - %s", task.UserID, title, message)
+	case NotificationSecurity:
+		email := task.Payload["email"].(string)
+		eventName := task.Payload["event_name"].(string)
+		log.Printf("[SECURITY ALERT] Security notification sent to %s: %s detected", email, eventName)
 	}
 }
 

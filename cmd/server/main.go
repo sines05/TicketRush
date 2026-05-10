@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 
 	"ticketrush/internal/config"
@@ -66,7 +65,6 @@ func main() {
 	complaintRepo := repository.NewComplaintRepository(db)
 	complaintHandler := handler.NewComplaintHandler(complaintRepo)
 
-	adminDashboardHandler := handler.NewAdminDashboardHandler(orderRepo, eventRepo)
 	adminUserHandler := handler.NewAdminUserHandler(userRepo, notificationService)
 
 	workerService := worker.NewWorkerService(db, queueService, queueRepo, hub, orderRepo)
@@ -103,6 +101,7 @@ func main() {
 
 		// Public Routes
 		v1.GET("/events", eventHandler.ListEvents)
+		v1.GET("/events/hero", eventHandler.ListHeroEvents)
 		v1.GET("/events/trending", eventHandler.ListTrendingEvents)
 		v1.GET("/events/featured", eventHandler.ListFeaturedEvents)
 		v1.GET("/events/:id", eventHandler.GetEvent)
@@ -155,7 +154,7 @@ func main() {
 				admin.POST("/events", eventHandler.CreateEvent)
 				admin.PUT("/events/:id", eventHandler.UpdateEvent)
 				admin.DELETE("/events/:id", eventHandler.DeleteEvent)
-				admin.GET("/dashboard/stats", adminDashboardHandler.GetStats)
+				admin.GET("/dashboard/stats", eventHandler.GetStats)
 				admin.GET("/tickets", orderHandler.GetTickets)
 				admin.POST("/tickets/check-in", orderHandler.CheckInTicket)
 				admin.GET("/complaints", complaintHandler.AdminGetAllComplaints)

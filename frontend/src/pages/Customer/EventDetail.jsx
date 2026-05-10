@@ -10,6 +10,7 @@ import bannerFallback from '../../assets/banner-sample.svg';
 import { resolveMediaUrl } from '../../utils/media.js';
 import GoogleMapLocation from '../../components/Maps/GoogleMapLocation';
 import { useAuth } from '../../hooks/useAuth.js';
+import { Helmet } from 'react-helmet-async';
 
 export default function EventDetail() {
   const { slug } = useParams();
@@ -104,6 +105,13 @@ export default function EventDetail() {
 
   return (
     <div className="space-y-6">
+      <Helmet>
+        <title>{event.title} | TicketRush</title>
+        <meta name="description" content={event.description?.substring(0, 160)} />
+        <meta property="og:title" content={`${event.title} - Mua vé ngay tại TicketRush`} />
+        <meta property="og:description" content={`Diễn ra vào ${formatDateTime(event.start_time)} tại ${event.location}.`} />
+        <meta property="og:image" content={resolveMediaUrl(event.banner_url)} />
+      </Helmet>
       {error && (
         <div className="rounded-xl border border-danger/40 bg-danger/10 p-4 text-sm">{error}</div>
       )}

@@ -16,7 +16,6 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import Loading from '../../components/common/Loading.jsx';
 import TicketItem from '../../components/tickets/TicketItem.jsx';
 import { User, Shield, Ticket, LogOut, Camera, CheckCircle2, AlertCircle } from 'lucide-react';

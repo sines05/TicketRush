@@ -113,6 +113,9 @@ export default {
         "fade-in-up": "fade-in-up 0.5s cubic-bezier(0.16, 1, 0.3, 1)",
         "scale-in": "scale-in 0.4s cubic-bezier(0.16, 1, 0.3, 1)",
       },
+      transitionTimingFunction: {
+        "spring": "cubic-bezier(0.32, 0.72, 0, 1)",
+      },
 
     },
   },

@@ -27,10 +27,15 @@ type EventCreateRequest struct {
 	Description string       `json:"description"`
 	BannerURL   string       `json:"banner_url"`
 	Category    string       `json:"category"`
+	Location    string       `json:"location"`
+	Address     string       `json:"address"`
+	Latitude    float64      `json:"latitude"`
+	Longitude   float64      `json:"longitude"`
 	StartTime   string       `json:"start_time"` // ISO8601
 	EndTime     string       `json:"end_time"`   // ISO8601
 	IsPublished bool         `json:"is_published"`
 	IsFeatured  bool         `json:"is_featured"`
+	IsHero      bool         `json:"is_hero"`
 	Zones       []ZoneConfig `json:"zones"`
 }
 
@@ -38,8 +43,9 @@ type EventService interface {
 	CreateEvent(req EventCreateRequest) (*models.Event, error)
 	GetEvent(id uuid.UUID) (*models.Event, error)
 	GetEventBySlug(slug string) (*models.Event, error)
-	ListEvents(search string) ([]models.Event, error)
+	ListEvents(filter repository.EventFilter) ([]repository.EventSearchResult, error)
 	ListFeaturedEvents(limit int) ([]models.Event, error)
+	ListHeroEvents(limit int) ([]models.Event, error)
 	ListTrendingEvents(ctx context.Context, limit int) ([]TrendingEvent, error)
 	TrackEventView(ctx context.Context, eventID uuid.UUID) error
 	GetSeatMap(eventID uuid.UUID) (map[string]interface{}, error)
@@ -54,7 +60,9 @@ type TrendingEvent struct {
 	Slug      string    `json:"slug"`
 	BannerURL string    `json:"banner_url"`
 	Category  string    `json:"category"`
+	Location  string    `json:"location"`
 	StartTime time.Time `json:"start_time"`
+	MinPrice  float64   `json:"min_price"`
 
 	Rank    int   `json:"rank"`
 	Sold7d  int64 `json:"sold_7d"`
@@ -79,19 +87,30 @@ func NewEventService(eventRepo repository.EventRepository, metricsRepo repositor
 func (s *eventService) CreateEvent(req EventCreateRequest) (*models.Event, error) {
 	var event models.Event
 	err := s.db.Transaction(func(tx *gorm.DB) error {
-		startTime, _ := time.Parse(time.RFC3339, req.StartTime)
-		endTime, _ := time.Parse(time.RFC3339, req.EndTime)
+		startTime, err := time.Parse(time.RFC3339, req.StartTime)
+		if err != nil {
+			return fmt.Errorf("invalid start time format: %w", err)
+		}
+		endTime, err := time.Parse(time.RFC3339, req.EndTime)
+		if err != nil {
+			return fmt.Errorf("invalid end time format: %w", err)
+		}
 
 		event = models.Event{
 			Title:       req.Title,
 			Slug:        utils.GenerateSlug(req.Title),
 			Description: req.Description,
 			BannerURL:   req.BannerURL,
+			Location:    req.Location,
+			Address:     req.Address,
+			Latitude:    req.Latitude,
+			Longitude:   req.Longitude,
 			Category:    req.Category,
 			StartTime:   startTime,
 			EndTime:     endTime,
 			IsPublished: req.IsPublished,
 			IsFeatured:  req.IsFeatured,
+			IsHero:      req.IsHero,
 		}
 		if err := tx.Create(&event).Error; err != nil {
 			return err
@@ -145,12 +164,16 @@ func (s *eventService) GetEventBySlug(slug string) (*models.Event, error) {
 	return s.eventRepo.GetEventBySlug(slug)
 }
 
-func (s *eventService) ListEvents(search string) ([]models.Event, error) {
-	return s.eventRepo.GetAllEvents(search)
+func (s *eventService) ListEvents(filter repository.EventFilter) ([]repository.EventSearchResult, error) {
+	return s.eventRepo.GetAllEvents(filter)
 }
 
 func (s *eventService) ListFeaturedEvents(limit int) ([]models.Event, error) {
 	return s.eventRepo.GetFeaturedEvents(limit)
+}
+
+func (s *eventService) ListHeroEvents(limit int) ([]models.Event, error) {
+	return s.eventRepo.GetHeroEvents(limit)
 }
 
 func (s *eventService) TrackEventView(ctx context.Context, eventID uuid.UUID) error {
@@ -208,7 +231,9 @@ func (s *eventService) ListTrendingEvents(ctx context.Context, limit int) ([]Tre
 			Slug:      row.Slug,
 			BannerURL: row.BannerURL,
 			Category:  row.Category,
+			Location:  row.Location,
 			StartTime: row.StartTime,
+			MinPrice:  row.MinPrice,
 			Sold7d:    row.Sold7d,
 			Views7d:   views,
 			Score:     score,
@@ -359,8 +384,14 @@ func (s *eventService) UpdateEvent(id uuid.UUID, req EventCreateRequest) (*model
 		return nil, fmt.Errorf("event not found")
 	}
 
-	startTime, _ := time.Parse(time.RFC3339, req.StartTime)
-	endTime, _ := time.Parse(time.RFC3339, req.EndTime)
+	startTime, err := time.Parse(time.RFC3339, req.StartTime)
+	if err != nil {
+		return nil, fmt.Errorf("invalid start time format: %w", err)
+	}
+	endTime, err := time.Parse(time.RFC3339, req.EndTime)
+	if err != nil {
+		return nil, fmt.Errorf("invalid end time format: %w", err)
+	}
 
 	if event.Title != req.Title {
 		event.Title = req.Title
@@ -373,10 +404,17 @@ func (s *eventService) UpdateEvent(id uuid.UUID, req EventCreateRequest) (*model
 	if req.BannerURL != "" {
 		event.BannerURL = req.BannerURL
 	}
+	if req.Location != "" {
+		event.Location = req.Location
+	}
+	event.Address = req.Address
+	event.Latitude = req.Latitude
+	event.Longitude = req.Longitude
 	event.StartTime = startTime
 	event.EndTime = endTime
 	event.IsPublished = req.IsPublished
 	event.IsFeatured = req.IsFeatured
+	event.IsHero = req.IsHero
 
 	if err := s.eventRepo.UpdateEvent(event); err != nil {
 		return nil, err

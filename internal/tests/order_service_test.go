@@ -78,7 +78,9 @@ type mockEventRepo struct{}
 func (m *mockEventRepo) CreateEvent(event *models.Event) error { return nil }
 func (m *mockEventRepo) GetEventByID(id uuid.UUID) (*models.Event, error) { return &models.Event{}, nil }
 func (m *mockEventRepo) GetEventBySlug(slug string) (*models.Event, error) { return nil, nil }
-func (m *mockEventRepo) GetAllEvents(search string) ([]models.Event, error) { return nil, nil }
+func (m *mockEventRepo) GetAllEvents(filter repository.EventFilter) ([]repository.EventSearchResult, error) {
+	return nil, nil
+}
 func (m *mockEventRepo) GetFeaturedEvents(limit int) ([]models.Event, error) { return nil, nil }
 func (m *mockEventRepo) GetTrendingTicketStats(limit int, since time.Time) ([]repository.EventTrendingTicketStats, error) { return nil, nil }
 func (m *mockEventRepo) UpdateEvent(event *models.Event) error { return nil }

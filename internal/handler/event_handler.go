@@ -3,8 +3,11 @@ package handler
 import (
 	"net/http"
 	"strconv"
+	"strings"
+	"time"
 
 	"ticketrush/internal/models"
+	"ticketrush/internal/repository"
 	"ticketrush/internal/service"
 	"ticketrush/internal/utils"
 
@@ -37,8 +40,41 @@ func (h *EventHandler) CreateEvent(c *gin.Context) {
 }
 
 func (h *EventHandler) ListEvents(c *gin.Context) {
-	search := c.Query("q")
-	events, err := h.eventService.ListEvents(search)
+	filter := repository.EventFilter{
+		Search:   c.Query("q"),
+		Location: c.Query("location"),
+	}
+
+	if catStr := c.Query("category"); catStr != "" {
+		filter.Category = strings.Split(catStr, ",")
+	}
+
+	if dateFromStr := c.Query("date_from"); dateFromStr != "" {
+		if t, err := time.Parse(time.RFC3339, dateFromStr); err == nil {
+			filter.DateFrom = &t
+		} else if t, err := time.Parse("2006-01-02", dateFromStr); err == nil {
+			filter.DateFrom = &t
+		}
+	}
+	if dateToStr := c.Query("date_to"); dateToStr != "" {
+		if t, err := time.Parse(time.RFC3339, dateToStr); err == nil {
+			filter.DateTo = &t
+		} else if t, err := time.Parse("2006-01-02", dateToStr); err == nil {
+			filter.DateTo = &t
+		}
+	}
+	if minPriceStr := c.Query("min_price"); minPriceStr != "" {
+		if p, err := strconv.ParseFloat(minPriceStr, 64); err == nil {
+			filter.MinPrice = &p
+		}
+	}
+	if maxPriceStr := c.Query("max_price"); maxPriceStr != "" {
+		if p, err := strconv.ParseFloat(maxPriceStr, 64); err == nil {
+			filter.MaxPrice = &p
+		}
+	}
+
+	events, err := h.eventService.ListEvents(filter)
 	if err != nil {
 		utils.SendError(c, http.StatusInternalServerError, err.Error(), "FETCH_FAILED")
 		return
@@ -52,11 +88,17 @@ func (h *EventHandler) ListEvents(c *gin.Context) {
 			"slug":         e.Slug,
 			"description":  e.Description,
 			"banner_url":   e.BannerURL,
+			"location":     e.Location,
+			"address":      e.Address,
+			"latitude":     e.Latitude,
+			"longitude":    e.Longitude,
 			"category":     e.Category,
+			"min_price":    e.MinPrice,
 			"start_time":   e.StartTime,
 			"end_time":     e.EndTime,
 			"is_published": e.IsPublished,
 			"is_featured":  e.IsFeatured,
+			"is_hero":      e.IsHero,
 		})
 	}
 
@@ -64,7 +106,15 @@ func (h *EventHandler) ListEvents(c *gin.Context) {
 }
 
 func (h *EventHandler) ListFeaturedEvents(c *gin.Context) {
-	events, err := h.eventService.ListFeaturedEvents(5)
+	limitStr := c.Query("limit")
+	limit := 5
+	if limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 {
+			limit = l
+		}
+	}
+
+	events, err := h.eventService.ListFeaturedEvents(limit)
 	if err != nil {
 		utils.SendError(c, http.StatusInternalServerError, err.Error(), "FETCH_FAILED")
 		return
@@ -79,6 +129,37 @@ func (h *EventHandler) ListFeaturedEvents(c *gin.Context) {
 			"banner_url": e.BannerURL,
 			"category":   e.Category,
 			"start_time": e.StartTime,
+		})
+	}
+
+	utils.SendSuccess(c, http.StatusOK, data, "Thành công")
+}
+
+func (h *EventHandler) ListHeroEvents(c *gin.Context) {
+	limitStr := c.Query("limit")
+	limit := 5
+	if limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 {
+			limit = l
+		}
+	}
+
+	events, err := h.eventService.ListHeroEvents(limit)
+	if err != nil {
+		utils.SendError(c, http.StatusInternalServerError, err.Error(), "FETCH_FAILED")
+		return
+	}
+
+	data := make([]map[string]interface{}, 0)
+	for _, e := range events {
+		data = append(data, map[string]interface{}{
+			"id":          e.ID,
+			"title":       e.Title,
+			"slug":        e.Slug,
+			"banner_url":  e.BannerURL,
+			"category":    e.Category,
+			"start_time":  e.StartTime,
+			"description": e.Description,
 		})
 	}
 
@@ -115,6 +196,7 @@ func (h *EventHandler) GetEvent(c *gin.Context) {
 		"end_time":     event.EndTime,
 		"is_published": event.IsPublished,
 		"is_featured":  event.IsFeatured,
+		"is_hero":      event.IsHero,
 	}, "Thành công")
 }
 
@@ -139,6 +221,8 @@ func (h *EventHandler) ListTrendingEvents(c *gin.Context) {
 			"slug":       e.Slug,
 			"banner_url": e.BannerURL,
 			"category":   e.Category,
+			"location":   e.Location,
+			"min_price":  e.MinPrice,
 			"start_time": e.StartTime,
 			"rank":       e.Rank,
 			"sold_7d":    e.Sold7d,

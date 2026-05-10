@@ -1,6 +1,5 @@
 import axios from 'axios';
-import { API_ROUTES } from '../constants/apiRoutes.js';
-import { api, unwrap } from './api.js';
+
 
 const USE_MOCK = import.meta.env.VITE_USE_MOCK !== 'false';
 const IMGBB_API_KEY = import.meta.env.VITE_IMGBB_API_KEY || '840694281017313c81a34e9239810201';

@@ -1,0 +1,1 @@
+function r(t){const e=typeof t=="string"?Number(t):t;return Number.isFinite(e)?new Intl.NumberFormat("vi-VN",{style:"currency",currency:"VND",maximumFractionDigits:0}).format(e):"0đ"}function n(t){const e=new Date(t);return Number.isNaN(e.getTime())?"":new Intl.DateTimeFormat("vi-VN",{dateStyle:"medium",timeStyle:"short"}).format(e)}export{n as a,r as f};

@@ -4,7 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
-	"fmt"
+	"log"
 	coreRepo "ticketrush/internal/repository"
 	"time"
 

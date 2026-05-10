@@ -469,7 +469,7 @@ export default function EventForm() {
       title,
       description,
       banner_url: null,
-      category: getCategoryLabel(category),
+      category,
       start_time: startsAt ? new Date(startsAt).toISOString() : '',
       end_time: endsAt ? new Date(endsAt).toISOString() : '',
       is_published: Boolean(isPublished),

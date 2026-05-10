@@ -68,6 +68,13 @@ export const CanvasSeatmap: React.FC<CanvasSeatmapProps> = ({
         
         if (targetIds.length === 0) return;
 
+        const now = Date.now();
+        setRecentlyUpdatedSeats(prev => {
+          const next = { ...prev };
+          targetIds.forEach(id => { next[id] = now; });
+          return next;
+        });
+
         setSeatStatusOverrides(prev => {
           const next = { ...prev };
           targetIds.forEach(id => {
@@ -99,6 +106,22 @@ export const CanvasSeatmap: React.FC<CanvasSeatmapProps> = ({
   const visibleZones = React.useMemo(() => 
     selectedLevel ? zones.filter(z => z.level === selectedLevel) : zones
   , [zones, selectedLevel]);
+
+  const [pulseScale, setPulseScale] = useState(1);
+  const [recentlyUpdatedSeats, setRecentlyUpdatedSeats] = useState<Record<string, number>>({});
+
+  // Pulse animation for recently updated seats
+  useEffect(() => {
+    let startTime = Date.now();
+    const animatePulse = () => {
+      const elapsed = Date.now() - startTime;
+      const scale = 1 + Math.sin(elapsed / 200) * 0.1;
+      setPulseScale(scale);
+      requestRef.current = requestAnimationFrame(animatePulse);
+    };
+    const animId = requestAnimationFrame(animatePulse);
+    return () => cancelAnimationFrame(animId);
+  }, []);
 
   const zoneOffsets = React.useMemo(() => {
     let currentY = 0;
@@ -163,6 +186,17 @@ export const CanvasSeatmap: React.FC<CanvasSeatmapProps> = ({
             return;
           }
 
+          // Pulse effect for recently updated seats
+          const updatedTime = recentlyUpdatedSeats[seat.id];
+          const isRecentlyUpdated = updatedTime && (Date.now() - updatedTime < 3000);
+          
+          if (isRecentlyUpdated) {
+            ctx.save();
+            ctx.translate(x + SEAT_SIZE / 2, y + SEAT_SIZE / 2);
+            ctx.scale(pulseScale, pulseScale);
+            ctx.translate(-(x + SEAT_SIZE / 2), -(y + SEAT_SIZE / 2));
+          }
+
           // Draw Seat
           ctx.fillStyle = color;
           const radius = 5;
@@ -177,6 +211,10 @@ export const CanvasSeatmap: React.FC<CanvasSeatmapProps> = ({
           ctx.roundRect(x, y, SEAT_SIZE, SEAT_SIZE, radius);
           ctx.fill();
           ctx.shadowBlur = 0;
+
+          if (isRecentlyUpdated) {
+            ctx.restore();
+          }
 
           // If locked or sold, add a small icon/pattern?
           if (status === 'SOLD') {
@@ -314,6 +352,86 @@ export const CanvasSeatmap: React.FC<CanvasSeatmapProps> = ({
     }
   };
 
+  // Touch handlers for mobile support
+  const [lastTouchPos, setLastTouchPos] = useState({ x: 0, y: 0 });
+  const [lastTouchDist, setLastTouchDist] = useState(0);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      setIsDragging(true);
+      setLastTouchPos({ x: e.touches[0].clientX, y: e.touches[0].clientY });
+    } else if (e.touches.length === 2) {
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      setLastTouchDist(dist);
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length === 1 && isDragging) {
+      const dx = e.touches[0].clientX - lastTouchPos.x;
+      const dy = e.touches[0].clientY - lastTouchPos.y;
+      setTransform(prev => ({ ...prev, x: prev.x + dx, y: prev.y + dy }));
+      setLastTouchPos({ x: e.touches[0].clientX, y: e.touches[0].clientY });
+    } else if (e.touches.length === 2) {
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      if (lastTouchDist > 0) {
+        const delta = (dist - lastTouchDist) * 0.01;
+        const newScale = Math.min(Math.max(transform.scale + delta, 0.2), 5);
+        
+        // Zoom towards center of touches
+        const centerX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+        const centerY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+        const canvas = canvasRef.current;
+        if (canvas) {
+          const rect = canvas.getBoundingClientRect();
+          const mouseX = centerX - rect.left;
+          const mouseY = centerY - rect.top;
+          const worldX = (mouseX - transform.x) / transform.scale;
+          const worldY = (mouseY - transform.y) / transform.scale;
+          const newX = mouseX - worldX * newScale;
+          const newY = mouseY - worldY * newScale;
+          setTransform({ x: newX, y: newY, scale: newScale });
+        }
+      }
+      setLastTouchDist(dist);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    setIsDragging(false);
+    setLastTouchDist(0);
+  };
+
+  // Keyboard Navigation
+  const [focusedSeatId, setFocusedSeatId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!focusedSeatId) {
+        // Find first available seat if none focused
+        const firstSeat = visibleZones[0]?.seats[0]?.[0];
+        if (firstSeat) setFocusedSeatId(firstSeat.id);
+        return;
+      }
+
+      // Logic to find adjacent seat could be complex, 
+      // but let's implement a simple version or at least Enter to select
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        onSeatSelect(focusedSeatId);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [focusedSeatId, visibleZones, onSeatSelect]);
+
   return (
     <div className="relative w-full h-[600px] bg-slate-900 rounded-xl overflow-hidden border border-slate-700 shadow-2xl">
       {/* Level Selector */}
@@ -341,7 +459,11 @@ export const CanvasSeatmap: React.FC<CanvasSeatmapProps> = ({
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onWheel={handleWheel}
-        className="cursor-move"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        className="cursor-move outline-none"
+        tabIndex={0}
         role="img"
         aria-label="Sơ đồ ghế ngồi tương tác. Sử dụng chuột để kéo và cuộn để phóng to. Nhấp vào ghế trống để chọn."
       />

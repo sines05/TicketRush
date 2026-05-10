@@ -76,8 +76,8 @@ export default function HeroSlider() {
         pagination={{ 
           clickable: true,
           el: '.hero-pagination',
-          bulletClass: 'inline-block w-2.5 h-2.5 rounded-full bg-white/20 mx-1.5 cursor-pointer transition-all duration-500 hover:bg-white/40',
-          bulletActiveClass: '!bg-white !w-10'
+          bulletClass: 'inline-block w-3 h-3 rounded-full bg-white/20 mx-2 cursor-pointer transition-all duration-500 hover:bg-white/40 hover:scale-110',
+          bulletActiveClass: '!bg-white !w-12 !rounded-full'
         }}
         className="relative"
       >
@@ -104,18 +104,18 @@ export default function HeroSlider() {
                       {event.title}
                     </h2>
 
-                    <p className="max-w-xl text-xl text-white/90 line-clamp-2 leading-relaxed animate-fade-in-up [animation-delay:200ms]">
+                    <p className="max-w-xl text-xl text-white/90 line-clamp-2 leading-relaxed animate-fade-in-up delay-100">
                       {event.description || 'Trải nghiệm những khoảnh khắc tuyệt vời cùng TicketRush.'}
                     </p>
 
-                    <div className="flex flex-wrap items-center gap-4 text-sm font-semibold text-white animate-fade-in-up [animation-delay:400ms]">
+                    <div className="flex flex-wrap items-center gap-4 text-sm font-semibold text-white animate-fade-in-up delay-200">
                       <div className="flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 backdrop-blur-md border border-white/10">
                         <Calendar className="h-5 w-5 text-primary" />
                         <span>{formatDateTime(event.start_time)}</span>
                       </div>
                     </div>
 
-                    <div className="flex flex-wrap gap-5 pt-6 animate-fade-in-up [animation-delay:600ms]">
+                    <div className="flex flex-wrap gap-5 pt-6 animate-fade-in-up delay-300">
                       <Button asChild size="xl" className="rounded-full px-10 font-bold shadow-xl shadow-primary/30">
                         <Link to={`/events/${event.slug || event.id}`}>
                           Xem chi tiết

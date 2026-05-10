@@ -14,7 +14,7 @@ let EVENTS = [
     id: 'uuid-event-1',
     title: 'Sơn Tùng M-TP - Sky Tour 2026',
     banner_url: bannerUrl,
-    category: 'Âm nhạc & Lễ hội',
+    category: 'music_festival',
     start_time: '2026-05-20T20:00:00Z',
     end_time: '2026-05-20T23:30:00Z',
     description: 'Đêm nhạc bùng nổ nhất năm 2026 với sân khấu hoành tráng...',
@@ -24,7 +24,7 @@ let EVENTS = [
     id: 'uuid-event-2',
     title: 'E-Sports Finals',
     banner_url: bannerUrl,
-    category: 'Giải trí & Trải nghiệm',
+    category: 'experience_entertainment',
     start_time: '2026-06-02T16:00:00Z',
     end_time: '2026-06-02T20:30:00Z',
     description: 'Chung kết giải đấu e-sports, vào cổng theo QR Code, hỗ trợ hàng chờ ảo.',
@@ -34,7 +34,7 @@ let EVENTS = [
     id: 'uuid-event-3',
     title: 'Summer Festival',
     banner_url: bannerUrl,
-    category: 'Âm nhạc & Lễ hội',
+    category: 'music_festival',
     start_time: '2026-07-18T15:00:00Z',
     end_time: '2026-07-18T21:30:00Z',
     description: 'Festival ngoài trời, nhiều khu vực vé; demo seat map có nhiều zones.',
@@ -42,19 +42,45 @@ let EVENTS = [
   }
 ];
 
-async function getEvents() {
+async function getEvents(params = {}) {
   if (!USE_MOCK) {
-    const res = await api.get(API_ROUTES.EVENTS);
+    const res = await api.get(API_ROUTES.EVENTS, { params });
     return unwrap(res);
   }
 
   await sleep(400);
-  return EVENTS;
+  let filtered = EVENTS;
+  if (params.q) {
+    const q = params.q.toLowerCase();
+    filtered = filtered.filter((e) => 
+      e.title.toLowerCase().includes(q) || 
+      e.category.toLowerCase().includes(q) ||
+      e.description.toLowerCase().includes(q)
+    );
+  }
+  if (params.category) {
+    filtered = filtered.filter((e) => e.category === params.category || params.category.includes(e.category));
+  }
+  if (params.location) {
+    const loc = params.location.toLowerCase();
+    filtered = filtered.filter((e) => e.location?.toLowerCase().includes(loc));
+  }
+  // Mock simple date filtering
+  if (params.date_from) {
+    const from = new Date(params.date_from);
+    filtered = filtered.filter((e) => new Date(e.start_time) >= from);
+  }
+  if (params.date_to) {
+    const to = new Date(params.date_to);
+    filtered = filtered.filter((e) => new Date(e.start_time) <= to);
+  }
+
+  return filtered;
 }
 
-async function getFeaturedEvents() {
+async function getFeaturedEvents(limit = 5) {
   if (!USE_MOCK) {
-    const res = await api.get(API_ROUTES.FEATURED_EVENTS);
+    const res = await api.get(API_ROUTES.FEATURED_EVENTS + `?limit=${limit}`);
     return unwrap(res);
   }
 
@@ -63,7 +89,7 @@ async function getFeaturedEvents() {
     const left = new Date(b.start_time).getTime();
     const right = new Date(a.start_time).getTime();
     return left - right;
-  }).slice(0, 5);
+  }).slice(0, limit);
 }
 
 async function getTrendingEvents(limit = 5) {
@@ -129,7 +155,7 @@ async function createEvent(payload) {
     start_time: payload.start_time,
     end_time: payload.end_time,
     description: payload.description,
-    category: payload.category || 'Khác',
+    category: payload.category || 'other',
     is_featured: Boolean(payload.is_featured)
   });
   return { event_id: newId };
@@ -209,4 +235,15 @@ async function getDashboardStats(eventId) {
   return mockStats;
 }
 
-export default { getEvents, getFeaturedEvents, getTrendingEvents, getEventDetail, getSeatMap, createEvent, getAdminEvents, updateEvent, deleteEvent, getDashboardStats };
+async function getHeroEvents(limit = 10) {
+  if (!USE_MOCK) {
+    const res = await api.get(`${API_ROUTES.HERO_EVENTS}?limit=${limit}`);
+    return unwrap(res);
+  }
+
+  await sleep(300);
+  // Fallback to featured events if in mock mode
+  return EVENTS.filter((e) => Boolean(e.is_featured)).slice(0, limit);
+}
+
+export default { getEvents, getHeroEvents, getFeaturedEvents, getTrendingEvents, getEventDetail, getSeatMap, createEvent, getAdminEvents, updateEvent, deleteEvent, getDashboardStats };
