@@ -9,7 +9,7 @@ export default function AdminComplaints() {
 
   const { data: complaints, isLoading } = useQuery({
     queryKey: ['admin', 'complaints'],
-    queryFn: feedbackService.getComplaints
+    queryFn: feedbackService.getAllComplaints
   });
 
   const updateMutation = useMutation({

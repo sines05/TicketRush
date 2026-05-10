@@ -19,6 +19,18 @@ async function getComplaints() {
   return unwrap(res);
 }
 
+async function getAllComplaints() {
+  if (USE_MOCK) {
+    await sleep(400);
+    return [
+      { id: 'c1', title: 'Lỗi không chọn được ghế', content: 'Tôi đã chọn ghế nhưng hệ thống báo lỗi liên tục.', status: 'RESOLVED', created_at: '2026-04-20T15:30:00Z', user_email: 'user1@example.com' },
+      { id: 'c2', title: 'Hoàn tiền vé', content: 'Tôi muốn hoàn tiền cho sự kiện đã bị hủy.', status: 'PENDING', created_at: '2026-05-01T09:15:00Z', user_email: 'user2@example.com' }
+    ];
+  }
+  const res = await api.get(API_ROUTES.COMPLAINTS);
+  return unwrap(res);
+}
+
 async function submitComplaint({ title, content }) {
   if (USE_MOCK) {
     await sleep(600);
@@ -59,4 +71,4 @@ async function updateComplaintStatus(id, status) {
   return unwrap(res);
 }
 
-export default { getComplaints, submitComplaint, getReviews, submitReview, updateComplaintStatus };
+export default { getComplaints, getAllComplaints, submitComplaint, getReviews, submitReview, updateComplaintStatus };

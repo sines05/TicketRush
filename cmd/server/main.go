@@ -24,16 +24,16 @@ func main() {
 
 	// 2. Initialize Database
 	db := repository.NewPostgresDB(cfg)
-	fmt.Println("Successfully connected to PostgreSQL")
+	log.Println("Successfully connected to PostgreSQL")
 
 	// 3. Initialize Redis
 	rdb := repository.NewRedisClient(cfg)
-	fmt.Println("Successfully connected to Redis")
+	log.Println("Successfully connected to Redis")
 
 	// 4. Setup WebSocket Hub
 	hub := websocket.NewHub()
 	go hub.Run()
-	fmt.Println("WebSocket Hub started")
+	log.Println("WebSocket Hub started")
 
 	userRepo := repository.NewUserRepository(db)
 	queueRepo := queue.NewRepository(rdb)
@@ -43,7 +43,7 @@ func main() {
 	emailService := service.NewEmailService(cfg)
 	notificationService := service.NewNotificationService(emailService)
 	notificationService.StartWorker()
-	fmt.Println("Notification service started")
+	log.Println("Notification service started")
 
 	authService := service.NewAuthService(userRepo, notificationService, cfg)
 	authHandler := handler.NewAuthHandler(authService, cfg)

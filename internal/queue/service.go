@@ -157,7 +157,7 @@ func (s *service) ProcessQueue(ctx context.Context, eventID uuid.UUID) error {
 
 	for _, userID := range users {
 		if err := s.repo.AllowUser(ctx, eventID, userID); err != nil {
-			fmt.Printf("Error admitting user %s: %v\n", userID, err)
+			log.Printf("Error admitting user %s: %v", userID, err)
 			continue
 		}
 		session, err := s.repo.GetSessionByEventAndUser(ctx, eventID, userID)
