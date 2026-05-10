@@ -1,16 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useSearchParams, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useSearchParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import Loading from '@/components/common/Loading';
 import eventService from '@/services/eventService';
 import { getCategoryKey, getCategoryLabel, CATEGORY_ALL } from '@/constants/categories';
 import EventCard from '@/components/home/EventCard';
-import { Search, Plus, SlidersHorizontal, X } from 'lucide-react';
+import { Search, Plus, X } from 'lucide-react';
 
 const USE_MOCK = import.meta.env.VITE_USE_MOCK !== 'false';
 
 export default function Home() {
+  const location = useLocation();
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -43,6 +44,8 @@ export default function Home() {
 
   useEffect(() => {
     let mounted = true;
+    setLoading(true);
+    setError('');
 
     eventService
       .getEvents()
@@ -62,7 +65,8 @@ export default function Home() {
     return () => {
       mounted = false;
     };
-  }, []);
+    // Re-fetch on every navigation to this page
+  }, [location.key]);
 
   const handleSearch = (e) => {
     e.preventDefault();

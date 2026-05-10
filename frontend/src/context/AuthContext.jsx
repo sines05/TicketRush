@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useEffect, useMemo, useState } from 
 import { sanitizeString } from '../utils/security.js';
 import authService from '../services/authService.js';
 import userService from '../services/userService.js';
+import { useQueryClient } from '@tanstack/react-query';
 
 const STORAGE_TOKEN = 'tr_access_token';
 const STORAGE_USER = 'tr_user';
@@ -20,6 +21,7 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(null);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     const storedToken = localStorage.getItem(STORAGE_TOKEN);
@@ -162,7 +164,8 @@ export function AuthProvider({ children }) {
     setUser(null);
     localStorage.removeItem(STORAGE_TOKEN);
     localStorage.removeItem(STORAGE_USER);
-  }, []);
+    queryClient.clear();
+  }, [queryClient]);
 
   const value = useMemo(() => {
     return {

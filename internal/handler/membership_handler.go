@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"ticketrush/internal/models"
 	"ticketrush/internal/repository"
 	"ticketrush/internal/utils"
 
@@ -11,10 +12,11 @@ import (
 
 type MembershipHandler struct {
 	membershipRepo repository.MembershipRepository
+	userRepo       repository.UserRepository
 }
 
-func NewMembershipHandler(membershipRepo repository.MembershipRepository) *MembershipHandler {
-	return &MembershipHandler{membershipRepo: membershipRepo}
+func NewMembershipHandler(membershipRepo repository.MembershipRepository, userRepo repository.UserRepository) *MembershipHandler {
+	return &MembershipHandler{membershipRepo: membershipRepo, userRepo: userRepo}
 }
 
 func (h *MembershipHandler) GetTiers(c *gin.Context) {
@@ -27,8 +29,9 @@ func (h *MembershipHandler) GetTiers(c *gin.Context) {
 }
 
 func (h *MembershipHandler) UpgradeTier(c *gin.Context) {
-	userIDStr := c.GetString("user_id")
-	userID, _ := uuid.Parse(userIDStr)
+	userObj, _ := c.Get("user")
+	user := userObj.(*models.User)
+	userID := user.ID
 
 	var input struct {
 		TierID uuid.UUID `json:"tier_id" binding:"required"`
@@ -47,3 +50,30 @@ func (h *MembershipHandler) UpgradeTier(c *gin.Context) {
 
 	utils.SendSuccess(c, http.StatusOK, nil, "Membership upgraded successfully")
 }
+
+func (h *MembershipHandler) GetMyMembership(c *gin.Context) {
+	userObj, _ := c.Get("user")
+	userModel := userObj.(*models.User)
+	userID := userModel.ID
+
+	user, err := h.userRepo.FindByID(userID)
+	if err != nil || user == nil {
+		utils.SendError(c, http.StatusNotFound, "Người dùng không tồn tại", "USER_NOT_FOUND")
+		return
+	}
+
+	tierName := "BRONZE"
+	if user.MembershipTier != nil {
+		tierName = user.MembershipTier.Name
+	}
+
+	res := map[string]interface{}{
+		"tier":             tierName,
+		"points":           0,    // Points system not implemented in DB yet
+		"next_tier_points": 1000,
+		"joined_at":        user.CreatedAt,
+	}
+
+	utils.SendSuccess(c, http.StatusOK, res, "Lấy thông tin hạng thành viên thành công")
+}
+

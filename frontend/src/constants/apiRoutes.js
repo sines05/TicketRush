@@ -39,9 +39,13 @@ export const API_ROUTES = Object.freeze({
   MEMBERSHIP_TIERS: '/membership/tiers',
   MY_MEMBERSHIP: '/membership/me',
   MEMBERSHIP_UPGRADE: '/membership/upgrade',
-  COMPLAINTS: '/feedback/complaints',
-  REVIEWS: '/feedback/reviews',
+  COMPLAINTS_MY: '/complaints/my',
+  COMPLAINTS: '/complaints',
+  REVIEWS: '/reviews',
+  EVENT_REVIEWS: (eventId) => `/events/${eventId}/reviews`,
   ADMIN_USERS: '/admin/users',
   ADMIN_USER_ROLE: (userId) => `/admin/users/${userId}/role`,
-  ADMIN_USER_MEMBERSHIP: (userId) => `/admin/users/${userId}/membership`
+  ADMIN_USER_MEMBERSHIP: (userId) => `/admin/users/${userId}/membership`,
+  ADMIN_USER_DELETE: (userId) => `/admin/users/${userId}`,
+  ADMIN_USER_NOTIFY: (userId) => `/admin/users/${userId}/notify`
 });

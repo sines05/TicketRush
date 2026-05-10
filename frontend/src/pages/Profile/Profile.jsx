@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth.js';
 import { GENDER } from '../../constants/gender.js';
 import userService from '../../services/userService.js';
@@ -40,6 +40,7 @@ function toDateInputValue(value) {
 
 export default function Profile() {
   const { user, updateUser, logout } = useAuth();
+  const location = useLocation();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -138,7 +139,8 @@ export default function Profile() {
     return () => {
       mounted = false;
     };
-  }, [user?.email, user?.full_name, user?.avatar_url, user?.gender, user?.date_of_birth]);
+    // Re-fetch on every navigation to this page
+  }, [location.key, user?.email, user?.full_name, user?.avatar_url, user?.gender, user?.date_of_birth]);
 
   useEffect(() => {
     setTicketsLoading(true);

@@ -100,3 +100,8 @@ To ensure consistency across the stack:
 - Unit Tests: Focus on core business logic (Locking, Expiration, Price Calculation).
 - Integration Tests: Verify full flows (Join Queue -> Lock Seat -> Checkout).
 - Mocking: Mock external services (e.g., Payment Gateway, Email) in tests.
+
+Hoàn thiện Hỗ trợ và khiếu nại
+Dọn dẹp những log phát triển.
+
+./scratch/simulate_priority_queue.sh

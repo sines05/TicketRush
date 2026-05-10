@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ROLES } from '../../constants/roles.js';
-import { Search, Users, ShieldAlert, BadgeCheck, MoreHorizontal } from 'lucide-react';
+import { Search, Users, ShieldAlert, Trash2, Bell } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export default function UserManagement() {
@@ -17,12 +17,19 @@ export default function UserManagement() {
 
   const { data: users, isLoading: usersLoading, error: usersError } = useQuery({
     queryKey: ['admin', 'users'],
-    queryFn: userService.getUsers
+    queryFn: userService.getUsers,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+    staleTime: 0,
+    refetchInterval: 5_000
   });
 
   const { data: tiers } = useQuery({
     queryKey: ['membership', 'tiers'],
-    queryFn: membershipService.getTiers
+    queryFn: membershipService.getTiers,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+    staleTime: 0
   });
 
   const roleMutation = useMutation({
@@ -38,6 +45,34 @@ export default function UserManagement() {
       queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
     }
   });
+
+  const deleteMutation = useMutation({
+    mutationFn: (userId) => userService.deleteUser(userId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+      window.alert('Đã xóa người dùng!');
+    }
+  });
+
+  const notifyMutation = useMutation({
+    mutationFn: ({ userId, message }) => userService.notifyUser(userId, message),
+    onSuccess: () => {
+      window.alert('Đã gửi thông báo cho người dùng!');
+    }
+  });
+
+  const handleDelete = (userId) => {
+    if (window.confirm('Bạn có chắc chắn muốn xóa người dùng này? Hành động này không thể hoàn tác.')) {
+      deleteMutation.mutate(userId);
+    }
+  };
+
+  const handleNotify = (userId) => {
+    const msg = window.prompt('Nhập nội dung thông báo:');
+    if (msg) {
+      notifyMutation.mutate({ userId, message: msg });
+    }
+  };
 
   const filteredUsers = users?.filter((u) =>
     u.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -136,7 +171,7 @@ export default function UserManagement() {
                     </TableCell>
                     <TableCell>
                       <Select
-                        value={user.membership_tier}
+                        value={user.membership_tier_id || user.membership_tier || ''}
                         onValueChange={(value) => tierMutation.mutate({ userId: user.id, tierId: value })}
                         disabled={tierMutation.isPending}
                       >
@@ -145,15 +180,20 @@ export default function UserManagement() {
                         </SelectTrigger>
                         <SelectContent>
                           {tiers?.map((tier) => (
-                            <SelectItem key={tier.id} value={tier.name}>{tier.name}</SelectItem>
+                            <SelectItem key={tier.id} value={tier.id}>{tier.name}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="sm">
-                        Chi tiết
-                      </Button>
+                      <div className="flex justify-end gap-1">
+                        <Button variant="ghost" size="sm" onClick={() => handleNotify(user.id)} title="Gửi thông báo">
+                          <Bell className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => handleDelete(user.id)} title="Xóa người dùng">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))

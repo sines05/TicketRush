@@ -18,6 +18,10 @@ type UserRepository interface {
 	DeletePasswordReset(token string) error
 	Update2FA(userID uuid.UUID, enabled bool, secret string) error
 	UpdateNotificationToken(userID uuid.UUID, token string) error
+	FindAll() ([]models.User, error)
+	UpdateRole(userID uuid.UUID, role models.UserRole) error
+	UpdateMembership(userID uuid.UUID, tierID *uuid.UUID) error
+	Delete(userID uuid.UUID) error
 }
 
 type userRepo struct {
@@ -81,4 +85,24 @@ func (r *userRepo) Update2FA(userID uuid.UUID, enabled bool, secret string) erro
 
 func (r *userRepo) UpdateNotificationToken(userID uuid.UUID, token string) error {
 	return r.db.Model(&models.User{}).Where("id = ?", userID).Update("notification_token", token).Error
+}
+
+func (r *userRepo) FindAll() ([]models.User, error) {
+	var users []models.User
+	if err := r.db.Preload("MembershipTier").Find(&users).Error; err != nil {
+		return nil, err
+	}
+	return users, nil
+}
+
+func (r *userRepo) UpdateRole(userID uuid.UUID, role models.UserRole) error {
+	return r.db.Model(&models.User{}).Where("id = ?", userID).Update("role", role).Error
+}
+
+func (r *userRepo) UpdateMembership(userID uuid.UUID, tierID *uuid.UUID) error {
+	return r.db.Model(&models.User{}).Where("id = ?", userID).Update("membership_tier_id", tierID).Error
+}
+
+func (r *userRepo) Delete(userID uuid.UUID) error {
+	return r.db.Where("id = ?", userID).Delete(&models.User{}).Error
 }

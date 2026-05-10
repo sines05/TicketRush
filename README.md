@@ -129,6 +129,34 @@ npm run dev
 
 ---
 
+## Testing Virtual Queue (High Traffic Simulation)
+
+To test the system under high traffic conditions and trigger the Virtual Queue UI:
+
+### 1. Flood the Queue
+We have provided a script that injects 100 dummy users into Redis for a specific event, intentionally crossing the active user threshold.
+
+```bash
+# Make the script executable and run it
+chmod +x scratch/simulate_priority_queue.sh
+./scratch/simulate_priority_queue.sh
+```
+*Note: Make sure your `docker compose up` is running before executing this script.*
+
+### 2. Verify on Frontend
+- Go to `http://localhost:5173/events/jack---j97-concert-dom-dom-in-the-stars`
+- Click **"Mua vé ngay"**
+- You should be automatically redirected to the **Virtual Queue** page instead of the Seat Map.
+
+### 3. Clear the Queue
+To reset the state and allow immediate booking again, clear the active users from Redis:
+
+```bash
+./scratch/simulate_priority_queue.sh clear
+```
+
+---
+
 ## Updating Database Sample Data
 
 ### Scenario 1: Update Auto-Seed Data (Docker - Fresh Database)

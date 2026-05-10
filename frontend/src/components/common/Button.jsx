@@ -6,6 +6,7 @@ export default function Button({
   variant = 'primary',
   size = 'md',
   className = '',
+  loading,
   ...rest
 }) {
   const base =

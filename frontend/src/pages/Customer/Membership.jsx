@@ -7,12 +7,18 @@ export default function Membership() {
 
   const { data: membership, isLoading: memberLoading } = useQuery({
     queryKey: ['membership', 'me'],
-    queryFn: membershipService.getMyMembership
+    queryFn: membershipService.getMyMembership,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+    staleTime: 0
   });
 
   const { data: tiers, isLoading: tiersLoading } = useQuery({
     queryKey: ['membership', 'tiers'],
-    queryFn: membershipService.getTiers
+    queryFn: membershipService.getTiers,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+    staleTime: 0
   });
 
   const upgradeMutation = useMutation({

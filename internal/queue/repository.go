@@ -11,7 +11,7 @@ import (
 )
 
 type Repository interface {
-	AddToQueue(ctx context.Context, eventID uuid.UUID, userID uuid.UUID) error
+	AddToQueue(ctx context.Context, eventID uuid.UUID, userID uuid.UUID, priorityLevel int) error
 	GetPosition(ctx context.Context, eventID uuid.UUID, userID uuid.UUID) (int64, error)
 	IsAllowed(ctx context.Context, eventID uuid.UUID, userID uuid.UUID) (bool, error)
 	AllowUser(ctx context.Context, eventID uuid.UUID, userID uuid.UUID) error
@@ -35,10 +35,13 @@ func NewRepository(rdb *redis.Client) Repository {
 	return &repository{rdb: rdb}
 }
 
-func (r *repository) AddToQueue(ctx context.Context, eventID uuid.UUID, userID uuid.UUID) error {
+func (r *repository) AddToQueue(ctx context.Context, eventID uuid.UUID, userID uuid.UUID, priorityLevel int) error {
 	queueKey := fmt.Sprintf("event:%s:queue", eventID)
+	// Score calculation: (10 - priorityLevel) * 10^18 + time.Now().UnixNano()
+	// This ensures higher priority levels always get a strictly lower score than lower priority levels.
+	score := float64((10-priorityLevel))*1e18 + float64(time.Now().UnixNano())
 	return r.rdb.ZAdd(ctx, queueKey, redis.Z{
-		Score:  float64(time.Now().UTC().UnixNano()),
+		Score:  score,
 		Member: userID.String(),
 	}).Err()
 }

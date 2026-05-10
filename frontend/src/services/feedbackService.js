@@ -15,7 +15,7 @@ async function getComplaints() {
       { id: 'c2', title: 'Hoàn tiền vé', content: 'Tôi muốn hoàn tiền cho sự kiện đã bị hủy.', status: 'PENDING', created_at: '2026-05-01T09:15:00Z' }
     ];
   }
-  const res = await api.get(API_ROUTES.COMPLAINTS);
+  const res = await api.get(API_ROUTES.COMPLAINTS_MY);
   return unwrap(res);
 }
 
@@ -36,8 +36,9 @@ async function getReviews(eventId) {
       { id: 'r2', user_name: 'Trần Thị B', rating: 4, comment: 'Âm thanh hơi nhỏ nhưng bù lại ca sĩ hát rất hay.', created_at: '2026-03-16T10:00:00Z' }
     ];
   }
-  const res = await api.get(API_ROUTES.REVIEWS, { params: { event_id: eventId } });
-  return unwrap(res);
+  const res = await api.get(API_ROUTES.EVENT_REVIEWS(eventId));
+  const data = unwrap(res);
+  return data?.reviews || [];
 }
 
 async function submitReview({ event_id, rating, comment }) {

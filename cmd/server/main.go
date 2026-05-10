@@ -35,8 +35,9 @@ func main() {
 	go hub.Run()
 	fmt.Println("WebSocket Hub started")
 
+	userRepo := repository.NewUserRepository(db)
 	queueRepo := queue.NewRepository(rdb)
-	queueService := queue.NewService(queueRepo)
+	queueService := queue.NewService(queueRepo, userRepo)
 	queueHandler := handler.NewQueueHandler(queueService)
 
 	emailService := service.NewEmailService(cfg)
@@ -44,7 +45,6 @@ func main() {
 	notificationService.StartWorker()
 	fmt.Println("Notification service started")
 
-	userRepo := repository.NewUserRepository(db)
 	authService := service.NewAuthService(userRepo, notificationService, cfg)
 	authHandler := handler.NewAuthHandler(authService, cfg)
 
@@ -58,13 +58,16 @@ func main() {
 	orderHandler := handler.NewOrderHandler(orderService, queueService)
 
 	membershipRepo := repository.NewMembershipRepository(db)
-	membershipHandler := handler.NewMembershipHandler(membershipRepo)
+	membershipHandler := handler.NewMembershipHandler(membershipRepo, userRepo)
 
 	reviewRepo := repository.NewReviewRepository(db)
 	reviewHandler := handler.NewReviewHandler(reviewRepo)
 
 	complaintRepo := repository.NewComplaintRepository(db)
 	complaintHandler := handler.NewComplaintHandler(complaintRepo)
+
+	adminDashboardHandler := handler.NewAdminDashboardHandler(orderRepo, eventRepo)
+	adminUserHandler := handler.NewAdminUserHandler(userRepo, notificationService)
 
 	workerService := worker.NewWorkerService(db, queueService, queueRepo, hub, orderRepo)
 	workerService.StartWorkers()
@@ -129,6 +132,7 @@ func main() {
 			protected.POST("/auth/disable-2fa", authHandler.Disable2FA)
 
 			// Membership
+			protected.GET("/membership/me", membershipHandler.GetMyMembership)
 			protected.POST("/membership/upgrade", membershipHandler.UpgradeTier)
 
 			// Reviews
@@ -151,11 +155,17 @@ func main() {
 				admin.POST("/events", eventHandler.CreateEvent)
 				admin.PUT("/events/:id", eventHandler.UpdateEvent)
 				admin.DELETE("/events/:id", eventHandler.DeleteEvent)
-				admin.GET("/dashboard/stats", eventHandler.GetStats)
+				admin.GET("/dashboard/stats", adminDashboardHandler.GetStats)
 				admin.GET("/tickets", orderHandler.GetTickets)
 				admin.POST("/tickets/check-in", orderHandler.CheckInTicket)
 				admin.GET("/complaints", complaintHandler.AdminGetAllComplaints)
 				admin.PATCH("/complaints/:id", complaintHandler.AdminUpdateComplaintStatus)
+
+				admin.GET("/users", adminUserHandler.ListUsers)
+				admin.PATCH("/users/:id/role", adminUserHandler.UpdateUserRole)
+				admin.PATCH("/users/:id/membership", adminUserHandler.UpdateUserMembership)
+				admin.DELETE("/users/:id", adminUserHandler.DeleteUser)
+				admin.POST("/users/:id/notify", adminUserHandler.NotifyUser)
 			}
 		}
 	}

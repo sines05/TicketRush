@@ -11,7 +11,10 @@ export default function Feedback() {
 
   const { data: complaints, isLoading: complaintsLoading } = useQuery({
     queryKey: ['feedback', 'complaints'],
-    queryFn: feedbackService.getComplaints
+    queryFn: feedbackService.getComplaints,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+    staleTime: 0
   });
 
   const complaintMutation = useMutation({

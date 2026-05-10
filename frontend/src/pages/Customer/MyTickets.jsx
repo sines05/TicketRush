@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import Loading from '../../components/common/Loading.jsx';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,32 +9,20 @@ import { Ticket, ArrowLeft, Search } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export default function MyTickets() {
-  const [loading, setLoading] = useState(true);
-  const [tickets, setTickets] = useState([]);
-  const [error, setError] = useState('');
+  const {
+    data: tickets,
+    isLoading: loading,
+    error: queryError
+  } = useQuery({
+    queryKey: ['my-tickets'],
+    queryFn: ticketService.getMyTickets,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+    staleTime: 0,
+    select: (data) => (Array.isArray(data) ? data : [])
+  });
 
-  useEffect(() => {
-    let mounted = true;
-
-    ticketService
-      .getMyTickets()
-      .then((data) => {
-        if (!mounted) return;
-        setTickets(Array.isArray(data) ? data : []);
-      })
-      .catch((e) => {
-        if (!mounted) return;
-        setError(e?.message || 'Không tải được danh sách vé');
-      })
-      .finally(() => {
-        if (!mounted) return;
-        setLoading(false);
-      });
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
+  const error = queryError?.message || '';
 
   if (loading) return <Loading title="Đang tải vé của bạn..." />;
 

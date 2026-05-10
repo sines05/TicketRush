@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Button from '../../components/common/Button.jsx';
 import Loading from '../../components/common/Loading.jsx';
@@ -14,6 +14,7 @@ import { useAuth } from '../../hooks/useAuth.js';
 export default function EventDetail() {
   const { slug } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -30,6 +31,8 @@ export default function EventDetail() {
 
   useEffect(() => {
     let mounted = true;
+    setLoading(true);
+    setError('');
 
     Promise.all([eventService.getEventDetail(slug), eventService.getSeatMap(slug)])
       .then(([evt, sm]) => {
@@ -49,12 +52,16 @@ export default function EventDetail() {
     return () => {
       mounted = false;
     };
-  }, [slug]);
+    // Re-fetch on every navigation to this page
+  }, [slug, location.key]);
 
   const { data: reviews, isLoading: reviewsLoading } = useQuery({
     queryKey: ['reviews', event?.id],
     queryFn: () => feedbackService.getReviews(event?.id),
-    enabled: !!event?.id
+    enabled: !!event?.id,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+    staleTime: 0
   });
 
   const reviewMutation = useMutation({

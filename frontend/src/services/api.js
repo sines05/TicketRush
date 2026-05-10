@@ -28,6 +28,15 @@ api.interceptors.response.use(
     return { success: true, data: payload, message: '', errorCode: '' };
   },
   (error) => {
+    if (error?.response?.status === 401) {
+      localStorage.removeItem('tr_access_token');
+      localStorage.removeItem('tr_token');
+      // Redirect to login if not already there to prevent redirect loops
+      if (!window.location.pathname.startsWith('/auth/login')) {
+        window.location.href = '/auth/login';
+      }
+    }
+
     const payload = error?.response?.data;
     if (payload && typeof payload === 'object' && 'success' in payload) {
       return Promise.reject(payload);

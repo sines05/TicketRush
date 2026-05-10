@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
+	coreRepo "ticketrush/internal/repository"
 	"time"
 
 	"github.com/google/uuid"
@@ -22,11 +23,12 @@ type Service interface {
 }
 
 type service struct {
-	repo Repository
+	repo     Repository
+	userRepo coreRepo.UserRepository
 }
 
-func NewService(repo Repository) Service {
-	return &service{repo: repo}
+func NewService(repo Repository, userRepo coreRepo.UserRepository) Service {
+	return &service{repo: repo, userRepo: userRepo}
 }
 
 func generateToken() string {
@@ -69,11 +71,23 @@ func (s *service) JoinQueue(ctx context.Context, eventID uuid.UUID, userID uuid.
 		return "", "", nil, err
 	}
 	
+	priorityLevel := 0
+	user, err := s.userRepo.FindByID(userID)
+	if err == nil && user != nil && user.MembershipTier != nil {
+		priorityLevel = user.MembershipTier.PriorityLevel
+	}
+
 	status := "waiting"
 	if allowed {
 		status = "allowed"
+	} else if priorityLevel >= 3 {
+		// Platinum users bypass the queue threshold and go straight to active
+		if err := s.repo.AllowUser(ctx, eventID, userID); err != nil {
+			return "", "", nil, err
+		}
+		status = "allowed"
 	} else {
-		if err := s.repo.AddToQueue(ctx, eventID, userID); err != nil {
+		if err := s.repo.AddToQueue(ctx, eventID, userID, priorityLevel); err != nil {
 			return "", "", nil, err
 		}
 	}
@@ -97,11 +111,23 @@ func (s *service) GetStatus(ctx context.Context, eventID uuid.UUID, userID uuid.
 	if allowed {
 		status = "allowed"
 	} else {
-		pos, err = s.repo.GetPosition(ctx, eventID, userID)
-		if err != nil {
-			status = "not_in_queue"
+		priorityLevel := 0
+		user, err := s.userRepo.FindByID(userID)
+		if err == nil && user != nil && user.MembershipTier != nil {
+			priorityLevel = user.MembershipTier.PriorityLevel
+		}
+		
+		if priorityLevel >= 3 {
+			if err := s.repo.AllowUser(ctx, eventID, userID); err == nil {
+				status = "allowed"
+			}
 		} else {
-			pos += 1
+			pos, err = s.repo.GetPosition(ctx, eventID, userID)
+			if err != nil {
+				status = "not_in_queue"
+			} else {
+				pos += 1
+			}
 		}
 	}
 

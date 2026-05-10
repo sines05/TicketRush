@@ -105,4 +105,14 @@ async function changePassword({ old_password, new_password }) {
   return unwrap(res);
 }
 
-export default { getMe, updateMe, getUsers, updateUserRole, updateUserMembership, changePassword };
+async function deleteUser(userId) {
+  const res = await api.delete(API_ROUTES.ADMIN_USER_DELETE(userId));
+  return unwrap(res);
+}
+
+async function notifyUser(userId, message) {
+  const res = await api.post(API_ROUTES.ADMIN_USER_NOTIFY(userId), { message });
+  return unwrap(res);
+}
+
+export default { getMe, updateMe, getUsers, updateUserRole, updateUserMembership, changePassword, deleteUser, notifyUser };

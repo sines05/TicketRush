@@ -3,6 +3,8 @@ package service
 import (
 	"log"
 	"ticketrush/internal/models"
+
+	"github.com/google/uuid"
 )
 
 type NotificationType string
@@ -12,7 +14,7 @@ const (
 	NotificationPushTicket  NotificationType = "PUSH_TICKET"
 	NotificationWelcome     NotificationType = "WELCOME"
 	NotificationOrderConf   NotificationType = "ORDER_CONFIRMATION"
-	NotificationSecurity    NotificationType = "SECURITY_EVENT"
+	NotificationSystem      NotificationType = "SYSTEM_MESSAGE"
 )
 
 type NotificationTask struct {
@@ -25,7 +27,7 @@ type NotificationService interface {
 	NotifyTicketPurchased(user *models.User, tickets []models.Ticket, event *models.Event)
 	NotifyWelcome(user *models.User)
 	NotifyOrderConfirmation(user *models.User, order *models.Order)
-	NotifySecurityEvent(user *models.User, eventName string)
+	SendSystemNotification(userID uuid.UUID, title, message string)
 	StartWorker()
 }
 
@@ -88,12 +90,10 @@ func (s *notificationService) processTask(task NotificationTask) {
 		if err := s.emailService.SendOrderConfirmationEmail(email, orderID, total); err != nil {
 			log.Printf("Error sending order confirmation email: %v", err)
 		}
-
-	case NotificationSecurity:
-		email := task.Payload["email"].(string)
-		eventName := task.Payload["event_name"].(string)
-		// For now, we just log it. In a real app, we'd send an email.
-		log.Printf("[SECURITY] User %s: %s", email, eventName)
+	case NotificationSystem:
+		title := task.Payload["title"].(string)
+		message := task.Payload["message"].(string)
+		log.Printf("[SYSTEM NOTIFICATION to %s]: %s - %s", task.UserID, title, message)
 	}
 }
 
@@ -157,5 +157,16 @@ func (s *notificationService) NotifyTicketPurchased(user *models.User, tickets [
 				},
 			}
 		}
+	}
+}
+
+func (s *notificationService) SendSystemNotification(userID uuid.UUID, title, message string) {
+	s.taskChan <- NotificationTask{
+		Type:   NotificationSystem,
+		UserID: userID.String(),
+		Payload: map[string]interface{}{
+			"title":   title,
+			"message": message,
+		},
 	}
 }
