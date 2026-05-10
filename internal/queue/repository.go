@@ -23,6 +23,8 @@ type Repository interface {
 	SaveSession(ctx context.Context, session *QueueSession, expiration time.Duration) error
 	GetSession(ctx context.Context, token string) (*QueueSession, error)
 	GetSessionByEventAndUser(ctx context.Context, eventID uuid.UUID, userID uuid.UUID) (*QueueSession, error)
+	ListSessions(ctx context.Context) ([]*QueueSession, error)
+	DeleteSession(ctx context.Context, token string, eventID uuid.UUID, userID uuid.UUID) error
 }
 
 type repository struct {
@@ -36,7 +38,7 @@ func NewRepository(rdb *redis.Client) Repository {
 func (r *repository) AddToQueue(ctx context.Context, eventID uuid.UUID, userID uuid.UUID) error {
 	queueKey := fmt.Sprintf("event:%s:queue", eventID)
 	return r.rdb.ZAdd(ctx, queueKey, redis.Z{
-		Score:  float64(time.Now().UnixNano()),
+		Score:  float64(time.Now().UTC().UnixNano()),
 		Member: userID.String(),
 	}).Err()
 }
@@ -127,4 +129,30 @@ func (r *repository) GetSessionByEventAndUser(ctx context.Context, eventID uuid.
 		return nil, err
 	}
 	return r.GetSession(ctx, token)
+}
+
+func (r *repository) ListSessions(ctx context.Context) ([]*QueueSession, error) {
+	var sessions []*QueueSession
+	iter := r.rdb.Scan(ctx, 0, "queue_session:*", 0).Iterator()
+	for iter.Next(ctx) {
+		data, err := r.rdb.Get(ctx, iter.Val()).Bytes()
+		if err != nil {
+			continue
+		}
+		var session QueueSession
+		if err := json.Unmarshal(data, &session); err != nil {
+			continue
+		}
+		sessions = append(sessions, &session)
+	}
+	if err := iter.Err(); err != nil {
+		return nil, err
+	}
+	return sessions, nil
+}
+
+func (r *repository) DeleteSession(ctx context.Context, token string, eventID uuid.UUID, userID uuid.UUID) error {
+	tokenKey := fmt.Sprintf("queue_session:%s", token)
+	lookupKey := fmt.Sprintf("queue_session_lookup:%s:%s", eventID, userID)
+	return r.rdb.Del(ctx, tokenKey, lookupKey).Err()
 }

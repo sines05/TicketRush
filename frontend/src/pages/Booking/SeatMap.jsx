@@ -1,14 +1,27 @@
-import { useContext, useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import Seat from '../../components/booking/Seat.jsx';
-import Button from '../../components/common/Button.jsx';
+import { Button } from '../../components/ui/button.jsx';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../../components/ui/card.jsx';
 import Loading from '../../components/common/Loading.jsx';
 import { BookingContext } from '../../context/BookingContext.jsx';
 import eventService from '../../services/eventService.js';
+import queueService from '../../services/queueService.js';
 import { formatVND } from '../../utils/formatters.js';
 import { useAuth } from '../../hooks/useAuth.js';
+import { useCountdown, formatCountdown } from '../../hooks/useCountdown.js';
 import { useWebSocket } from '../../hooks/useWebSocket.js';
 import orderService from '../../services/orderService.js';
+import { ArrowLeft, Trash2, X, AlertCircle, Clock, Map as MapIcon, Armchair, Ticket } from 'lucide-react';
+import { cn } from '../../lib/utils';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../../components/ui/dialog.jsx";
 
 function seatLabel(seat) {
   return `${seat.row_label}-${seat.seat_number}`;
@@ -16,6 +29,7 @@ function seatLabel(seat) {
 
 export default function SeatMap() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const { selectedSeats, toggleSeat, isSelected, clearSelection, startBooking } =
     useContext(BookingContext);
@@ -30,6 +44,33 @@ export default function SeatMap() {
   const [activeZoneId, setActiveZoneId] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [allowedAt, setAllowedAt] = useState(location.state?.allowedAt);
+
+  // Countdown timer logic
+  useEffect(() => {
+    if (!allowedAt && eventId) {
+      queueService.getStatus({ event_id: eventId })
+        .then(st => {
+          if (st.allowed_at) {
+            setAllowedAt(st.allowed_at);
+          } else {
+            setAllowedAt(new Date().toISOString());
+          }
+        })
+        .catch(() => {
+          setAllowedAt(new Date().toISOString());
+        });
+    }
+  }, [allowedAt, eventId]);
+
+  const targetTime = useMemo(() => {
+    if (!allowedAt) return null;
+    const date = new Date(allowedAt);
+    date.setMinutes(date.getMinutes() + 15);
+    return date.toISOString();
+  }, [allowedAt]);
+
+  const { secondsLeft, isExpired } = useCountdown({ endsAt: targetTime });
 
   // WebSocket real-time seat updates
   const { status: wsStatus, setOnMessage, send } = useWebSocket('/ws', { enabled: !!eventId });
@@ -48,35 +89,42 @@ export default function SeatMap() {
         const msg = JSON.parse(data);
         if (!msg.type) return;
 
-        // Support both single seat_id and batched seat_ids
         const type = msg.type;
         const targetIds = msg.seat_ids || (msg.seat_id ? [msg.seat_id] : []);
         if (targetIds.length === 0) return;
 
         setSeatMap((prev) => {
           if (!prev) return prev;
-          return {
-            ...prev,
-            zones: prev.zones.map((zone) => ({
-              ...zone,
-              seats: zone.seats.map((seat) => {
-                if (!targetIds.includes(seat.seat_id)) return seat;
-                switch (type) {
-                  case 'SEAT_LOCKED':
-                  case 'SEATS_LOCKED':
-                    return { ...seat, status: 'LOCKED' };
-                  case 'SEAT_SOLD':
-                  case 'SEATS_SOLD':
-                    return { ...seat, status: 'SOLD' };
-                  case 'SEAT_RELEASED':
-                  case 'SEATS_RELEASED':
-                    return { ...seat, status: 'AVAILABLE', locked_by_user_id: null };
-                  default:
-                    return seat;
-                }
-              })
-            }))
-          };
+          
+          // Optimization: Only update if the target seats are in the current seatMap
+          let changed = false;
+          const nextZones = prev.zones.map((zone) => {
+            let zoneChanged = false;
+            const nextSeats = zone.seats.map((seat) => {
+              if (!targetIds.includes(seat.seat_id)) return seat;
+              
+              zoneChanged = true;
+              changed = true;
+              
+              switch (type) {
+                case 'SEAT_LOCKED':
+                case 'SEATS_LOCKED':
+                  return { ...seat, status: 'LOCKED' };
+                case 'SEAT_SOLD':
+                case 'SEATS_SOLD':
+                  return { ...seat, status: 'SOLD' };
+                case 'SEAT_RELEASED':
+                case 'SEATS_RELEASED':
+                  return { ...seat, status: 'AVAILABLE', locked_by_user_id: null };
+                default:
+                  return seat;
+              }
+            });
+            
+            return zoneChanged ? { ...zone, seats: nextSeats } : zone;
+          });
+
+          return changed ? { ...prev, zones: nextZones } : prev;
         });
       } catch {
         // Ignore malformed messages
@@ -118,7 +166,7 @@ export default function SeatMap() {
 
   const zones = seatMap?.zones ?? [];
 
-  function getZonePos(zone, index, total) {
+  const getZonePos = useCallback((zone, index, total) => {
     const meta = zone?.layout_meta || {};
     const x = Number(meta?.pos_x);
     const y = Number(meta?.pos_y);
@@ -128,7 +176,7 @@ export default function SeatMap() {
 
     const t = total > 1 ? index / (total - 1) : 0.5;
     return { x: 15 + t * 70, y: 35 + (index % 2) * 25 };
-  }
+  }, []);
 
   const activeZone = useMemo(() => {
     return zones.find((z) => z.zone_id === activeZoneId) || zones[0] || null;
@@ -142,7 +190,7 @@ export default function SeatMap() {
     return { align, style, aisleSize };
   }, [activeZone]);
 
-  function buildRowCells(seatsInRow, maxSeatCount) {
+  const buildRowCells = useCallback((seatsInRow, maxSeatCount) => {
     const seats = Array.isArray(seatsInRow) ? seatsInRow : [];
     const seatCount = seats.length;
     const { align, style, aisleSize } = activeZoneLayout;
@@ -186,7 +234,7 @@ export default function SeatMap() {
 
     for (let i = 0; i < rightPad; i++) cells.push(null);
     return { cells, cols: totalCols };
-  }
+  }, [activeZoneLayout]);
 
   const zoneRows = useMemo(() => {
     const zone = activeZone;
@@ -214,13 +262,13 @@ export default function SeatMap() {
       const built = buildRowCells(r.seats, maxSeatCount);
       return { rowLabel: r.rowLabel, cells: built.cells, cols: built.cols };
     });
-  }, [activeZone, activeZoneLayout]);
+  }, [activeZone, buildRowCells]);
 
   const total = useMemo(() => {
     return selectedSeats.reduce((sum, s) => sum + (Number(s.price) || 0), 0);
   }, [selectedSeats]);
 
-  async function handleCreateOrder() {
+  const handleCreateOrder = useCallback(async () => {
     if (!eventId || selectedSeats.length === 0) return;
     setError('');
     setSubmitting(true);
@@ -243,220 +291,320 @@ export default function SeatMap() {
     } finally {
       setSubmitting(false);
     }
-  }
+  }, [eventId, selectedSeats, queueToken, navigate]);
 
   if (loading) return <Loading title="Đang tải sơ đồ ghế..." />;
 
   if (error) {
     return (
-      <div className="rounded-2xl border border-danger/40 bg-danger/10 p-5">
-        <div className="text-sm font-semibold">Không tải được sơ đồ ghế</div>
-        <div className="mt-2 text-sm text-muted">{error}</div>
-        <div className="mt-4 flex gap-2">
-          <Link to="/">
-            <Button variant="secondary">Trang chủ</Button>
-          </Link>
-          <Button onClick={() => navigate(-1)}>Quay lại</Button>
-        </div>
-      </div>
+      <Card className="max-w-md mx-auto mt-10 border-destructive/50 bg-destructive/5 glass-surface">
+        <CardHeader>
+          <CardTitle className="text-destructive flex items-center gap-2">
+            <AlertCircle className="h-5 w-5" />
+            Không tải được sơ đồ ghế
+          </CardTitle>
+          <CardDescription>{error}</CardDescription>
+        </CardHeader>
+        <CardFooter className="flex gap-2">
+          <Button variant="outline" onClick={() => navigate(-1)}>Quay lại</Button>
+          <Button asChild>
+            <Link to="/">Về Trang chủ</Link>
+          </Button>
+        </CardFooter>
+      </Card>
     );
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-3">
-      <section className="rounded-2xl border border-text/10 bg-surface p-5 lg:col-span-2">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="container mx-auto py-6">
+      {/* Sticky Countdown Timer */}
+      <div className="sticky top-0 z-30 w-full bg-background/80 backdrop-blur-lg border-b mb-6 -mt-6">
+        <div className="container flex items-center justify-center py-3 gap-3">
+          <Clock className={cn("h-5 w-5", secondsLeft < 60 ? "text-destructive animate-pulse" : "text-primary")} />
+          <span className="text-sm font-medium">
+            Bạn có <span className={cn("font-bold tabular-nums", secondsLeft < 60 ? "text-destructive" : "text-primary")}>
+              {formatCountdown(secondsLeft)}
+            </span> để hoàn tất chọn ghế
+          </span>
+        </div>
+      </div>
+
+      <Dialog open={!!allowedAt && isExpired}>
+        <DialogContent className="sm:max-w-md glass-surface">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertCircle className="h-5 w-5" />
+              Phiên làm việc hết hạn
+            </DialogTitle>
+            <DialogDescription>
+              Thời gian chọn ghế của bạn đã kết thúc. Vui lòng quay lại hàng chờ để tiếp tục.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={() => navigate('/')} className="w-full">
+              Quay lại trang chủ
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="rounded-full hover:bg-primary/10">
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
           <div>
-            <div className="text-sm font-semibold">Chọn ghế</div>
-            <div className="mt-1 text-xs text-muted">{event?.title}</div>
-            <div className="mt-2 flex items-center gap-2">
-              <span className={`h-2 w-2 rounded-full ${
-                wsStatus === 'CONNECTED' ? 'bg-success' :
-                wsStatus === 'CONNECTING' ? 'bg-warning animate-pulse' :
-                'bg-danger'
-              }`} />
-              <span className="text-xs text-muted">
-                {wsStatus === 'CONNECTED' ? 'Live' : wsStatus === 'CONNECTING' ? 'Connecting...' : 'Offline'}
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Button variant="secondary" size="sm" onClick={() => clearSelection()}>
-              Bỏ chọn
-            </Button>
-            <Button variant="secondary" size="sm" onClick={() => navigate('/')}> 
-              Thoát
-            </Button>
+            <h1 className="text-2xl font-bold tracking-tight">Chọn ghế</h1>
+            <p className="text-muted-foreground text-sm">{event?.title}</p>
           </div>
         </div>
 
-        <div className="mt-4 rounded-2xl border border-text/10 bg-bg/30 p-3">
-          <div className="text-xs font-semibold text-muted">Sơ đồ zones</div>
-          <div className="mt-3 overflow-hidden rounded-xl border border-text/10 bg-bg/40">
-            <div className="relative h-44">
-              <div className="absolute left-3 right-3 top-3 flex items-center justify-center">
-                <div className="h-2 w-3/5 rounded-full bg-brand-600/40" aria-hidden="true" />
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 rounded-full bg-muted/50 backdrop-blur-sm border border-border/50 px-3 py-1.5 text-xs font-medium">
+            <span className={cn("h-2 w-2 rounded-full", 
+              wsStatus === 'CONNECTED' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' :
+              wsStatus === 'CONNECTING' ? 'bg-amber-500 animate-pulse' :
+              'bg-destructive'
+            )} />
+            {wsStatus === 'CONNECTED' ? 'Trực tiếp' : wsStatus === 'CONNECTING' ? 'Đang kết nối...' : 'Ngoại tuyến'}
+          </div>
+          <Button variant="outline" size="sm" onClick={() => clearSelection()} className="gap-2 rounded-full border-destructive/20 text-destructive hover:bg-destructive/10 hover:text-destructive">
+            <Trash2 className="h-4 w-4" />
+            Bỏ chọn
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2 space-y-6">
+          <Card className="glass-surface overflow-hidden border-none shadow-2xl">
+            <CardHeader className="bg-primary/5 border-b border-primary/10">
+              <div className="flex items-center gap-2">
+                <MapIcon className="h-5 w-5 text-primary" />
+                <CardTitle className="text-lg">Sơ đồ khu vực</CardTitle>
+              </div>
+              <CardDescription>Chọn một khu vực để xem chi tiết chỗ ngồi</CardDescription>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <div className="relative h-56 w-full rounded-2xl border bg-muted/20 overflow-hidden shadow-inner">
+                <div className="absolute left-1/2 top-4 -translate-x-1/2 w-1/2 h-2 rounded-full bg-primary/20 blur-[1px]" />
+                <div className="absolute left-1/2 top-8 -translate-x-1/2 text-[10px] font-black text-primary/40 tracking-[0.5em] uppercase">SÂN KHẤU</div>
+                
+                {zones.map((z, idx) => {
+                  const pos = getZonePos(z, idx, zones.length);
+                  const active = z.zone_id === activeZoneId;
+                  return (
+                    <button
+                      key={`zone-map-${z.zone_id}`}
+                      type="button"
+                      onClick={() => setActiveZoneId(z.zone_id)}
+                      className={cn(
+                        "absolute w-32 rounded-xl border p-2.5 text-left transition-all duration-300 shadow-sm",
+                        active
+                          ? "border-primary bg-primary text-primary-foreground ring-4 ring-primary/20 scale-110 z-20 shadow-xl"
+                          : "border-border/50 bg-card/80 backdrop-blur-sm hover:border-primary/50 hover:bg-accent hover:scale-105 z-10"
+                      )}
+                      style={{ left: `${pos.x}%`, top: `${pos.y}%`, transform: 'translate(-50%, -50%)' }}
+                    >
+                      <div className={cn("text-[10px] font-black truncate uppercase tracking-tight", active ? "text-primary-foreground" : "text-foreground")}>
+                        {z.name}
+                      </div>
+                      <div className={cn("text-[9px] font-medium mt-0.5", active ? "text-primary-foreground/80" : "text-muted-foreground")}>
+                        {formatVND(z.price)}
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
 
-              {zones.map((z, idx) => {
-                const pos = getZonePos(z, idx, zones.length);
-                const active = z.zone_id === activeZoneId;
-                return (
-                  <button
-                    key={`zone-map-${z.zone_id}`}
-                    type="button"
+              <div className="mt-8 flex flex-wrap gap-2">
+                {zones.map((z) => (
+                  <Button
+                    key={z.zone_id}
+                    variant={z.zone_id === activeZoneId ? "default" : "outline"}
+                    size="sm"
                     onClick={() => setActiveZoneId(z.zone_id)}
-                    className={`absolute w-32 rounded-xl border px-3 py-2 text-left text-xs transition ${
-                      active
-                        ? 'border-brand-600/60 bg-brand-600/15 text-text'
-                        : 'border-text/10 bg-surface text-muted hover:bg-text/5 hover:text-text'
-                    }`}
-                    style={{ left: `${pos.x}%`, top: `${pos.y}%`, transform: 'translate(-50%, -50%)' }}
+                    className={cn(
+                      "flex-col h-auto py-2.5 px-5 items-start rounded-xl transition-all",
+                      z.zone_id === activeZoneId ? "shadow-lg shadow-primary/20 scale-105" : "hover:bg-primary/5"
+                    )}
                   >
-                    <div className="font-semibold leading-tight">{z.name}</div>
-                    <div className="mt-0.5 text-[10px] text-muted">{formatVND(z.price)}</div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-4 flex flex-wrap gap-2">
-          {zones.map((z) => (
-            <button
-              key={z.zone_id}
-              type="button"
-              onClick={() => setActiveZoneId(z.zone_id)}
-              className={`rounded-lg border px-3 py-2 text-sm transition ${
-                z.zone_id === activeZoneId
-                  ? 'border-brand-600/60 bg-brand-600/15 text-text'
-                  : 'border-text/10 bg-bg/40 text-muted hover:bg-text/5 hover:text-text'
-              }`}
-            >
-              <div className="font-semibold">{z.name}</div>
-              <div className="text-xs">{formatVND(z.price)}</div>
-            </button>
-          ))}
-        </div>
-
-        <div className="mt-5 rounded-2xl border border-text/10 bg-bg/30 p-4">
-          <div className="mb-3 text-center text-xs text-muted">SÂN KHẤU</div>
-          <div
-            className="mx-auto h-2 w-3/5 rounded-full bg-brand-600/40"
-            aria-hidden="true"
-          />
-
-          <div className="mt-6 overflow-auto">
-            <div className="space-y-3">
-              {zoneRows.map((row) => (
-                <div key={row.rowLabel} className="flex items-center gap-3">
-                  <div className="w-6 text-xs font-semibold text-muted">{row.rowLabel}</div>
-                  <div
-                    className="grid gap-2"
-                    style={{ gridTemplateColumns: `repeat(${row.cols}, minmax(0, 1fr))` }}
-                  >
-                    {row.cells.map((s, idx) => {
-                      if (!s) {
-                        return <div key={`${row.rowLabel}-empty-${idx}`} className="h-8 w-8 rounded-md bg-text/5" />;
-                      }
-
-                      const lockedByMe = s.status === 'LOCKED' && s.locked_by_user_id && user?.user_id && s.locked_by_user_id === user.user_id;
-                      const seatForSelect = {
-                        ...s,
-                        lockedByMe,
-                        seat_id: s.seat_id,
-                        label: seatLabel(s),
-                        zone_id: activeZone.zone_id,
-                        zone_name: activeZone.name,
-                        price: activeZone.price
-                      };
-
-                      return (
-                        <Seat
-                          key={s.seat_id}
-                          seat={seatForSelect}
-                          selected={isSelected(s.seat_id)}
-                          onClick={toggleSeat}
-                        />
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="mt-5 flex flex-wrap gap-3 text-xs text-muted">
-            <LegendItem label="Available" className="bg-seat-available" />
-            <LegendItem label="Locked" className="bg-seat-locked" />
-            <LegendItem label="Sold" className="bg-seat-sold" />
-            <LegendItem label="Selected" className="bg-seat-selected" />
-          </div>
-        </div>
-      </section>
-
-      <aside className="rounded-2xl border border-text/10 bg-surface p-5">
-        <div className="flex items-center justify-between">
-          <div className="text-sm font-semibold">Vé đang chọn</div>
-          <div className="text-xs text-muted">{selectedSeats.length} ghế</div>
-        </div>
-
-        <div className="mt-4 space-y-3">
-          {selectedSeats.length === 0 ? (
-            <div className="rounded-xl border border-text/10 bg-bg/40 p-4 text-sm text-muted">
-              Chọn ghế ở bên trái để tiếp tục.
-            </div>
-          ) : (
-            selectedSeats.map((s) => (
-              <div
-                key={s.seat_id || s.seatId}
-                className="flex items-center justify-between rounded-xl border border-text/10 bg-bg/40 p-3"
-              >
-                <div>
-                  <div className="text-sm font-semibold">{s.label || seatLabel(s)}</div>
-                  <div className="mt-1 text-xs text-muted">{s.zone_name || activeZone?.name}</div>
-                </div>
-                <div className="text-sm font-semibold">{formatVND(s.price)}</div>
+                    <span className="text-xs font-black uppercase tracking-tight">{z.name}</span>
+                    <span className="text-[10px] opacity-70 font-medium">{formatVND(z.price)}</span>
+                  </Button>
+                ))}
               </div>
-            ))
-          )}
+            </CardContent>
+          </Card>
+
+          <Card className="glass-surface border-none shadow-2xl">
+            <CardHeader className="pb-0 bg-primary/5 border-b border-primary/10 mb-6">
+              <div className="flex items-center justify-between py-2">
+                <div className="flex items-center gap-2">
+                  <Armchair className="h-5 w-5 text-primary" />
+                  <CardTitle className="text-lg">Chi tiết: {activeZone?.name}</CardTitle>
+                </div>
+                <div className="px-3 py-1 rounded-full bg-primary/10 text-sm font-bold text-primary border border-primary/20">
+                  {formatVND(activeZone?.price)}
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <div className="mb-12 flex flex-col items-center relative">
+                <div className="w-3/4 h-3 rounded-b-[40px] bg-gradient-to-b from-primary/20 to-primary/40 border-x border-b border-primary/30 shadow-[0_10px_20px_-10px_rgba(var(--tr-primary),0.3)]" />
+                <div className="mt-3 text-[11px] font-black text-primary/60 tracking-[0.4em] uppercase">SÂN KHẤU</div>
+              </div>
+
+              <div className="overflow-auto pb-8 px-2">
+                <div className="min-w-max space-y-4 px-4">
+                  {zoneRows.map((row) => (
+                    <div key={row.rowLabel} className="flex items-center gap-6">
+                      <div className="w-8 h-8 flex items-center justify-center rounded-full bg-muted/50 text-[10px] font-black text-muted-foreground border border-border/50">
+                        {row.rowLabel}
+                      </div>
+                      <div
+                        className="grid gap-2.5"
+                        style={{ gridTemplateColumns: `repeat(${row.cols}, minmax(0, 1fr))` }}
+                      >
+                        {row.cells.map((s, idx) => {
+                          if (!s) {
+                            return <div key={`${row.rowLabel}-empty-${idx}`} className="h-8 w-8 rounded-md bg-muted/10" />;
+                          }
+
+                          const lockedByMe = s.status === 'LOCKED' && s.locked_by_user_id && user?.user_id && s.locked_by_user_id === user.user_id;
+                          const seatForSelect = {
+                            ...s,
+                            lockedByMe,
+                            seat_id: s.seat_id,
+                            label: seatLabel(s),
+                            zone_id: activeZone.zone_id,
+                            zone_name: activeZone.name,
+                            price: activeZone.price
+                          };
+
+                          return (
+                            <Seat
+                              key={s.seat_id}
+                              seat={seatForSelect}
+                              selected={isSelected(s.seat_id)}
+                              onClick={toggleSeat}
+                            />
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-8 flex flex-wrap justify-center gap-8 border-t border-border/50 pt-8">
+                <LegendItem label="Trống" colorClass="bg-emerald-500" />
+                <LegendItem label="Đang giữ" colorClass="bg-slate-300" />
+                <LegendItem label="Đã bán" colorClass="bg-muted/30" />
+                <LegendItem label="Đang chọn" colorClass="bg-amber-500" />
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
-        <div className="mt-5 rounded-xl border border-text/10 bg-bg/40 p-4">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted">Tổng cộng</span>
-            <span className="font-semibold">{formatVND(total)}</span>
-          </div>
-          {error && (
-            <div className="mt-3 rounded-lg border border-danger/40 bg-danger/10 p-3 text-sm">
-              {error}
-            </div>
-          )}
-          <div className="mt-3">
-            <Button
-              className="w-full"
-              disabled={selectedSeats.length === 0}
-              onClick={handleCreateOrder}
-            >
-              {submitting ? 'Đang giữ ghế...' : 'Tiếp tục thanh toán'}
-            </Button>
-          </div>
-          <div className="mt-3 text-xs text-muted">
-            Theo contract: chỉ giữ ghế sau khi gọi API `POST /orders/lock-seats`.
-          </div>
+        <div className="space-y-6">
+          <Card className="sticky top-24 glass-surface border-none shadow-2xl overflow-hidden">
+            <CardHeader className="bg-primary/5 border-b border-primary/10">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Ticket className="h-5 w-5 text-primary" />
+                  <CardTitle className="text-lg">Vé đang chọn</CardTitle>
+                </div>
+                <div className="rounded-full bg-primary text-primary-foreground px-3 py-0.5 text-xs font-black">
+                  {selectedSeats.length}
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6 pt-6">
+              <div className="max-h-[350px] overflow-auto pr-2 -mr-2 space-y-3 custom-scrollbar">
+                {selectedSeats.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground/60">
+                    <div className="mb-4 p-4 rounded-full bg-muted/30">
+                      <Armchair className="h-10 w-10 opacity-20" />
+                    </div>
+                    <p className="text-sm font-medium">Vui lòng chọn ghế trên sơ đồ để tiếp tục.</p>
+                  </div>
+                ) : (
+                  selectedSeats.map((s) => (
+                    <div
+                      key={s.seat_id || s.seatId}
+                      className="group relative flex items-center justify-between rounded-xl border border-border/50 p-4 transition-all hover:bg-primary/5 hover:border-primary/20 hover:shadow-md"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary font-black text-xs">
+                          {s.row_label}
+                        </div>
+                        <div>
+                          <div className="text-sm font-black uppercase tracking-tight">{s.label || seatLabel(s)}</div>
+                          <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{s.zone_name || activeZone?.name}</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="text-sm font-black text-primary">{formatVND(s.price)}</div>
+                        <button 
+                          onClick={() => toggleSeat(s)}
+                          className="rounded-full p-1.5 text-muted-foreground hover:bg-destructive hover:text-destructive-foreground transition-all"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="border-t border-border/50 pt-6">
+                <div className="flex items-center justify-between mb-6">
+                  <span className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Tổng cộng</span>
+                  <span className="text-2xl font-black text-primary tracking-tight">{formatVND(total)}</span>
+                </div>
+                
+                {error && (
+                  <div className="mb-6 flex items-center gap-3 rounded-xl bg-destructive/10 border border-destructive/20 p-4 text-xs text-destructive font-medium animate-in fade-in slide-in-from-top-1">
+                    <AlertCircle className="h-5 w-5 shrink-0" />
+                    {error}
+                  </div>
+                )}
+
+                <Button
+                  className="w-full h-12 rounded-xl text-sm font-black uppercase tracking-widest shadow-lg shadow-primary/25 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                  size="lg"
+                  disabled={selectedSeats.length === 0 || submitting}
+                  onClick={handleCreateOrder}
+                >
+                  {submitting ? (
+                    <>
+                      <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                      Đang xử lý...
+                    </>
+                  ) : (
+                    'Tiếp tục thanh toán'
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+            <CardFooter className="bg-muted/30 border-t border-border/50 py-4">
+              <p className="text-[10px] text-center w-full text-muted-foreground font-bold uppercase tracking-tighter opacity-60">
+                Ghế sẽ được giữ trong 10 phút sau khi bạn nhấn tiếp tục.
+              </p>
+            </CardFooter>
+          </Card>
         </div>
-      </aside>
+      </div>
     </div>
   );
 }
 
-function LegendItem({ label, className }) {
+function LegendItem({ label, colorClass }) {
   return (
-    <div className="flex items-center gap-2">
-      <span className={`h-3 w-3 rounded ${className}`} />
-      <span>{label}</span>
+    <div className="flex items-center gap-2.5">
+      <span className={cn("h-4 w-4 rounded-md shadow-sm border border-black/5", colorClass)} />
+      <span className="text-xs font-bold text-muted-foreground uppercase tracking-tight">{label}</span>
     </div>
   );
 }

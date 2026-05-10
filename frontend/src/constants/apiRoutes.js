@@ -29,6 +29,7 @@ export const API_ROUTES = Object.freeze({
   UPLOADS: '/uploads',
 
   USERS_ME: '/users/me',
+  USERS_CHANGE_PASSWORD: '/users/change-password',
 
   ADMIN_CREATE_EVENT: '/admin/events',
   ADMIN_EVENTS: '/admin/events',

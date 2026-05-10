@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import Button from '../../components/common/Button.jsx';
-import Loading from '../../components/common/Loading.jsx';
-import eventService from '../../services/eventService.js';
-import { formatDateTime } from '../../utils/formatters.js';
-import bannerFallback from '../../assets/banner-sample.svg';
-import { getCategoryKey, getCategoryLabel, CATEGORY_ALL } from '../../constants/categories.js';
-import { resolveMediaUrl } from '../../utils/media.js';
+import { Link, useSearchParams, useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import Loading from '@/components/common/Loading';
+import eventService from '@/services/eventService';
+import { getCategoryKey, getCategoryLabel, CATEGORY_ALL } from '@/constants/categories';
+import EventCard from '@/components/home/EventCard';
+import { Search, Plus, SlidersHorizontal, X } from 'lucide-react';
 
 const USE_MOCK = import.meta.env.VITE_USE_MOCK !== 'false';
 
@@ -16,9 +16,13 @@ export default function Home() {
   const [error, setError] = useState('');
 
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  
   const query = (searchParams.get('q') || '').trim().toLowerCase();
   const activeCategory = searchParams.get('category') || CATEGORY_ALL;
   const activeCategoryLabel = getCategoryLabel(activeCategory);
+
+  const [searchInput, setSearchInput] = useState(searchParams.get('q') || '');
 
   const filtered = useMemo(() => {
     const paramsCategory = (searchParams.get('category') || '').trim();
@@ -60,102 +64,143 @@ export default function Home() {
     };
   }, []);
 
+  const handleSearch = (e) => {
+    e.preventDefault();
+    const params = new URLSearchParams(searchParams);
+    if (searchInput.trim()) {
+      params.set('q', searchInput.trim());
+    } else {
+      params.delete('q');
+    }
+    navigate(`?${params.toString()}`);
+  };
+
+  const clearFilters = () => {
+    setSearchInput('');
+    navigate('/');
+  };
+
   if (loading) return <Loading title="Đang tải sự kiện..." />;
 
+  const isSearchingOrFiltering = query || activeCategory !== CATEGORY_ALL;
+
   return (
-    <div className="space-y-6">
-      <section className="relative overflow-hidden rounded-2xl border border-text/10 bg-surface p-5">
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-brand-600/15 to-accent/25" />
-        <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-          <div className="relative">
-            <h1 className="text-lg font-semibold">Sự kiện nổi bật</h1>
-            <p className="mt-1 text-sm text-muted">
-              Demo UI TicketRush • {USE_MOCK ? 'Đang dùng mock' : 'Đang dùng API backend'}
+    <div className="space-y-10 pb-10">
+      {/* Hero Section - Only show when searching or filtering to avoid redundancy with HeroSlider */}
+      {isSearchingOrFiltering ? (
+        <section className="relative overflow-hidden rounded-3xl bg-primary/5 px-6 py-10 md:px-10 md:py-16">
+          <div className="relative z-10">
+            <h1 className="text-3xl font-bold tracking-tight sm:text-5xl">
+              {query ? (
+                <>Kết quả cho "<span className="text-primary">{query}</span>"</>
+              ) : (
+                <>Khám phá <span className="text-primary">{activeCategoryLabel}</span></>
+              )}
+            </h1>
+            <p className="mt-4 text-lg text-muted-foreground">
+              {filtered.length} sự kiện được tìm thấy phù hợp với yêu cầu của bạn.
             </p>
-            {(query || activeCategory !== CATEGORY_ALL) && (
-              <p className="mt-2 text-xs text-muted">
-                {query && (
-                  <>
-                    Tìm kiếm: <span className="font-semibold text-text">{searchParams.get('q')}</span>
-                  </>
-                )}
-                {query && activeCategory !== CATEGORY_ALL && <span className="mx-2">•</span>}
-                {activeCategory !== CATEGORY_ALL && (
-                  <>
-                    Thể loại: <span className="font-semibold text-text">{activeCategoryLabel}</span>
-                  </>
-                )}
-              </p>
-            )}
+            
+            <div className="mt-8 flex flex-wrap gap-2">
+              {query && (
+                <Button variant="secondary" size="sm" onClick={() => {
+                  setSearchInput('');
+                  const p = new URLSearchParams(searchParams);
+                  p.delete('q');
+                  navigate(`?${p.toString()}`);
+                }} className="rounded-full">
+                  Tìm kiếm: {query} <X className="ml-2 h-3 w-3" />
+                </Button>
+              )}
+              {activeCategory !== CATEGORY_ALL && (
+                <Button variant="secondary" size="sm" onClick={() => {
+                  const p = new URLSearchParams(searchParams);
+                  p.delete('category');
+                  navigate(`?${p.toString()}`);
+                }} className="rounded-full">
+                  Thể loại: {activeCategoryLabel} <X className="ml-2 h-3 w-3" />
+                </Button>
+              )}
+              {isSearchingOrFiltering && (
+                <Button variant="ghost" size="sm" onClick={clearFilters} className="rounded-full">
+                  Xóa tất cả
+                </Button>
+              )}
+            </div>
           </div>
-          <Link to="/admin/events/new">
-            <Button variant="secondary">Tạo sự kiện (Admin)</Button>
-          </Link>
+          
+          {/* Decorative elements */}
+          <div className="absolute -top-24 -right-24 h-64 w-64 rounded-full bg-primary/10 blur-3xl" />
+        </section>
+      ) : (
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-3xl font-bold tracking-tight">Tất cả sự kiện</h2>
+            <p className="text-muted-foreground">Khám phá những sự kiện mới nhất tại TicketRush</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="relative hidden sm:block">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <form onSubmit={handleSearch}>
+                <Input
+                  type="text"
+                  placeholder="Tìm kiếm..."
+                  className="pl-10 w-[200px] lg:w-[300px]"
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                />
+              </form>
+            </div>
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/admin/events/new">
+                <Plus className="mr-2 h-4 w-4" />
+                Tạo sự kiện
+              </Link>
+            </Button>
+          </div>
         </div>
-      </section>
+      )}
 
       {error && (
-        <div className="rounded-xl border border-danger/40 bg-danger/10 p-4 text-sm">
+        <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
           {error}
         </div>
       )}
 
-      <section className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        {filtered.map((evt) => (
-          <article
-            key={evt.id}
-            className="tr-event-card group flex h-full flex-col overflow-hidden rounded-2xl border border-text/10 bg-surface transition-all duration-300 hover:-translate-y-2 hover:border-brand-600/35 hover:ring-2 hover:ring-brand-600/15 hover:shadow-xl hover:shadow-[#0096a5]/20 dark:hover:shadow-[#4ebdd5]/25"
+      {/* Events Grid */}
+      {filtered.length > 0 ? (
+        <section className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {filtered.map((evt) => (
+            <EventCard key={evt.id} event={evt} />
+          ))}
+        </section>
+      ) : (
+        <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed p-12 text-center">
+          <div className="rounded-full bg-muted p-4">
+            <Search className="h-8 w-8 text-muted-foreground" />
+          </div>
+          <h3 className="mt-4 text-lg font-semibold">Không tìm thấy sự kiện</h3>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Thử thay đổi từ khóa tìm kiếm hoặc bộ lọc của bạn.
+          </p>
+          <Button 
+            variant="link" 
+            onClick={clearFilters}
+            className="mt-2"
           >
-            <div className="relative overflow-hidden rounded-t-xl">
-              <img
-                src={resolveMediaUrl(evt.banner_url) || bannerFallback}
-                alt={evt.title}
-                className="aspect-video w-full object-cover transition-transform duration-500 group-hover:scale-110"
-              />
-              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-bg/70 via-transparent to-transparent opacity-0 transition group-hover:opacity-100" />
-            </div>
-            <div className="flex flex-1 flex-col p-4">
-              <div className="flex-1 space-y-3">
-                <div>
-                  <div className="text-base font-semibold tracking-tight text-text md:text-lg">
-                    {evt.title}
-                  </div>
-                  <div className="mt-1 flex items-center gap-1.5 text-base font-semibold text-muted">
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="h-4 w-4"
-                      aria-hidden="true"
-                    >
-                      <circle cx="12" cy="12" r="9" />
-                      <path d="M12 7v5l3 2" />
-                    </svg>
-                    <span>{formatDateTime(evt.start_time)}</span>
-                  </div>
-                </div>
-
-                <p className="line-clamp-2 text-sm text-muted">{evt.description}</p>
-              </div>
-
-              <div className="mt-auto flex justify-end">
-                <Link to={`/events/${evt.slug || evt.id}`}>
-                  <Button size="sm">Xem chi tiết</Button>
-                </Link>
-              </div>
-            </div>
-          </article>
-        ))}
-      </section>
-
-      {!error && filtered.length === 0 && (
-        <div className="rounded-2xl border border-text/10 bg-surface p-5 text-sm text-muted">
-          Không có sự kiện phù hợp.
+            Xóa tất cả bộ lọc
+          </Button>
         </div>
       )}
+
+      {/* Footer Info */}
+      <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground pt-10">
+        <span className="rounded-full bg-primary/10 px-2 py-0.5 text-primary font-medium">
+          {USE_MOCK ? 'Mock Data' : 'Live API'}
+        </span>
+        <span>•</span>
+        <span>TicketRush Demo UI</span>
+      </div>
     </div>
   );
 }

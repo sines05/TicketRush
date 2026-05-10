@@ -13,4 +13,5 @@ type QueueSession struct {
 	Status    string     `json:"status"`                 // "waiting" or "allowed"
 	OrderID   *uuid.UUID `json:"order_id,omitempty"`     // populated if they locked a seat
 	ExpiresAt *time.Time `json:"expires_at,omitempty"`   // populated if they locked a seat
+	AllowedAt *time.Time `json:"allowed_at,omitempty"`   // populated when they are allowed to book
 }

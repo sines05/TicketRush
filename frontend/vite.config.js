@@ -1,5 +1,6 @@
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
+import path from 'path';
 
 export default defineConfig(({ mode }) => {
   // loadEnv with prefix '' loads all env vars from .env* plus process.env
@@ -8,6 +9,11 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
+    resolve: {
+      alias: {
+        "@": path.resolve(__dirname, "./src"),
+      },
+    },
     server: {
       port: 5173,
       strictPort: true,

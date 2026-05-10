@@ -1,10 +1,12 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"ticketrush/internal/config"
 	"ticketrush/internal/models"
 	"ticketrush/internal/service"
 	"ticketrush/internal/utils"
@@ -12,10 +14,11 @@ import (
 
 type AuthHandler struct {
 	authService service.AuthService
+	cfg         *config.Config
 }
 
-func NewAuthHandler(authService service.AuthService) *AuthHandler {
-	return &AuthHandler{authService: authService}
+func NewAuthHandler(authService service.AuthService, cfg *config.Config) *AuthHandler {
+	return &AuthHandler{authService: authService, cfg: cfg}
 }
 
 type loginRequest struct {
@@ -102,11 +105,11 @@ func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 	}
 
 	if token == "" && user != nil {
-		c.Redirect(http.StatusTemporaryRedirect, "http://localhost:5173/auth/2fa?user_id="+user.ID.String())
+		c.Redirect(http.StatusTemporaryRedirect, fmt.Sprintf("%s/auth/2fa?user_id=%s", h.cfg.FrontendURL, user.ID.String()))
 		return
 	}
 
-	c.Redirect(http.StatusTemporaryRedirect, "http://localhost:5173/auth/callback?token="+token)
+	c.Redirect(http.StatusTemporaryRedirect, fmt.Sprintf("%s/auth/callback?token=%s", h.cfg.FrontendURL, token))
 }
 
 type forgotPasswordRequest struct {
@@ -183,16 +186,21 @@ func (h *AuthHandler) FacebookCallback(c *gin.Context) {
 	if token == "" && user != nil {
 		// Handle 2FA redirect if needed, but for now let's stick to the token redirect
 		// If 2FA is required, we might need a different frontend route
-		c.Redirect(http.StatusTemporaryRedirect, "http://localhost:5173/auth/2fa?user_id="+user.ID.String())
+		c.Redirect(http.StatusTemporaryRedirect, fmt.Sprintf("%s/auth/2fa?user_id=%s", h.cfg.FrontendURL, user.ID.String()))
 		return
 	}
 
-	c.Redirect(http.StatusTemporaryRedirect, "http://localhost:5173/auth/callback?token="+token)
+	c.Redirect(http.StatusTemporaryRedirect, fmt.Sprintf("%s/auth/callback?token=%s", h.cfg.FrontendURL, token))
 }
 
 func (h *AuthHandler) Setup2FA(c *gin.Context) {
 	user, _ := c.Get("user")
 	u := user.(*models.User)
+
+	if u.TwoFactorEnabled {
+		utils.SendError(c, http.StatusBadRequest, "2FA is already enabled", "2FA_ALREADY_ENABLED")
+		return
+	}
 
 	secret, qrURL, err := h.authService.Generate2FA(u.ID)
 	if err != nil {
@@ -227,6 +235,27 @@ func (h *AuthHandler) Enable2FA(c *gin.Context) {
 	}
 
 	utils.SendSuccess(c, http.StatusOK, nil, "Đã kích hoạt bảo mật 2 lớp")
+}
+
+func (h *AuthHandler) Disable2FA(c *gin.Context) {
+	user, _ := c.Get("user")
+	u := user.(*models.User)
+
+	var req struct {
+		Code string `json:"code" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.SendError(c, http.StatusBadRequest, err.Error(), "INVALID_INPUT")
+		return
+	}
+
+	err := h.authService.Disable2FA(u.ID, req.Code)
+	if err != nil {
+		utils.SendError(c, http.StatusBadRequest, err.Error(), "2FA_DISABLE_FAILED")
+		return
+	}
+
+	utils.SendSuccess(c, http.StatusOK, nil, "Đã tắt bảo mật 2 lớp")
 }
 
 type login2FARequest struct {
@@ -296,9 +325,79 @@ func (h *AuthHandler) GetMe(c *gin.Context) {
 		"id":            u.ID,
 		"email":         u.Email,
 		"full_name":     u.FullName,
+		"avatar_url":    u.AvatarURL,
 		"role":          u.Role,
 		"gender":        u.Gender,
 		"date_of_birth": u.DateOfBirth,
 		"is_oauth":      u.IsOAuth,
+		"is_2fa_enabled": u.TwoFactorEnabled,
 	}, "")
+}
+
+type updateMeRequest struct {
+	FullName    string            `json:"full_name" binding:"required"`
+	AvatarURL   string            `json:"avatar_url"`
+	Gender      models.GenderType `json:"gender" binding:"required"`
+	DateOfBirth string            `json:"date_of_birth" binding:"required"`
+}
+
+func (h *AuthHandler) UpdateMe(c *gin.Context) {
+	user, exists := c.Get("user")
+	if !exists {
+		utils.SendError(c, http.StatusUnauthorized, "User not found in context", "UNAUTHORIZED")
+		return
+	}
+	u := user.(*models.User)
+
+	var req updateMeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.SendError(c, http.StatusBadRequest, err.Error(), "INVALID_INPUT")
+		return
+	}
+
+	updatedUser, err := h.authService.UpdateProfile(u.ID, req.FullName, req.AvatarURL, req.Gender, req.DateOfBirth)
+	if err != nil {
+		utils.SendError(c, http.StatusInternalServerError, err.Error(), "UPDATE_FAILED")
+		return
+	}
+
+	utils.SendSuccess(c, http.StatusOK, gin.H{
+		"id":            updatedUser.ID,
+		"email":         updatedUser.Email,
+		"full_name":     updatedUser.FullName,
+		"avatar_url":    updatedUser.AvatarURL,
+		"role":          updatedUser.Role,
+		"gender":        updatedUser.Gender,
+		"date_of_birth": updatedUser.DateOfBirth,
+		"is_oauth":      updatedUser.IsOAuth,
+		"is_2fa_enabled": updatedUser.TwoFactorEnabled,
+	}, "Cập nhật thông tin thành công")
+}
+
+type changePasswordRequest struct {
+	OldPassword string `json:"old_password" binding:"required"`
+	NewPassword string `json:"new_password" binding:"required,min=6"`
+}
+
+func (h *AuthHandler) ChangePassword(c *gin.Context) {
+	user, exists := c.Get("user")
+	if !exists {
+		utils.SendError(c, http.StatusUnauthorized, "User not found in context", "UNAUTHORIZED")
+		return
+	}
+	u := user.(*models.User)
+
+	var req changePasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.SendError(c, http.StatusBadRequest, err.Error(), "INVALID_INPUT")
+		return
+	}
+
+	err := h.authService.ChangePassword(u.ID, req.OldPassword, req.NewPassword)
+	if err != nil {
+		utils.SendError(c, http.StatusBadRequest, err.Error(), "CHANGE_PASSWORD_FAILED")
+		return
+	}
+
+	utils.SendSuccess(c, http.StatusOK, nil, "Đổi mật khẩu thành công")
 }

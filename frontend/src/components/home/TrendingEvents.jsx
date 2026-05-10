@@ -1,9 +1,12 @@
 import { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import eventService from '../../services/eventService.js';
-import bannerFallback from '../../assets/banner-sample.svg';
-import { resolveMediaUrl } from '../../utils/media.js';
-import { formatDateTime } from '../../utils/formatters.js';
+import eventService from '@/services/eventService';
+import bannerFallback from '@/assets/banner-sample.svg';
+import { resolveMediaUrl } from '@/utils/media';
+import { formatDateTime } from '@/utils/formatters';
+import { Button } from '@/components/ui/button';
+import { ChevronLeft, ChevronRight, TrendingUp } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 const isValidUUID = (s) => typeof s === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
 
@@ -50,11 +53,11 @@ export default function TrendingEvents() {
 
   if (loading) {
     return (
-      <section className="rounded-2xl border border-text/10 bg-surface p-5">
-        <div className="h-4 w-44 rounded-full bg-text/10" />
-        <div className="mt-4 flex gap-6 overflow-hidden">
+      <section className="space-y-4">
+        <div className="h-8 w-48 animate-pulse rounded-md bg-muted" />
+        <div className="flex gap-6 overflow-hidden">
           {Array.from({ length: 4 }).map((_, idx) => (
-            <div key={idx} className="h-40 w-64 shrink-0 animate-pulse rounded-xl bg-text/10" />
+            <div key={idx} className="h-48 w-72 shrink-0 animate-pulse rounded-2xl bg-muted" />
           ))}
         </div>
       </section>
@@ -66,56 +69,66 @@ export default function TrendingEvents() {
   }
 
   return (
-    <section className="space-y-3">
-      <div className="flex items-end justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-semibold text-text">Sự kiện xu hướng</h2>
-          <p className="mt-1 text-sm text-muted">Top 5 đang được quan tâm gần đây</p>
+    <section className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <TrendingUp className="h-5 w-5" />
+          </div>
+          <h2 className="text-2xl font-bold tracking-tight">Sự kiện xu hướng</h2>
+        </div>
+        <div className="hidden md:flex items-center gap-2">
+          <Button variant="outline" size="icon" onClick={scrollLeft} className="rounded-full">
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" size="icon" onClick={scrollRight} className="rounded-full">
+            <ChevronRight className="h-4 w-4" />
+          </Button>
         </div>
       </div>
 
       <div className="relative">
-        {/* Carousel Container */}
         <div
           ref={scrollRef}
-          className="flex overflow-x-auto scroll-smooth snap-x snap-mandatory gap-8 py-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+          className="flex overflow-x-auto scroll-smooth snap-x snap-mandatory gap-6 pb-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
         >
           {items.map((evt, idx) => {
             const rank = Number(evt?.rank) || idx + 1;
             const bannerUrl = resolveMediaUrl(evt?.banner_url) || bannerFallback;
             const canNavigate = isValidUUID(evt?.id);
-            const to = canNavigate ? `/booking/queue?eventId=${evt.id}` : undefined;
+            const to = canNavigate ? `/events/${evt.slug || evt.id}` : undefined;
 
             const Wrapper = canNavigate ? Link : 'div';
-            const wrapperProps = canNavigate ? { to } : { role: 'button', 'aria-disabled': true, title: 'ID sự kiện không hợp lệ' };
+            const wrapperProps = canNavigate ? { to } : { role: 'button', 'aria-disabled': true };
 
             return (
               <Wrapper
                 key={evt?.id || idx}
                 {...wrapperProps}
-                className="relative shrink-0 w-[280px] md:w-[320px] snap-start group cursor-pointer pl-6"
+                className="group relative shrink-0 w-[280px] md:w-[350px] snap-start cursor-pointer"
               >
-                {/* Hollow Stroke Ranking Number */}
-                <span
-                  className="absolute -left-6 bottom-4 z-10 text-[100px] md:text-[120px] font-black italic leading-none text-transparent [-webkit-text-stroke:2px_#4ebdd5]"
-                  aria-hidden="true"
-                >
-                  {rank}
-                </span>
-
-                {/* Card Content */}
-                <div className="relative">
+                <div className="relative aspect-[16/9] overflow-hidden rounded-2xl border bg-card shadow-sm transition-all duration-300 group-hover:shadow-xl group-hover:-translate-y-1">
                   <img
                     src={bannerUrl}
                     alt={evt?.title || 'Trending event'}
                     loading="lazy"
-                    className="w-full aspect-video object-cover rounded-xl shadow-md grayscale-[50%] brightness-75 transition-all duration-500 group-hover:grayscale-0 group-hover:brightness-110 group-hover:scale-105 group-hover:shadow-2xl"
+                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
                   />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-80" />
+                  
+                  {/* Rank Badge */}
+                  <div className="absolute -left-2 -top-2 z-10 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-2xl font-black text-primary-foreground shadow-lg">
+                    {rank}
+                  </div>
 
-                  <div className="mt-3 min-w-0">
-                    <div className="line-clamp-2 text-sm font-semibold text-text">{evt?.title}</div>
+                  <div className="absolute bottom-0 left-0 right-0 p-4">
+                    <h3 className="line-clamp-1 text-lg font-bold text-white">
+                      {evt?.title}
+                    </h3>
                     {evt?.start_time && (
-                      <div className="mt-1 text-xs text-muted">{formatDateTime(evt.start_time)}</div>
+                      <p className="mt-1 text-xs font-medium text-white/80">
+                        {formatDateTime(evt.start_time)}
+                      </p>
                     )}
                   </div>
                 </div>
@@ -123,28 +136,6 @@ export default function TrendingEvents() {
             );
           })}
         </div>
-
-        {/* Left Arrow Button */}
-        <button
-          onClick={scrollLeft}
-          className="absolute left-0 top-1/2 -translate-y-1/2 z-20 bg-brand/80 hover:bg-brand text-white p-2 rounded-full shadow-lg transition-all duration-300 hidden md:flex items-center justify-center"
-          aria-label="Scroll left"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
-
-        {/* Right Arrow Button */}
-        <button
-          onClick={scrollRight}
-          className="absolute right-0 top-1/2 -translate-y-1/2 z-20 bg-brand/80 hover:bg-brand text-white p-2 rounded-full shadow-lg transition-all duration-300 hidden md:flex items-center justify-center"
-          aria-label="Scroll right"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
-        </button>
       </div>
     </section>
   );

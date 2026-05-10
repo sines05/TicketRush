@@ -87,7 +87,7 @@ func (r *orderRepo) LockSeats(ctx context.Context, userID uuid.UUID, eventID uui
 			EventID:     eventID,
 			TotalAmount: totalAmount,
 			Status:      models.OrderPending,
-			ExpiresAt:   time.Now().Add(lockDuration),
+			ExpiresAt:   time.Now().UTC().Add(lockDuration),
 			OrderItems:  orderItems,
 		}
 
@@ -96,7 +96,7 @@ func (r *orderRepo) LockSeats(ctx context.Context, userID uuid.UUID, eventID uui
 		}
 
 		// 5. Update Seats status to LOCKED
-		now := time.Now()
+		now := time.Now().UTC()
 		if err := tx.Model(&models.Seat{}).
 			Where("id IN ?", seatIDs).
 			Updates(map[string]interface{}{
@@ -132,7 +132,7 @@ func (r *orderRepo) CompleteOrder(ctx context.Context, orderID uuid.UUID) (*mode
 			return utils.ErrOrderNotPending
 		}
 
-		if time.Now().After(order.ExpiresAt) {
+		if time.Now().UTC().After(order.ExpiresAt) {
 			return utils.ErrOrderExpired
 		}
 
@@ -243,7 +243,7 @@ func (r *orderRepo) GetOrderByID(id uuid.UUID) (*models.Order, error) {
 
 func (r *orderRepo) GetExpiredOrders(limit int) ([]models.Order, error) {
 	var orders []models.Order
-	if err := r.db.Where("status = ? AND expires_at < ?", models.OrderPending, time.Now()).
+	if err := r.db.Where("status = ? AND expires_at < ?", models.OrderPending, time.Now().UTC()).
 		Limit(limit).Find(&orders).Error; err != nil {
 		return nil, err
 	}

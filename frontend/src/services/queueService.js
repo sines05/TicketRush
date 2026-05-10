@@ -30,6 +30,7 @@ async function joinQueue({ event_id }) {
     if (current.queue_position <= 0) {
       current.status = 'PASSED';
       current.queue_token = `token-${event_id}-${Math.random().toString(16).slice(2)}`;
+      current.allowed_at = new Date().toISOString();
     }
   }
 
@@ -39,7 +40,7 @@ async function joinQueue({ event_id }) {
     return { status: 'WAITING', queue_position: current.queue_position };
   }
 
-  return { status: 'PASSED', queue_token: current.queue_token };
+  return { status: 'PASSED', queue_token: current.queue_token, allowed_at: current.allowed_at };
 }
 
 async function getStatus({ event_id }) {

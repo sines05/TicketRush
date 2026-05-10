@@ -43,6 +43,7 @@ export default function AppRoutes() {
       <Route path="/booking/checkout" element={<Checkout />} />
 
       <Route path="/auth/login" element={<Login />} />
+      <Route path="/auth/2fa" element={<Login />} />
       <Route path="/auth/register" element={<Register />} />
       <Route path="/auth/forgot-password" element={<ForgotPassword />} />
       <Route path="/auth/callback" element={<OAuthCallback />} />

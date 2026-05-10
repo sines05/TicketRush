@@ -317,7 +317,7 @@ func (s *eventService) GetAdminStats(eventID *uuid.UUID) (map[string]interface{}
 	}
 	purchaserQuery.Find(&purchasers)
 
-	now := time.Now()
+	now := time.Now().UTC()
 	for _, u := range purchasers {
 		if u.DateOfBirth.IsZero() {
 			continue

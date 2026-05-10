@@ -17,6 +17,7 @@ type Config struct {
 	RedisPort         string
 	JWTSecret         string
 	Port              string
+	FrontendURL       string
 	GoogleClientID    string
 	GoogleClientSecret string
 	GoogleRedirectURL  string
@@ -45,6 +46,7 @@ func LoadConfig() *Config {
 		RedisPort:         getEnv("REDIS_PORT", "6379"),
 		JWTSecret:         getEnv("JWT_SECRET", "super-secret"),
 		Port:              getEnv("PORT", "8080"),
+		FrontendURL:       getEnv("FRONTEND_URL", "http://localhost:5173"),
 		GoogleClientID:    getEnv("GOOGLE_CLIENT_ID", ""),
 		GoogleClientSecret: getEnv("GOOGLE_CLIENT_SECRET", ""),
 		GoogleRedirectURL:  getEnv("GOOGLE_REDIRECT_URL", "http://localhost:8080/api/v1/auth/google/callback"),

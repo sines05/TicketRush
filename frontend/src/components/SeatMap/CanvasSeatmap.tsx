@@ -342,7 +342,13 @@ export const CanvasSeatmap: React.FC<CanvasSeatmapProps> = ({
         onMouseUp={handleMouseUp}
         onWheel={handleWheel}
         className="cursor-move"
+        role="img"
+        aria-label="Sơ đồ ghế ngồi tương tác. Sử dụng chuột để kéo và cuộn để phóng to. Nhấp vào ghế trống để chọn."
       />
+      <div className="sr-only">
+        Sơ đồ ghế ngồi tương tác. Hiện tại đang hiển thị tầng {selectedLevel?.toUpperCase()}.
+        Sử dụng các nút điều khiển để phóng to, thu nhỏ hoặc đặt lại chế độ xem.
+      </div>
 
       {/* Legend */}
       <div className="absolute bottom-4 left-4 flex gap-4 bg-slate-800/80 backdrop-blur-md p-3 rounded-lg border border-slate-600 pointer-events-none">
@@ -369,18 +375,21 @@ export const CanvasSeatmap: React.FC<CanvasSeatmapProps> = ({
         <button 
           onClick={() => setTransform(prev => ({ ...prev, scale: Math.min(prev.scale + 0.2, 5) }))}
           className="w-10 h-10 bg-slate-800/80 hover:bg-slate-700 text-white rounded-lg flex items-center justify-center border border-slate-600 transition-colors"
+          aria-label="Phóng to"
         >
           +
         </button>
         <button 
           onClick={() => setTransform(prev => ({ ...prev, scale: Math.max(prev.scale - 0.2, 0.2) }))}
           className="w-10 h-10 bg-slate-800/80 hover:bg-slate-700 text-white rounded-lg flex items-center justify-center border border-slate-600 transition-colors"
+          aria-label="Thu nhỏ"
         >
           -
         </button>
         <button 
           onClick={() => setTransform({ x: 0, y: 0, scale: 1 })}
           className="w-10 h-10 bg-slate-800/80 hover:bg-slate-700 text-white rounded-lg flex items-center justify-center border border-slate-600 transition-colors"
+          aria-label="Đặt lại chế độ xem"
         >
           ⟲
         </button>

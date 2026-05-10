@@ -5,6 +5,9 @@ function toEndsAtMs({ seconds, endsAt }) {
     const ms = Date.parse(endsAt);
     if (Number.isFinite(ms)) return ms;
   }
+  if (seconds === undefined || seconds === null) {
+    return null;
+  }
   const safeSeconds = Number(seconds) || 0;
   return Date.now() + safeSeconds * 1000;
 }
@@ -14,16 +17,21 @@ export function useCountdown({ seconds, endsAt }) {
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
+    setEndsAtMs(toEndsAtMs({ seconds, endsAt }));
+  }, [seconds, endsAt]);
+
+  useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 250);
     return () => clearInterval(id);
   }, []);
 
   const secondsLeft = useMemo(() => {
+    if (endsAtMs === null) return null;
     const deltaMs = Math.max(0, endsAtMs - now);
     return Math.ceil(deltaMs / 1000);
   }, [endsAtMs, now]);
 
-  const isExpired = secondsLeft <= 0;
+  const isExpired = endsAtMs !== null && secondsLeft !== null && secondsLeft <= 0;
 
   function reset() {
     setEndsAtMs(toEndsAtMs({ seconds, endsAt: null }));

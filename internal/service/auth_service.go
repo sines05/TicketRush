@@ -42,6 +42,9 @@ type AuthService interface {
 	Enable2FA(userID uuid.UUID, code string) error
 	Verify2FA(userID uuid.UUID, code string) (string, error)
 	UpdateNotificationToken(userID uuid.UUID, token string) error
+	UpdateProfile(userID uuid.UUID, fullName string, avatarURL string, gender models.GenderType, dob string) (*models.User, error)
+	ChangePassword(userID uuid.UUID, oldPassword string, newPassword string) error
+	Disable2FA(userID uuid.UUID, code string) error
 }
 
 type authService struct {
@@ -93,9 +96,13 @@ func (s *authService) Register(req RegisterRequest) (*models.User, error) {
 		return nil, err
 	}
 
-	dob, err := time.Parse("2006-01-02", req.DateOfBirth)
+	var dob time.Time
+	dob, err = time.Parse("2006-01-02", req.DateOfBirth)
 	if err != nil {
-		return nil, errors.New("invalid date_of_birth format, use YYYY-MM-DD")
+		dob, err = time.Parse(time.RFC3339, req.DateOfBirth)
+		if err != nil {
+			return nil, errors.New("invalid date_of_birth format, use YYYY-MM-DD or RFC3339")
+		}
 	}
 
 	user := &models.User{
@@ -134,7 +141,7 @@ func (s *authService) Login(email, password string) (string, *models.User, bool,
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"user_id": user.ID.String(),
 		"role":    user.Role,
-		"exp":     time.Now().Add(time.Hour * 24).Unix(),
+		"exp":     time.Now().UTC().Add(time.Hour * 24).Unix(),
 	})
 
 	tokenString, err := token.SignedString([]byte(s.jwtSecret))
@@ -227,7 +234,7 @@ func (s *authService) GoogleLoginCallback(code string) (string, *models.User, er
 			FullName:     userInfo.Name,
 			Role:         models.RoleCustomer,
 			Gender:       models.GenderOther, // Default or prompt later
-			DateOfBirth:  time.Now(),         // Default or prompt later
+			DateOfBirth:  time.Now().UTC(),         // Default or prompt later
 		}
 		if err := s.userRepo.Create(user); err != nil {
 			return "", nil, fmt.Errorf("failed to create oauth user: %v", err)
@@ -245,7 +252,7 @@ func (s *authService) GoogleLoginCallback(code string) (string, *models.User, er
 	jwtToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"user_id": user.ID.String(),
 		"role":    user.Role,
-		"exp":     time.Now().Add(time.Hour * 24).Unix(),
+		"exp":     time.Now().UTC().Add(time.Hour * 24).Unix(),
 	})
 
 	tokenString, err := jwtToken.SignedString([]byte(s.jwtSecret))
@@ -268,7 +275,7 @@ func (s *authService) ForgotPassword(email string) error {
 	reset := &models.PasswordReset{
 		UserID:    user.ID,
 		Token:     resetToken,
-		ExpiresAt: time.Now().Add(15 * time.Minute),
+		ExpiresAt: time.Now().UTC().Add(15 * time.Minute),
 	}
 
 	if err := s.userRepo.CreatePasswordReset(reset); err != nil {
@@ -291,7 +298,7 @@ func (s *authService) ResetPassword(token, newPassword string) error {
 		return errors.New("invalid or expired token")
 	}
 
-	if time.Now().After(reset.ExpiresAt) {
+	if time.Now().UTC().After(reset.ExpiresAt) {
 		s.userRepo.DeletePasswordReset(token)
 		return errors.New("token has expired")
 	}
@@ -346,7 +353,7 @@ func (s *authService) FacebookLoginCallback(code string) (string, *models.User, 
 			FullName:     userInfo.Name,
 			Role:         models.RoleCustomer,
 			Gender:       models.GenderOther,
-			DateOfBirth:  time.Now(),
+			DateOfBirth:  time.Now().UTC(),
 		}
 		if err := s.userRepo.Create(user); err != nil {
 			return "", nil, fmt.Errorf("failed to create facebook oauth user: %v", err)
@@ -363,7 +370,7 @@ func (s *authService) FacebookLoginCallback(code string) (string, *models.User, 
 	jwtToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"user_id": user.ID.String(),
 		"role":    user.Role,
-		"exp":     time.Now().Add(time.Hour * 24).Unix(),
+		"exp":     time.Now().UTC().Add(time.Hour * 24).Unix(),
 	})
 
 	tokenString, err := jwtToken.SignedString([]byte(s.jwtSecret))
@@ -424,7 +431,7 @@ func (s *authService) Verify2FA(userID uuid.UUID, code string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"user_id": user.ID.String(),
 		"role":    user.Role,
-		"exp":     time.Now().Add(time.Hour * 24).Unix(),
+		"exp":     time.Now().UTC().Add(time.Hour * 24).Unix(),
 	})
 
 	return token.SignedString([]byte(s.jwtSecret))
@@ -432,4 +439,76 @@ func (s *authService) Verify2FA(userID uuid.UUID, code string) (string, error) {
 
 func (s *authService) UpdateNotificationToken(userID uuid.UUID, token string) error {
 	return s.userRepo.UpdateNotificationToken(userID, token)
+}
+
+func (s *authService) UpdateProfile(userID uuid.UUID, fullName string, avatarURL string, gender models.GenderType, dob string) (*models.User, error) {
+	user, err := s.userRepo.FindByID(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	var parsedDOB time.Time
+	parsedDOB, err = time.Parse("2006-01-02", dob)
+	if err != nil {
+		parsedDOB, err = time.Parse(time.RFC3339, dob)
+		if err != nil {
+			return nil, errors.New("invalid date_of_birth format, use YYYY-MM-DD or RFC3339")
+		}
+	}
+
+	user.FullName = fullName
+	user.AvatarURL = avatarURL
+	user.Gender = gender
+	user.DateOfBirth = parsedDOB
+
+	if err := s.userRepo.Update(user); err != nil {
+		return nil, err
+	}
+
+	return user, nil
+}
+
+func (s *authService) ChangePassword(userID uuid.UUID, oldPassword string, newPassword string) error {
+	user, err := s.userRepo.FindByID(userID)
+	if err != nil {
+		return err
+	}
+
+	if user.IsOAuth && user.PasswordHash == "" {
+		return errors.New("cannot change password for OAuth account without password")
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(oldPassword)); err != nil {
+		return errors.New("invalid old password")
+	}
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+
+	return s.userRepo.UpdatePassword(userID, string(hashedPassword))
+}
+
+func (s *authService) Disable2FA(userID uuid.UUID, code string) error {
+	user, err := s.userRepo.FindByID(userID)
+	if err != nil {
+		return err
+	}
+
+	if !user.TwoFactorEnabled {
+		return errors.New("2FA is not enabled")
+	}
+
+	valid := totp.Validate(code, user.TwoFactorSecret)
+	if !valid {
+		return errors.New("invalid verification code")
+	}
+
+	if err := s.userRepo.Update2FA(userID, false, ""); err != nil {
+		return err
+	}
+
+	s.notificationServ.NotifySecurityEvent(user, "Two-Factor Authentication Disabled")
+	return nil
 }

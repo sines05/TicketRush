@@ -147,8 +147,8 @@ func main() {
 				Title:       "Jack - J97 Concert: Đom Đóm In The Stars",
 				Description: "Đêm nhạc hoành tráng của Jack - J97 cùng Đom Đóm Fanclub. Một hành trình âm nhạc đầy cảm xúc với những bản hit triệu view: Hoa Hải Đường, Bạc Phận, Là 1 Thằng Con Trai,... Hãy cùng thắp sáng hàng ngàn đom đóm trong đêm Hà Nội!",
 				BannerURL:   "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?auto=format&fit=crop&w=1200&q=80",
-				StartTime:   time.Now().AddDate(0, 0, 14),
-				EndTime:     time.Now().AddDate(0, 0, 14).Add(4 * time.Hour),
+				StartTime:   time.Now().UTC().AddDate(0, 0, 14),
+				EndTime:     time.Now().UTC().AddDate(0, 0, 14).Add(4 * time.Hour),
 				IsPublished: true,
 				IsFeatured:  true,
 				Category:    "Âm nhạc & Lễ hội",
@@ -167,8 +167,8 @@ func main() {
 				Title:       "Sơn Tùng M-TP: Sky Tour 2026",
 				Description: "Sky Tour trở lại! Sơn Tùng M-TP mang đến đêm diễn lịch sử tại SVĐ Mỹ Đình với dàn sản xuất đẳng cấp quốc tế. Trải nghiệm những bản hit Chạy Ngay Đi, Hãy Trao Cho Anh, Muộn Rồi Mà Sao Còn,... cùng hiệu ứng ánh sáng mãn nhãn.",
 				BannerURL:   "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=1200&q=80",
-				StartTime:   time.Now().AddDate(0, 1, 0),
-				EndTime:     time.Now().AddDate(0, 1, 0).Add(5 * time.Hour),
+				StartTime:   time.Now().UTC().AddDate(0, 1, 0),
+				EndTime:     time.Now().UTC().AddDate(0, 1, 0).Add(5 * time.Hour),
 				IsPublished: true,
 				IsFeatured:  true,
 				Category:    "Âm nhạc & Lễ hội",
@@ -187,8 +187,8 @@ func main() {
 				Title:       "Rap Việt All-Star Concert 2026",
 				Description: "Tất cả các ngôi sao Rap Việt hội tụ trong một đêm duy nhất! Với sự góp mặt của Karik, Binz, Rhymastic, Wowy, Double2T, MCK, tlinh và nhiều rapper đình đám khác. Bữa tiệc Hip-Hop lớn nhất Việt Nam!",
 				BannerURL:   "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?auto=format&fit=crop&w=1200&q=80",
-				StartTime:   time.Now().AddDate(0, 0, 21),
-				EndTime:     time.Now().AddDate(0, 0, 21).Add(5 * time.Hour),
+				StartTime:   time.Now().UTC().AddDate(0, 0, 21),
+				EndTime:     time.Now().UTC().AddDate(0, 0, 21).Add(5 * time.Hour),
 				IsPublished: true,
 				IsFeatured:  true,
 				Category:    "Âm nhạc & Lễ hội",
@@ -205,8 +205,8 @@ func main() {
 				Title:       "Hà Anh Tuấn: Sketch A Rose - Vẽ Một Bông Hồng",
 				Description: "Liveconcert mới nhất của Hà Anh Tuấn tại Nhà hát Lớn Hà Nội. Một đêm nhạc acoustic ấm áp với Tháng Tư Là Lời Nói Dối Của Em, Người Tình Mùa Đông, Truyện Ngắn,... Không gian thân mật, âm thanh hoàn hảo.",
 				BannerURL:   "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=1200&q=80",
-				StartTime:   time.Now().AddDate(0, 0, 30),
-				EndTime:     time.Now().AddDate(0, 0, 30).Add(3 * time.Hour),
+				StartTime:   time.Now().UTC().AddDate(0, 0, 30),
+				EndTime:     time.Now().UTC().AddDate(0, 0, 30).Add(3 * time.Hour),
 				IsPublished: true,
 				IsFeatured:  false,
 				Category:    "Âm nhạc & Lễ hội",
@@ -223,8 +223,8 @@ func main() {
 				Title:       "Ravolution Music Festival 2026",
 				Description: "Lễ hội âm nhạc điện tử lớn nhất Đông Nam Á trở lại Hà Nội! Lineup đỉnh cao với DJ quốc tế và Việt Nam. 3 sân khấu, hàng trăm nghệ sĩ, trải nghiệm âm nhạc không giới hạn từ House, Techno đến Trance.",
 				BannerURL:   "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=1200&q=80",
-				StartTime:   time.Now().AddDate(0, 2, 0),
-				EndTime:     time.Now().AddDate(0, 2, 1),
+				StartTime:   time.Now().UTC().AddDate(0, 2, 0),
+				EndTime:     time.Now().UTC().AddDate(0, 2, 1),
 				IsPublished: true,
 				IsFeatured:  false,
 				Category:    "Giải trí & Trải nghiệm",
@@ -241,8 +241,8 @@ func main() {
 				Title:       "Mỹ Tâm: Tri Ân - The Gratitude Show",
 				Description: "Đêm nhạc đặc biệt kỷ niệm 25 năm ca hát của Mỹ Tâm. Hành trình xuyên suốt sự nghiệp với những bản hit Ước Gì, Cây Đàn Sinh Viên, Đừng Hỏi Em,...",
 				BannerURL:   "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?auto=format&fit=crop&w=1200&q=80",
-				StartTime:   time.Now().AddDate(0, 3, 0),
-				EndTime:     time.Now().AddDate(0, 3, 0).Add(4 * time.Hour),
+				StartTime:   time.Now().UTC().AddDate(0, 3, 0),
+				EndTime:     time.Now().UTC().AddDate(0, 3, 0).Add(4 * time.Hour),
 				IsPublished: false, // Draft event - not yet published
 				IsFeatured:  false,
 				Category:    "Âm nhạc & Lễ hội",
@@ -314,7 +314,7 @@ func main() {
 			EventID:     jackEvent.ID,
 			TotalAmount: jackVVIP.Price * 2,
 			Status:      models.OrderCompleted,
-			ExpiresAt:   time.Now().Add(10 * time.Minute),
+			ExpiresAt:   time.Now().UTC().Add(10 * time.Minute),
 			OrderItems: []models.OrderItem{
 				{SeatID: vvipSeats[0].ID, Price: jackVVIP.Price},
 				{SeatID: vvipSeats[1].ID, Price: jackVVIP.Price},
@@ -346,7 +346,7 @@ func main() {
 			EventID:     jackEvent.ID,
 			TotalAmount: jackVIP.Price * 3,
 			Status:      models.OrderCompleted,
-			ExpiresAt:   time.Now().Add(10 * time.Minute),
+			ExpiresAt:   time.Now().UTC().Add(10 * time.Minute),
 			OrderItems: []models.OrderItem{
 				{SeatID: vipSeats[0].ID, Price: jackVIP.Price},
 				{SeatID: vipSeats[1].ID, Price: jackVIP.Price},
@@ -377,7 +377,7 @@ func main() {
 			EventID:     jackEvent.ID,
 			TotalAmount: jackVVIP.Price * 2,
 			Status:      models.OrderPending,
-			ExpiresAt:   time.Now().Add(10 * time.Minute),
+			ExpiresAt:   time.Now().UTC().Add(10 * time.Minute),
 			OrderItems: []models.OrderItem{
 				{SeatID: vvipSeats[3].ID, Price: jackVVIP.Price},
 				{SeatID: vvipSeats[4].ID, Price: jackVVIP.Price},
@@ -385,7 +385,7 @@ func main() {
 		}
 		db.Create(&order3)
 
-		now := time.Now()
+		now := time.Now().UTC()
 		db.Model(&models.Seat{}).Where("id IN ?", []interface{}{vvipSeats[3].ID, vvipSeats[4].ID}).
 			Updates(map[string]interface{}{
 				"status":            models.SeatLocked,
@@ -413,7 +413,7 @@ func main() {
 				EventID:     sonTungEvent.ID,
 				TotalAmount: sonTungDiamond.Price * 2,
 				Status:      models.OrderCompleted,
-				ExpiresAt:   time.Now().Add(10 * time.Minute),
+				ExpiresAt:   time.Now().UTC().Add(10 * time.Minute),
 				OrderItems: []models.OrderItem{
 					{SeatID: diamondSeats[offset].ID, Price: sonTungDiamond.Price},
 					{SeatID: diamondSeats[offset+1].ID, Price: sonTungDiamond.Price},
@@ -455,7 +455,7 @@ func main() {
 				EventID:     rapEvent.ID,
 				TotalAmount: rapVIPStanding.Price * 2,
 				Status:      models.OrderCompleted,
-				ExpiresAt:   time.Now().Add(10 * time.Minute),
+				ExpiresAt:   time.Now().UTC().Add(10 * time.Minute),
 				OrderItems: []models.OrderItem{
 					{SeatID: rapVIPSeats[offset].ID, Price: rapVIPStanding.Price},
 					{SeatID: rapVIPSeats[offset+1].ID, Price: rapVIPStanding.Price},

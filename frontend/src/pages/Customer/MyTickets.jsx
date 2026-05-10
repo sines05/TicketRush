@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Loading from '../../components/common/Loading.jsx';
-import Button from '../../components/common/Button.jsx';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import TicketItem from '../../components/tickets/TicketItem.jsx';
 import ticketService from '../../services/ticketService.js';
+import { Ticket, ArrowLeft, Search } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export default function MyTickets() {
   const [loading, setLoading] = useState(true);
@@ -36,36 +39,47 @@ export default function MyTickets() {
   if (loading) return <Loading title="Đang tải vé của bạn..." />;
 
   return (
-    <div className="space-y-5">
-      <section className="rounded-2xl border border-text/10 bg-surface p-5">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+    <div className="container mx-auto py-8 max-w-4xl space-y-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" asChild>
+            <Link to="/profile"><ArrowLeft className="h-5 w-5" /></Link>
+          </Button>
           <div>
-            <h1 className="text-lg font-semibold">Vé của tôi</h1>
-            <p className="mt-1 text-sm text-muted">Danh sách vé bạn đã đặt (QR Code)</p>
+            <h1 className="text-3xl font-bold tracking-tight">Vé của tôi</h1>
+            <p className="text-muted-foreground">Danh sách vé bạn đã đặt và mã QR để check-in.</p>
           </div>
-          <Link to="/">
-            <Button variant="secondary">Về sự kiện</Button>
-          </Link>
         </div>
-      </section>
+        <Button variant="outline" asChild>
+          <Link to="/">Khám phá thêm sự kiện</Link>
+        </Button>
+      </div>
 
       {error && (
-        <div className="rounded-xl border border-danger/40 bg-danger/10 p-4 text-sm">{error}</div>
+        <Alert variant="destructive">
+          <AlertTitle>Lỗi</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
 
       {!error && tickets.length === 0 && (
-        <div className="rounded-2xl border border-text/10 bg-surface p-5">
-          <div className="text-sm font-semibold">Bạn chưa có vé nào</div>
-          <div className="mt-1 text-sm text-muted">Hãy chọn một sự kiện và đặt vé để thấy vé ở đây.</div>
-          <div className="mt-4">
-            <Link to="/">
-              <Button>Mua vé</Button>
-            </Link>
-          </div>
-        </div>
+        <Card className="text-center py-12">
+          <CardContent className="space-y-4">
+            <div className="bg-muted w-16 h-16 rounded-full flex items-center justify-center mx-auto">
+              <Ticket className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <div className="space-y-1">
+              <CardTitle>Bạn chưa có vé nào</CardTitle>
+              <CardDescription>Hãy chọn một sự kiện và đặt vé để thấy vé ở đây.</CardDescription>
+            </div>
+            <Button asChild>
+              <Link to="/">Mua vé ngay</Link>
+            </Button>
+          </CardContent>
+        </Card>
       )}
 
-      <div className="space-y-3">
+      <div className="grid gap-6">
         {tickets.map((t) => (
           <TicketItem key={t.ticket_id} ticket={t} />
         ))}

@@ -22,6 +22,17 @@ async function getMe() {
     await sleep(200);
     const user = safeJsonParse(localStorage.getItem(STORAGE_USER));
     if (!user) {
+      // Fallback for demo mode: if token exists, return a default user
+      const token = localStorage.getItem('tr_access_token') || localStorage.getItem('tr_token');
+      if (token) {
+        return {
+          id: 'uuid-customer-01',
+          email: 'customer@demo.com',
+          full_name: 'Customer Demo',
+          role: 'CUSTOMER',
+          membership_tier: 'BRONZE'
+        };
+      }
       throw { success: false, message: 'Bạn chưa đăng nhập' };
     }
     return user;
@@ -85,4 +96,13 @@ async function updateUserMembership(userId, membership_tier_id) {
   return unwrap(res);
 }
 
-export default { getMe, updateMe, getUsers, updateUserRole, updateUserMembership };
+async function changePassword({ old_password, new_password }) {
+  if (USE_MOCK) {
+    await sleep(300);
+    return { success: true, message: 'Đổi mật khẩu thành công (Mock)' };
+  }
+  const res = await api.post(API_ROUTES.USERS_CHANGE_PASSWORD, { old_password, new_password });
+  return unwrap(res);
+}
+
+export default { getMe, updateMe, getUsers, updateUserRole, updateUserMembership, changePassword };

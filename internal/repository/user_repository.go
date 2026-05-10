@@ -11,6 +11,7 @@ type UserRepository interface {
 	Create(user *models.User) error
 	FindByEmail(email string) (*models.User, error)
 	FindByID(id uuid.UUID) (*models.User, error)
+	Update(user *models.User) error
 	UpdatePassword(userID uuid.UUID, newPasswordHash string) error
 	CreatePasswordReset(reset *models.PasswordReset) error
 	FindPasswordResetByToken(token string) (*models.PasswordReset, error)
@@ -45,6 +46,10 @@ func (r *userRepo) FindByID(id uuid.UUID) (*models.User, error) {
 		return nil, err
 	}
 	return &user, nil
+}
+
+func (r *userRepo) Update(user *models.User) error {
+	return r.db.Save(user).Error
 }
 
 func (r *userRepo) UpdatePassword(userID uuid.UUID, newPasswordHash string) error {

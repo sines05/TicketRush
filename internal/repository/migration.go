@@ -11,7 +11,7 @@ import (
 )
 
 func RunMigrations(cfg *config.Config) {
-	dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
+	dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable&TimeZone=UTC",
 		cfg.DBUser, cfg.DBPassword, cfg.DBHost, cfg.DBPort, cfg.DBName)
 
 	m, err := migrate.New("file://./migrations", dsn)

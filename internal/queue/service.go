@@ -14,8 +14,8 @@ const ActiveUserThreshold = 100
 const SessionExpiration = 2 * time.Hour
 
 type Service interface {
-	JoinQueue(ctx context.Context, eventID uuid.UUID, userID uuid.UUID) (string, string, error)
-	GetStatus(ctx context.Context, eventID uuid.UUID, userID uuid.UUID) (string, int64, string, error)
+	JoinQueue(ctx context.Context, eventID uuid.UUID, userID uuid.UUID) (string, string, *time.Time, error)
+	GetStatus(ctx context.Context, eventID uuid.UUID, userID uuid.UUID) (string, int64, string, *time.Time, error)
 	ProcessQueue(ctx context.Context, eventID uuid.UUID) error
 	GetSession(ctx context.Context, token string) (*QueueSession, error)
 	UpdateSessionOrder(ctx context.Context, token string, orderID uuid.UUID, expiresAt time.Time) error
@@ -40,25 +40,33 @@ func (s *service) getOrCreateSession(ctx context.Context, eventID uuid.UUID, use
 	if err == nil && session != nil {
 		if session.Status != status {
 			session.Status = status
+			if status == "allowed" && session.AllowedAt == nil {
+				now := time.Now().UTC()
+				session.AllowedAt = &now
+			}
 			s.repo.SaveSession(ctx, session, SessionExpiration)
 		}
 		return session, nil
 	}
-	
+
 	session = &QueueSession{
 		Token:   generateToken(),
 		UserID:  userID,
 		EventID: eventID,
 		Status:  status,
 	}
+	if status == "allowed" {
+		now := time.Now().UTC()
+		session.AllowedAt = &now
+	}
 	err = s.repo.SaveSession(ctx, session, SessionExpiration)
 	return session, err
 }
 
-func (s *service) JoinQueue(ctx context.Context, eventID uuid.UUID, userID uuid.UUID) (string, string, error) {
+func (s *service) JoinQueue(ctx context.Context, eventID uuid.UUID, userID uuid.UUID) (string, string, *time.Time, error) {
 	allowed, err := s.repo.IsAllowed(ctx, eventID, userID)
 	if err != nil {
-		return "", "", err
+		return "", "", nil, err
 	}
 	
 	status := "waiting"
@@ -66,22 +74,22 @@ func (s *service) JoinQueue(ctx context.Context, eventID uuid.UUID, userID uuid.
 		status = "allowed"
 	} else {
 		if err := s.repo.AddToQueue(ctx, eventID, userID); err != nil {
-			return "", "", err
+			return "", "", nil, err
 		}
 	}
 
 	session, err := s.getOrCreateSession(ctx, eventID, userID, status)
 	if err != nil {
-		return "", "", err
+		return "", "", nil, err
 	}
 
-	return session.Status, session.Token, nil
+	return session.Status, session.Token, session.AllowedAt, nil
 }
 
-func (s *service) GetStatus(ctx context.Context, eventID uuid.UUID, userID uuid.UUID) (string, int64, string, error) {
+func (s *service) GetStatus(ctx context.Context, eventID uuid.UUID, userID uuid.UUID) (string, int64, string, *time.Time, error) {
 	allowed, err := s.repo.IsAllowed(ctx, eventID, userID)
 	if err != nil {
-		return "", 0, "", err
+		return "", 0, "", nil, err
 	}
 	
 	status := "waiting"
@@ -99,10 +107,10 @@ func (s *service) GetStatus(ctx context.Context, eventID uuid.UUID, userID uuid.
 
 	session, err := s.getOrCreateSession(ctx, eventID, userID, status)
 	if err != nil {
-		return "", 0, "", err
+		return "", 0, "", nil, err
 	}
 
-	return session.Status, pos, session.Token, nil
+	return session.Status, pos, session.Token, session.AllowedAt, nil
 }
 
 func (s *service) ProcessQueue(ctx context.Context, eventID uuid.UUID) error {
@@ -129,6 +137,10 @@ func (s *service) ProcessQueue(ctx context.Context, eventID uuid.UUID) error {
 		session, err := s.repo.GetSessionByEventAndUser(ctx, eventID, userID)
 		if err == nil && session != nil {
 			session.Status = "allowed"
+			if session.AllowedAt == nil {
+				now := time.Now().UTC()
+				session.AllowedAt = &now
+			}
 			s.repo.SaveSession(ctx, session, SessionExpiration)
 		}
 	}

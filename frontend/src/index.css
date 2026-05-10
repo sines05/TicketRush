@@ -2,80 +2,110 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  :root {
+    /* Modernized Light Palette - Ocean Breeze */
+    --tr-background: 210 40% 98%;
+    --tr-foreground: 222.2 20% 12%; /* Off-black */
+
+    --tr-card: 0 0% 100%;
+    --tr-card-foreground: 222.2 20% 12%;
+
+    --tr-popover: 0 0% 100%;
+    --tr-popover-foreground: 222.2 20% 12%;
+
+    --tr-primary: 187 75% 35%; /* Tropic Wave - Refined saturation < 80% */
+    --tr-primary-foreground: 210 40% 98%;
+
+    --tr-secondary: 189 58% 52%; /* Ocean Blue */
+    --tr-secondary-foreground: 222.2 20% 12%;
+
+    --tr-muted: 215.4 16.3% 46.9%;
+    --tr-muted-foreground: 215.4 16.3% 46.9%;
+
+    --tr-accent: 171 31% 69%; /* Tide Mint */
+    --tr-accent-foreground: 222.2 20% 12%;
+
+    --tr-destructive: 0 84.2% 60.2%;
+    --tr-destructive-foreground: 210 40% 98%;
+
+    --tr-border: 214.3 31.8% 91.4%;
+    --tr-input: 214.3 31.8% 91.4%;
+    --tr-ring: 187 75% 35%;
+
+    --tr-radius: 0.75rem;
+
+    --tr-card-shadow: 0 18px 60px -40px rgb(0 150 165 / 0.12);
+    --tr-card-shadow-hover: 0 26px 70px -42px rgb(0 150 165 / 0.18);
+
+    /* Glassmorphism Variables */
+    --tr-glass-bg: 0 0% 100% / 0.4;
+    --tr-glass-border: 214.3 31.8% 91.4% / 0.3;
+  }
+
+  .dark {
+    /* Modernized Dark Palette - Dark Amethyst */
+    --tr-background: 263 30% 8%; /* Deeper off-black purple */
+    --tr-foreground: 354 100% 97%;
+
+    --tr-card: 263 30% 10%;
+    --tr-card-foreground: 354 100% 97%;
+
+    --tr-popover: 263 30% 10%;
+    --tr-popover-foreground: 354 100% 97%;
+
+    --tr-primary: 148 31% 72%; /* Muted Teal */
+    --tr-primary-foreground: 263 30% 8%;
+
+    --tr-secondary: 189 39% 40%; /* Pacific Cyan */
+    --tr-secondary-foreground: 354 100% 97%;
+
+    --tr-muted: 148 31% 72%;
+    --tr-muted-foreground: 148 31% 72%;
+
+    --tr-accent: 359 75% 84%; /* Powder Blush - Refined saturation < 80% */
+    --tr-accent-foreground: 263 30% 8%;
+
+    --tr-destructive: 0 62.8% 30.6%;
+    --tr-destructive-foreground: 354 100% 97%;
+
+    --tr-border: 263 30% 20%;
+    --tr-input: 263 30% 20%;
+    --tr-ring: 148 31% 72%;
+
+    --tr-card-shadow: 0 0 #0000;
+    --tr-card-shadow-hover: 0 0 #0000;
+
+    /* Glassmorphism Variables */
+    --tr-glass-bg: 263 30% 10% / 0.4;
+    --tr-glass-border: 263 30% 20% / 0.3;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    background:
+      radial-gradient(1200px circle at 50% -10%, hsl(var(--tr-accent) / 0.12), transparent 70%),
+      radial-gradient(1000px circle at 10% 20%, hsl(var(--tr-secondary) / 0.15), transparent 60%),
+      radial-gradient(1000px circle at 90% 80%, hsl(var(--tr-primary) / 0.12), transparent 60%),
+      hsl(var(--tr-background));
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold tracking-tight text-balance;
+  }
+}
+
+
 :root {
   color-scheme: light dark;
-}
-
-html[data-theme='dark'] {
-  /* Palette (color.jpg):
-     Dark Amethyst #27153D, Pacific Cyan #3E828E, Muted Teal #A6C9B6,
-     Powder Blush #F6B6B7, Lavender Blush #FFEBED */
-  --tr-bg: 39 21 61; /* Dark Amethyst */
-  --tr-surface: 26 28 46; /* Deep indigo/charcoal (event cards feel slightly sunken) */
-  --tr-text: 255 235 237; /* Lavender Blush */
-  --tr-muted: 166 201 182; /* Muted Teal */
-
-  --tr-brand-50: 255 235 237; /* Lavender Blush */
-  --tr-brand-600: 166 201 182; /* Muted Teal */
-  --tr-brand-700: 62 130 142; /* Pacific Cyan */
-
-  --tr-accent: 246 182 183; /* Powder Blush */
-
-  --tr-on-brand: 13 17 23; /* #0D1117 - high contrast on mint buttons */
-
-  --tr-card-shadow: 0 0 #0000;
-  --tr-card-shadow-hover: 0 0 #0000;
-
-  --tr-danger: 239 68 68;
-  --tr-success: 34 197 94;
-  --tr-warning: 234 179 8;
-
-  --tr-seat-available: 34 197 94;
-  --tr-seat-locked: 148 163 184;
-  --tr-seat-sold: 239 68 68;
-  --tr-seat-selected: 234 179 8;
-}
-
-html[data-theme='light'] {
-  /* Ocean Breeze (Biển xanh & Cát trắng)
-    Tropic Wave (Teal đậm): #0096a5
-    Ocean Blue (Xanh biển sáng): #4ebdd5
-    Tide Mint (Xanh ngọc): #9bc6c0
-    Sky Blue (Xanh lơ nhạt): #b6dbe5
-    Shell Cream (Kem/cát): #e5ded6
-    Foam White (near-white for gradient start): #f8fcfd */
-  --tr-bg: 248 252 253; /* Foam White */
-  --tr-surface: 182 219 229; /* Sky Blue (used as glass tint) */
-  --tr-text: 15 23 42; /* slate-900 */
-  --tr-muted: 71 85 105; /* slate-600 */
-
-  --tr-brand-50: 248 252 253; /* Foam White */
-  --tr-brand-600: 0 150 165; /* Tropic Wave */
-  --tr-brand-700: 78 189 213; /* Ocean Blue (hover) */
-
-  --tr-accent: 155 198 192; /* Tide Mint */
-
-  --tr-on-brand: 255 255 255; /* white text on teal buttons */
-
-  --tr-card-shadow: 0 18px 60px -40px rgb(var(--tr-brand-600) / 0.18);
-  --tr-card-shadow-hover: 0 26px 70px -42px rgb(var(--tr-brand-600) / 0.24);
-
-  --tr-danger: 239 68 68;
-  --tr-success: 34 197 94;
-  --tr-warning: 234 179 8;
-
-  --tr-seat-available: 34 197 94;
-  --tr-seat-locked: 100 116 139;
-  --tr-seat-sold: 239 68 68;
-  --tr-seat-selected: 234 179 8;
-}
-
-html[data-theme='dark'] {
-  color-scheme: dark;
-}
-
-html[data-theme='light'] {
-  color-scheme: light;
 }
 
 html,
@@ -86,62 +116,51 @@ body {
 @layer utilities {
   .tr-event-card {
     box-shadow: var(--tr-card-shadow);
+    @apply transition-all duration-300;
   }
 
-  html[data-theme='light'] .tr-event-card:hover {
+  .tr-event-card:hover {
     box-shadow: var(--tr-card-shadow-hover);
+    @apply -translate-y-1;
+  }
+
+  .glass-surface {
+    background: hsl(var(--tr-glass-bg));
+    backdrop-filter: blur(12px) saturate(180%);
+    -webkit-backdrop-filter: blur(12px) saturate(180%);
+    border: 1px solid hsl(var(--tr-glass-border));
+    box-shadow: 
+      inset 0 1px 1px hsl(var(--tr-background) / 0.1),
+      0 8px 32px 0 hsl(var(--tr-foreground) / 0.05);
+  }
+
+  .glass-border {
+    border: 1px solid hsl(var(--tr-glass-border));
+    background-clip: padding-box;
   }
 
   .tr-hero-slider .swiper-pagination-bullet {
     width: 0.75rem;
     height: 0.75rem;
     border-radius: 9999px;
-    background: rgb(var(--tr-text) / 0.28);
+    background: hsl(var(--tr-foreground) / 0.28);
     opacity: 1;
     transition: transform 160ms ease, background-color 160ms ease, width 160ms ease;
   }
 
   .tr-hero-slider .swiper-pagination-bullet-active {
     width: 2rem;
-    background: linear-gradient(90deg, rgb(var(--tr-brand-600)), rgb(var(--tr-accent)));
+    background: linear-gradient(90deg, hsl(var(--tr-primary)), hsl(var(--tr-accent)));
   }
 }
 
-body {
-  background:
-    radial-gradient(900px circle at 50% 0%, rgb(var(--tr-accent) / 0.14), transparent 52%),
-    radial-gradient(900px circle at 18% 10%, rgb(var(--tr-brand-700) / 0.22), transparent 58%),
-    radial-gradient(900px circle at 82% 92%, rgb(var(--tr-brand-600) / 0.16), transparent 60%),
-    rgb(var(--tr-bg));
-  color: rgb(var(--tr-text));
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-html[data-theme='light'] body {
-  /* Main Background: bg-gradient-to-br from-[#f8fcfd] via-[#b6dbe5]/20 to-[#e5ded6]/40 */
-  background: linear-gradient(
-    to bottom right,
-    rgb(248 252 253),
-    rgb(182 219 229 / 0.2),
-    rgb(229 222 214 / 0.4)
-  );
-}
-
-@layer utilities {
-  /* Glassmorphism for all light-mode surfaces using `bg-surface` */
-  html[data-theme='light'] .bg-surface {
-    background-color: rgb(var(--tr-surface) / 0.25);
-    -webkit-backdrop-filter: blur(12px);
-    backdrop-filter: blur(12px);
-  }
-
-  /* Thin border tint for light mode cards/containers that use `border-text/10` */
-  html[data-theme='light'] .border-text\/10 {
-    border-color: rgb(var(--tr-surface) / 0.4);
-  }
+/* Glassmorphism for all light-mode surfaces using `bg-surface` */
+.bg-surface {
+  background-color: hsl(var(--tr-card) / 0.25);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
 }
 
 * {
-  scrollbar-color: rgb(var(--tr-surface)) rgb(var(--tr-bg));
+  scrollbar-color: hsl(var(--tr-muted)) hsl(var(--tr-background));
 }

@@ -1,14 +1,26 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import Button from '../../components/common/Button.jsx';
-import Input from '../../components/common/Input.jsx';
-import Loading from '../../components/common/Loading.jsx';
 import { useAuth } from '../../hooks/useAuth.js';
 import { GENDER } from '../../constants/gender.js';
 import userService from '../../services/userService.js';
 import uploadService from '../../services/uploadService.js';
 import authService from '../../services/authService.js';
+import ticketService from '../../services/ticketService.js';
 import { resolveMediaUrl } from '../../utils/media.js';
+
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import Loading from '../../components/common/Loading.jsx';
+import TicketItem from '../../components/tickets/TicketItem.jsx';
+import { User, Shield, Ticket, LogOut, Camera, CheckCircle2, AlertCircle } from 'lucide-react';
+import { QRCodeCanvas } from 'qrcode.react';
 
 function toDateInputValue(value) {
   if (!value) return '';
@@ -27,27 +39,38 @@ function toDateInputValue(value) {
 }
 
 export default function Profile() {
-  const { user, updateUser } = useAuth();
+  const { user, updateUser, logout } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  // Profile state
   const [email, setEmail] = useState(user?.email || '');
   const [fullName, setFullName] = useState(user?.full_name || '');
   const [avatarUrl, setAvatarUrl] = useState(user?.avatar_url || '');
   const [avatarFile, setAvatarFile] = useState(null);
-
   const [gender, setGender] = useState(user?.gender || '');
   const [dateOfBirth, setDateOfBirth] = useState(toDateInputValue(user?.date_of_birth || ''));
 
   // 2FA state
   const [is2FAEnabled, setIs2FAEnabled] = useState(user?.is_2fa_enabled || false);
   const [show2FASetup, setShow2FASetup] = useState(false);
-  const [twoFAData, setTwoFAData] = useState(null); // { qr_code, secret }
+  const [show2FADisable, setShow2FADisable] = useState(false);
+  const [twoFAData, setTwoFAData] = useState(null);
   const [twoFACode, setTwoFACode] = useState('');
   const [twoFALoading, setTwoFALoading] = useState(false);
+
+  // Password state
+  const [oldPassword, setOldPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
+
+  // Tickets state
+  const [tickets, setTickets] = useState([]);
+  const [ticketsLoading, setTicketsLoading] = useState(false);
 
   const [lastLoaded, setLastLoaded] = useState({
     email: user?.email || '',
@@ -55,7 +78,8 @@ export default function Profile() {
     avatar_url: user?.avatar_url || '',
     gender: user?.gender || '',
     date_of_birth: toDateInputValue(user?.date_of_birth || ''),
-    is_2fa_enabled: user?.is_2fa_enabled || false
+    is_2fa_enabled: user?.is_2fa_enabled || false,
+    is_oauth: user?.is_oauth || false
   });
 
   const avatarPreview = useMemo(() => {
@@ -91,7 +115,8 @@ export default function Profile() {
           avatar_url: me?.avatar_url || user?.avatar_url || '',
           gender: me?.gender || user?.gender || '',
           date_of_birth: toDateInputValue(me?.date_of_birth || user?.date_of_birth || ''),
-          is_2fa_enabled: me?.is_2fa_enabled || false
+          is_2fa_enabled: me?.is_2fa_enabled || false,
+          is_oauth: me?.is_oauth || false
         };
         setLastLoaded(next);
         setEmail(next.email);
@@ -114,6 +139,14 @@ export default function Profile() {
       mounted = false;
     };
   }, [user?.email, user?.full_name, user?.avatar_url, user?.gender, user?.date_of_birth]);
+
+  useEffect(() => {
+    setTicketsLoading(true);
+    ticketService.getMyTickets()
+      .then(data => setTickets(Array.isArray(data) ? data : []))
+      .catch(console.error)
+      .finally(() => setTicketsLoading(false));
+  }, []);
 
   async function handleSave() {
     setSaving(true);
@@ -170,6 +203,36 @@ export default function Profile() {
     setDateOfBirth(lastLoaded.date_of_birth);
   }
 
+  async function handleChangePassword() {
+    if (newPassword !== confirmPassword) {
+      setError('Mật khẩu mới không khớp');
+      return;
+    }
+    if (newPassword.length < 6) {
+      setError('Mật khẩu mới phải có ít nhất 6 ký tự');
+      return;
+    }
+
+    setChangingPassword(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      await userService.changePassword({
+        old_password: oldPassword,
+        new_password: newPassword
+      });
+      setSuccess('Đổi mật khẩu thành công');
+      setOldPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (e) {
+      setError(e?.message || 'Đổi mật khẩu thất bại');
+    } finally {
+      setChangingPassword(false);
+    }
+  }
+
   async function handleSetup2FA() {
     setTwoFALoading(true);
     setError('');
@@ -202,176 +265,354 @@ export default function Profile() {
     }
   }
 
+  async function handleDisable2FA() {
+    setTwoFALoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      await authService.disable2FA(twoFACode);
+      setIs2FAEnabled(false);
+      setShow2FADisable(false);
+      setTwoFACode('');
+      setSuccess('Đã tắt xác thực 2 lớp thành công');
+      updateUser?.({ is_2fa_enabled: false });
+    } catch (e) {
+      setError(e?.message || 'Mã xác thực không chính xác hoặc không thể tắt 2FA');
+    } finally {
+      setTwoFALoading(false);
+    }
+  }
+
   if (loading) return <Loading title="Đang tải hồ sơ..." />;
 
   return (
-    <div className="space-y-6">
-      <section className="rounded-2xl border border-text/10 bg-surface p-5">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h1 className="text-lg font-semibold">Hồ sơ cá nhân</h1>
-            <p className="mt-1 text-sm text-muted">Cập nhật thông tin tài khoản của bạn</p>
-          </div>
-          <Link to="/">
-            <Button variant="secondary">Về sự kiện</Button>
-          </Link>
+    <div className="container mx-auto py-8 max-w-6xl space-y-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Bảng điều khiển</h1>
+          <p className="text-muted-foreground">Quản lý tài khoản, vé và bảo mật của bạn.</p>
         </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" asChild>
+            <Link to="/">Về trang chủ</Link>
+          </Button>
+          <Button variant="destructive" onClick={logout}>
+            <LogOut className="mr-2 h-4 w-4" /> Đăng xuất
+          </Button>
+        </div>
+      </div>
 
-        {(error || success) && (
-          <div
-            className={`mt-4 rounded-xl border p-3 text-sm ${
-              error ? 'border-danger/40 bg-danger/10' : 'border-success/40 bg-success/10'
-            }`}
-          >
-            {error || success}
-          </div>
-        )}
+      {(error || success) && (
+        <Alert variant={error ? "destructive" : "default"} className={success ? "border-green-500 bg-green-50 dark:bg-green-900/10" : ""}>
+          {error ? <AlertCircle className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4 text-green-500" />}
+          <AlertTitle>{error ? "Lỗi" : "Thành công"}</AlertTitle>
+          <AlertDescription>{error || success}</AlertDescription>
+        </Alert>
+      )}
 
-        <div className="mt-5 grid gap-5 md:grid-cols-3">
-          <div className="rounded-2xl border border-text/10 bg-bg/40 p-4">
-            <div className="text-sm font-semibold">Avatar</div>
-            <div className="mt-4 flex items-center justify-center">
-              <div className="h-44 w-44 overflow-hidden rounded-full border border-text/10 bg-bg/60">
-                {avatarPreview ? (
-                  <img src={avatarPreview} alt="avatar" className="h-full w-full object-cover" />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center text-xs text-muted">No avatar</div>
-                )}
-              </div>
-            </div>
+      <Tabs defaultValue="profile" className="w-full">
+        <TabsList className="grid w-full grid-cols-3 mb-8">
+          <TabsTrigger value="profile" className="flex items-center gap-2">
+            <User className="h-4 w-4" /> <span className="hidden sm:inline">Hồ sơ</span>
+          </TabsTrigger>
+          <TabsTrigger value="tickets" className="flex items-center gap-2">
+            <Ticket className="h-4 w-4" /> <span className="hidden sm:inline">Vé của tôi</span>
+          </TabsTrigger>
+          <TabsTrigger value="security" className="flex items-center gap-2">
+            <Shield className="h-4 w-4" /> <span className="hidden sm:inline">Bảo mật</span>
+          </TabsTrigger>
+        </TabsList>
 
-            <div className="mt-4">
-              <label className="block">
-                <div className="mb-1 text-sm text-muted">Chọn ảnh avatar</div>
-                <input
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp"
-                  onChange={(e) => setAvatarFile(e.target.files?.[0] || null)}
-                  className="w-full rounded-md border border-text/10 bg-surface px-3 py-2 text-sm text-text file:mr-3 file:rounded-md file:border-0 file:bg-bg/60 file:px-3 file:py-2 file:text-sm file:text-text hover:file:bg-bg/70 focus:border-brand-600/50 focus:outline-none focus:ring-2 focus:ring-brand-600/25"
-                />
-              </label>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-text/10 bg-bg/40 p-4 md:col-span-2">
-            <div className="text-sm font-semibold">Thông tin</div>
-            <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <div className="md:col-span-2">
-                <div className="mb-1 text-sm text-muted">Email</div>
-                <div className="rounded-md border border-text/10 bg-surface px-3 py-2 text-sm text-text">
-                  {email || '—'}
+        <TabsContent value="profile" className="space-y-6">
+          <div className="grid gap-6 md:grid-cols-3">
+            <Card className="md:col-span-1">
+              <CardHeader>
+                <CardTitle>Ảnh đại diện</CardTitle>
+                <CardDescription>Ảnh này sẽ được hiển thị trên hồ sơ của bạn.</CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col items-center space-y-4">
+                <div className="relative group">
+                  <Avatar className="h-40 w-40 border-4 border-background shadow-xl">
+                    <AvatarImage src={avatarPreview} className="object-cover" />
+                    <AvatarFallback className="text-4xl">{fullName?.charAt(0) || 'U'}</AvatarFallback>
+                  </Avatar>
+                  <label className="absolute bottom-0 right-0 p-2 bg-primary text-primary-foreground rounded-full cursor-pointer shadow-lg hover:scale-110 transition-transform">
+                    <Camera className="h-5 w-5" />
+                    <input
+                      type="file"
+                      className="hidden"
+                      accept="image/*"
+                      onChange={(e) => setAvatarFile(e.target.files?.[0] || null)}
+                    />
+                  </label>
                 </div>
-              </div>
+                {avatarFile && (
+                  <p className="text-xs text-muted-foreground">Đã chọn: {avatarFile.name}</p>
+                )}
+              </CardContent>
+            </Card>
 
-              <Input
-                className="md:col-span-2"
-                label="Họ và tên"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                placeholder="Nguyễn Văn A"
-                autoComplete="name"
-              />
-
-              <Input
-                label="Ngày sinh"
-                type="date"
-                value={dateOfBirth}
-                onChange={(e) => setDateOfBirth(e.target.value)}
-              />
-
-              <label className="block">
-                <div className="mb-1 text-sm text-muted">Giới tính</div>
-                <select
-                  value={gender}
-                  onChange={(e) => setGender(e.target.value)}
-                  className="h-10 w-full rounded-md border border-text/10 bg-surface px-3 text-sm text-text focus:border-brand-600/50 focus:outline-none focus:ring-2 focus:ring-brand-600/25"
-                >
-                  <option value="">—</option>
-                  <option value={GENDER.MALE}>Nam</option>
-                  <option value={GENDER.FEMALE}>Nữ</option>
-                  <option value={GENDER.OTHER}>Khác</option>
-                </select>
-              </label>
-
-              <div className="md:col-span-2 flex items-center justify-end gap-2">
-                <Button variant="secondary" onClick={handleCancel} disabled={saving}>
-                  Hủy
-                </Button>
+            <Card className="md:col-span-2">
+              <CardHeader>
+                <CardTitle>Thông tin cá nhân</CardTitle>
+                <CardDescription>Cập nhật thông tin cơ bản của bạn.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input id="email" value={email} disabled className="bg-muted" />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="fullName">Họ và tên</Label>
+                  <Input
+                    id="fullName"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    placeholder="Nguyễn Văn A"
+                  />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="dob">Ngày sinh</Label>
+                    <Input
+                      id="dob"
+                      type="date"
+                      value={dateOfBirth}
+                      onChange={(e) => setDateOfBirth(e.target.value)}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="gender">Giới tính</Label>
+                    <Select value={gender} onValueChange={setGender}>
+                      <SelectTrigger id="gender">
+                        <SelectValue placeholder="Chọn giới tính" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={GENDER.MALE}>Nam</SelectItem>
+                        <SelectItem value={GENDER.FEMALE}>Nữ</SelectItem>
+                        <SelectItem value={GENDER.OTHER}>Khác</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </CardContent>
+              <CardFooter className="flex justify-end gap-2">
+                <Button variant="outline" onClick={handleCancel} disabled={saving}>Hủy</Button>
                 <Button onClick={handleSave} disabled={saving}>
                   {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
                 </Button>
-              </div>
-            </div>
+              </CardFooter>
+            </Card>
           </div>
-        </div>
-      </section>
+        </TabsContent>
 
-      <section className="rounded-2xl border border-text/10 bg-surface p-5">
-        <h2 className="text-lg font-semibold">Bảo mật</h2>
-        <p className="mt-1 text-sm text-muted">Quản lý các thiết lập bảo mật cho tài khoản của bạn</p>
-
-        <div className="mt-5 rounded-2xl border border-text/10 bg-bg/40 p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="font-semibold">Xác thực 2 lớp (2FA)</div>
-              <p className="text-sm text-muted">Sử dụng ứng dụng Authenticator để lấy mã xác thực khi đăng nhập.</p>
-            </div>
-            <div className="flex items-center gap-3">
-              {is2FAEnabled ? (
-                <span className="rounded-full bg-success/10 px-3 py-1 text-xs font-medium text-success border border-success/20">
-                  Đang bật
-                </span>
+        <TabsContent value="tickets" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Vé của tôi</CardTitle>
+              <CardDescription>Danh sách các vé bạn đã mua và mã QR để check-in.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {ticketsLoading ? (
+                <div className="flex justify-center py-12">
+                  <Loading title="Đang tải vé..." />
+                </div>
+              ) : tickets.length === 0 ? (
+                <div className="text-center py-12 space-y-4">
+                  <div className="bg-muted w-16 h-16 rounded-full flex items-center justify-center mx-auto">
+                    <Ticket className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="font-medium">Bạn chưa có vé nào</p>
+                    <p className="text-sm text-muted-foreground">Hãy khám phá các sự kiện và đặt vé ngay.</p>
+                  </div>
+                  <Button asChild>
+                    <Link to="/">Khám phá sự kiện</Link>
+                  </Button>
+                </div>
               ) : (
-                <span className="rounded-full bg-muted/10 px-3 py-1 text-xs font-medium text-muted border border-muted/20">
-                  Đang tắt
-                </span>
+                <div className="grid gap-4">
+                  {tickets.map((t) => (
+                    <TicketItem key={t.ticket_id} ticket={t} />
+                  ))}
+                </div>
               )}
-              {!is2FAEnabled && !show2FASetup && (
-                <Button size="sm" onClick={handleSetup2FA} disabled={twoFALoading}>
-                  Thiết lập 2FA
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="security" className="space-y-6">
+          {lastLoaded.is_oauth ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Đổi mật khẩu</CardTitle>
+                <CardDescription>Quản lý mật khẩu của bạn.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Tài khoản liên kết</AlertTitle>
+                  <AlertDescription>
+                    Tài khoản của bạn được liên kết với một nhà cung cấp dịch vụ bên thứ ba (Google, Facebook, v.v.).
+                    Bạn không cần mật khẩu riêng cho TicketRush.
+                  </AlertDescription>
+                </Alert>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle>Đổi mật khẩu</CardTitle>
+                <CardDescription>Cập nhật mật khẩu của bạn để bảo vệ tài khoản.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="oldPassword">Mật khẩu hiện tại</Label>
+                  <Input
+                    id="oldPassword"
+                    type="password"
+                    value={oldPassword}
+                    onChange={(e) => setOldPassword(e.target.value)}
+                    placeholder="••••••••"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="newPassword">Mật khẩu mới</Label>
+                  <Input
+                    id="newPassword"
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="••••••••"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="confirmPassword">Xác nhận mật khẩu mới</Label>
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="••••••••"
+                  />
+                </div>
+              </CardContent>
+              <CardFooter className="flex justify-end">
+                <Button
+                  onClick={handleChangePassword}
+                  disabled={changingPassword || !oldPassword || !newPassword || !confirmPassword}
+                >
+                  {changingPassword ? 'Đang cập nhật...' : 'Cập nhật mật khẩu'}
                 </Button>
-              )}
-            </div>
-          </div>
-
-          {show2FASetup && twoFAData && (
-            <div className="mt-6 border-t border-text/10 pt-6">
-              <div className="grid gap-6 md:grid-cols-2">
-                <div className="flex flex-col items-center justify-center rounded-xl bg-white p-4">
-                  <img src={twoFAData.qr_code} alt="2FA QR Code" className="h-48 w-48" />
-                  <p className="mt-2 text-center text-xs text-gray-500">Quét mã này bằng ứng dụng Google Authenticator hoặc Authy</p>
-                </div>
-                <div className="space-y-4">
-                  <div>
-                    <div className="text-sm font-medium">Mã bí mật (Secret Key)</div>
-                    <div className="mt-1 flex items-center gap-2">
-                      <code className="flex-1 rounded-md bg-bg/60 px-3 py-2 text-sm font-mono">{twoFAData.secret}</code>
-                    </div>
-                    <p className="mt-1 text-xs text-muted">Dùng mã này nếu bạn không thể quét mã QR.</p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Input
-                      label="Nhập mã xác thực để kích hoạt"
-                      value={twoFACode}
-                      onChange={(e) => setTwoFACode(e.target.value)}
-                      placeholder="123456"
-                    />
-                    <div className="flex gap-2">
-                      <Button className="flex-1" onClick={handleEnable2FA} disabled={twoFALoading || !twoFACode}>
-                        {twoFALoading ? 'Đang kích hoạt...' : 'Kích hoạt 2FA'}
-                      </Button>
-                      <Button variant="secondary" onClick={() => setShow2FASetup(false)}>
-                        Hủy
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+              </CardFooter>
+            </Card>
           )}
-        </div>
-      </section>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Bảo mật tài khoản</CardTitle>
+              <CardDescription>Tăng cường bảo mật cho tài khoản của bạn với xác thực 2 lớp.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex items-center justify-between p-4 border rounded-lg bg-muted/30">
+                <div className="space-y-1">
+                  <p className="font-medium">Xác thực 2 lớp (2FA)</p>
+                  <p className="text-sm text-muted-foreground">Sử dụng ứng dụng Authenticator để lấy mã xác thực khi đăng nhập.</p>
+                </div>
+                  {is2FAEnabled ? (
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-1 text-green-600 font-medium text-sm">
+                        <CheckCircle2 className="h-4 w-4" /> Đang bật
+                      </div>
+                      {!show2FADisable && (
+                        <Button size="sm" variant="outline" className="text-destructive border-destructive hover:bg-destructive/10" onClick={() => setShow2FADisable(true)} disabled={twoFALoading}>
+                          Tắt bảo mật 2 lớp
+                        </Button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-4">
+                      <div className="text-muted-foreground font-medium text-sm">Đang tắt</div>
+                      {!show2FASetup && (
+                        <Button size="sm" onClick={handleSetup2FA} disabled={twoFALoading}>
+                          Thiết lập 2FA
+                        </Button>
+                      )}
+                    </div>
+                  )}
+              </div>
+
+              {show2FADisable && (
+                <div className="pt-6 border-t space-y-4">
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle>Cảnh báo bảo mật</AlertTitle>
+                    <AlertDescription>
+                      Việc tắt xác thực 2 lớp sẽ làm giảm tính bảo mật của tài khoản. Vui lòng nhập mã xác thực từ ứng dụng của bạn để xác nhận.
+                    </AlertDescription>
+                  </Alert>
+                  <div className="max-w-sm space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="disable-2fa-code">Mã xác thực (6 số)</Label>
+                      <Input
+                        id="disable-2fa-code"
+                        value={twoFACode}
+                        onChange={(e) => setTwoFACode(e.target.value)}
+                        placeholder="123456"
+                        maxLength={6}
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button variant="destructive" className="flex-1" onClick={handleDisable2FA} disabled={twoFALoading || !twoFACode}>
+                        {twoFALoading ? 'Đang xử lý...' : 'Xác nhận tắt 2FA'}
+                      </Button>
+                      <Button variant="outline" onClick={() => { setShow2FADisable(false); setTwoFACode(''); }}>Hủy</Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {show2FASetup && twoFAData && (
+                <div className="grid gap-8 md:grid-cols-2 pt-6 border-t">
+                  <div className="flex flex-col items-center justify-center space-y-4 p-6 bg-white rounded-xl border">
+                    <QRCodeCanvas value={twoFAData.qr_url} size={192} marginSize={2} />
+                    <p className="text-xs text-center text-gray-500">Quét mã này bằng ứng dụng Google Authenticator hoặc Authy</p>
+                  </div>
+                  <div className="space-y-6">
+                    <div className="space-y-2">
+                      <Label>Mã bí mật (Secret Key)</Label>
+                      <div className="flex items-center gap-2">
+                        <code className="flex-1 p-3 bg-muted rounded-md font-mono text-sm break-all">{twoFAData.secret}</code>
+                      </div>
+                      <p className="text-xs text-muted-foreground">Dùng mã này nếu bạn không thể quét mã QR.</p>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="2fa-code">Mã xác thực</Label>
+                        <Input
+                          id="2fa-code"
+                          value={twoFACode}
+                          onChange={(e) => setTwoFACode(e.target.value)}
+                          placeholder="123456"
+                          maxLength={6}
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <Button className="flex-1" onClick={handleEnable2FA} disabled={twoFALoading || !twoFACode}>
+                          {twoFALoading ? 'Đang kích hoạt...' : 'Kích hoạt 2FA'}
+                        </Button>
+                        <Button variant="outline" onClick={() => { setShow2FASetup(false); setTwoFACode(''); }}>Hủy</Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

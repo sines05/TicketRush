@@ -12,6 +12,7 @@ const (
 	NotificationPushTicket  NotificationType = "PUSH_TICKET"
 	NotificationWelcome     NotificationType = "WELCOME"
 	NotificationOrderConf   NotificationType = "ORDER_CONFIRMATION"
+	NotificationSecurity    NotificationType = "SECURITY_EVENT"
 )
 
 type NotificationTask struct {
@@ -24,6 +25,7 @@ type NotificationService interface {
 	NotifyTicketPurchased(user *models.User, tickets []models.Ticket, event *models.Event)
 	NotifyWelcome(user *models.User)
 	NotifyOrderConfirmation(user *models.User, order *models.Order)
+	NotifySecurityEvent(user *models.User, eventName string)
 	StartWorker()
 }
 
@@ -86,6 +88,12 @@ func (s *notificationService) processTask(task NotificationTask) {
 		if err := s.emailService.SendOrderConfirmationEmail(email, orderID, total); err != nil {
 			log.Printf("Error sending order confirmation email: %v", err)
 		}
+
+	case NotificationSecurity:
+		email := task.Payload["email"].(string)
+		eventName := task.Payload["event_name"].(string)
+		// For now, we just log it. In a real app, we'd send an email.
+		log.Printf("[SECURITY] User %s: %s", email, eventName)
 	}
 }
 
@@ -108,6 +116,17 @@ func (s *notificationService) NotifyOrderConfirmation(user *models.User, order *
 			"email":    user.Email,
 			"order_id": order.ID.String(),
 			"total":    order.TotalAmount,
+		},
+	}
+}
+
+func (s *notificationService) NotifySecurityEvent(user *models.User, eventName string) {
+	s.taskChan <- NotificationTask{
+		Type:   NotificationSecurity,
+		UserID: user.ID.String(),
+		Payload: map[string]interface{}{
+			"email":      user.Email,
+			"event_name": eventName,
 		},
 	}
 }

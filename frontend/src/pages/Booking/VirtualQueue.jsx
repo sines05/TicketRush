@@ -37,7 +37,8 @@ export default function VirtualQueue() {
       },
       onPassed: (st) => {
         navigate(`/booking/seats?eventId=${eventId}&queueToken=${st?.queue_token || ''}`, {
-          replace: true
+          replace: true,
+          state: { allowedAt: st?.allowed_at }
         });
       },
       onError: (e) => {

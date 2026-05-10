@@ -2,7 +2,6 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import AppRoutes from './routes/AppRoutes.jsx';
 import { CATEGORY_ALL, CATEGORY_ALL_LABEL, CATEGORY_OPTIONS, getCategoryKey } from './constants/categories.js';
 import { resolveMediaUrl } from './utils/media.js';
-import Button from './components/common/Button.jsx';
 import { useAuth } from './hooks/useAuth.js';
 import { ROLES } from './constants/roles.js';
 import logoUrl from './assets/Logo1.png';
@@ -10,6 +9,18 @@ import { useEffect, useState } from 'react';
 import HeroSlider from './components/home/HeroSlider.jsx';
 import TrendingEvents from './components/home/TrendingEvents.jsx';
 import notificationService from './services/notificationService.js';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
+import { 
+  Search, 
+  User, 
+  LogOut, 
+  Moon, 
+  Sun,
+  Menu,
+  X
+} from "lucide-react";
 
 const THEME_KEY = 'tr_theme';
 
@@ -19,22 +30,33 @@ export default function App() {
   const { user, logout } = useAuth();
 
   const [avatarFailed, setAvatarFailed] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const [theme, setTheme] = useState(() => document.documentElement.dataset.theme || 'dark');
+  const [theme, setTheme] = useState(() => {
+    const saved = localStorage.getItem(THEME_KEY);
+    if (saved) return saved;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  });
 
-  const themeLabel = theme === 'dark' ? 'Tối' : 'Sáng';
-
-  const navItemClass =
-    "relative rounded-md px-3 py-2 text-sm text-muted transition-colors hover:bg-text/5 hover:text-text after:content-[''] after:absolute after:bottom-1 after:left-3 after:right-3 after:h-px after:origin-center after:scale-x-0 after:bg-current after:opacity-80 after:transition-transform after:duration-200 hover:after:scale-x-100";
+  const navItemClass = (isActive) => cn(
+    "relative px-3 py-2 text-sm font-medium transition-colors hover:text-primary",
+    isActive ? "text-primary" : "text-muted-foreground"
+  );
 
   useEffect(() => {
     notificationService.registerPush().catch(console.error);
   }, []);
 
   useEffect(() => {
-    document.documentElement.dataset.theme = theme;
+    const root = window.document.documentElement;
+    root.classList.remove('light', 'dark');
+    root.classList.add(theme);
     localStorage.setItem(THEME_KEY, theme);
   }, [theme]);
+
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [location.pathname]);
 
   const [eventSearch, setEventSearch] = useState('');
 
@@ -74,147 +96,83 @@ export default function App() {
   const showHeroSlider = location.pathname === '/' && (!activeCategoryParam || !String(activeCategoryParam).trim() || activeCategoryKey === CATEGORY_ALL);
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen flex flex-col bg-background text-foreground">
       {!isAuthPage && (
-        <header className="sticky top-0 z-20 border-b border-text/10 bg-bg/80 backdrop-blur">
-          <div className="mx-auto flex w-full max-w-[1440px] items-center justify-between px-4 md:px-8 lg:px-12 py-4">
-            <Link to="/" className="group flex items-center gap-3 transition-transform duration-300 hover:scale-[1.02]">
-      
-              {/* Container của Logo */}
-              <div className="relative flex items-center justify-center">
-                {/* Hiệu ứng Glow tỏa sáng phía sau logo khi hover (rất xịn cho Dark Mode) */}
-                <div className="absolute -inset-1 rounded-full bg-gradient-to-r from-brand-600 to-brand-700 opacity-0 blur transition duration-500 group-hover:opacity-30 dark:group-hover:opacity-50"></div>
-        
-                {/* Logo chính: Bắt sáng nhẹ ở Dark Mode, shadow tinh tế ở Light Mode */}
-                <img 
-                  src={logoUrl} 
-                  alt="TicketRush" 
-                  className="relative h-[48px] w-[48px] object-contain drop-shadow-sm transition-all duration-300 dark:drop-shadow-[0_0_8px_rgba(56,189,248,0.4)]" 
-                />
-              </div>
-
-              {/* Phần Text */}
-              <div className="flex flex-col justify-center">
-                {/* 
-                Chữ TicketRush: 
-                - Sáng: Gradient Tím Đậm - Xanh Indigo 
-                - Tối: Gradient Xanh Lam - Tím (như trang Login)
-                */}
-                <div className="text-lg font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-brand-600 to-brand-700 dark:from-blue-400 dark:via-indigo-400 dark:to-purple-400">
-                  TicketRush
+        <header className="sticky top-0 z-50 w-full glass-surface glass-border border-b-0 shadow-lg shadow-black/5">
+          <div className="mx-auto flex h-18 max-w-[1440px] items-center justify-between px-6 md:px-10 lg:px-14">
+            <div className="flex items-center gap-4 md:gap-10">
+              <Link to="/" className="flex items-center space-x-3 transition-all hover:scale-[1.03] active:scale-95">
+                <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 shadow-inner">
+                  <img src={logoUrl} alt="TicketRush" className="h-7 w-7 object-contain" />
                 </div>
-        
-                {/* Slogan: Thu nhỏ nhẹ, giãn chữ để trông sang hơn */}
-                <div className="text-[11px] font-medium tracking-wide text-muted/80 transition-colors duration-300 group-hover:text-text/90">
-                  Săn vé nhanh • Trải nghiệm mượt
+                <div className="flex flex-col">
+                  <span className="font-extrabold text-xl leading-none tracking-tighter bg-gradient-to-br from-primary via-primary to-secondary bg-clip-text text-transparent">
+                    TicketRush
+                  </span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70 leading-none mt-1.5 hidden sm:block">
+                    Premium Ticketing
+                  </span>
                 </div>
-              </div>
-      
-            </Link>
-
-            <nav className="flex items-center gap-2">
-              <div className="hidden w-64 md:block">
-                <input
-                  value={eventSearch}
-                  onChange={(e) => setEventSearch(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key !== 'Enter') return;
-                    const q = eventSearch.trim();
-                    const params = new URLSearchParams();
-                    if (q) params.set('q', q);
-                    const nextSearch = params.toString();
-                    navigate({ pathname: '/', search: nextSearch ? `?${nextSearch}` : '' });
-                  }}
-                  placeholder="Tìm sự kiện..."
-                  className="h-9 w-full rounded-md border border-text/10 bg-surface px-3 text-sm text-text placeholder:text-muted/70 focus:border-brand-600/50 focus:outline-none focus:ring-2 focus:ring-brand-600/25"
-                />
-              </div>
-
-              <Link
-                to="/booking/queue"
-                className={navItemClass}
-              >
-                Hàng chờ
               </Link>
-
-              {user && (
-                <>
-                  <Link to="/membership" className={navItemClass}>Thành viên</Link>
-                  <Link to="/feedback" className={navItemClass}>Hỗ trợ</Link>
-                  <Link to="/my-tickets" className={navItemClass}>Vé của tôi</Link>
-                </>
-              )}
-
-              {user?.role === ROLES.ADMIN && (
-                <Link
-                  to="/admin/dashboard"
-                  className={navItemClass}
-                >
-                  Admin
+              <nav className="hidden md:flex items-center space-x-2 text-sm font-bold">
+                <Link to="/booking/queue" className={navItemClass(location.pathname === '/booking/queue')}>
+                  Hàng chờ
                 </Link>
-              )}
+                {user && (
+                  <>
+                    <Link to="/membership" className={navItemClass(location.pathname === '/membership')}>Thành viên</Link>
+                    <Link to="/my-tickets" className={navItemClass(location.pathname === '/my-tickets')}>Vé của tôi</Link>
+                    <Link to="/feedback" className={navItemClass(location.pathname === '/feedback')}>Hỗ trợ</Link>
+                  </>
+                )}
+                {user?.role === ROLES.ADMIN && (
+                  <Link to="/admin/dashboard" className={navItemClass(location.pathname.startsWith('/admin'))}>
+                    Admin
+                  </Link>
+                )}
+              </nav>
+            </div>
 
-              <div className="ml-2 flex items-center gap-2">
+            <div className="flex flex-1 items-center justify-end space-x-5">
+              <div className="hidden lg:flex w-full max-w-[280px] items-center space-x-2">
+                <div className="relative w-full group">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground transition-colors group-focus-within:text-primary" />
+                  <Input
+                    type="search"
+                    placeholder="Tìm sự kiện..."
+                    className="pl-9 h-10 bg-muted/30 border-none focus-visible:ring-2 focus-visible:ring-primary/20 transition-all rounded-xl"
+                    value={eventSearch}
+                    onChange={(e) => setEventSearch(e.target.value)}
+                  />
+                </div>
+              </div>
+              
+              <div className="flex items-center space-x-3">
                 <Button
                   variant="ghost"
-                  size="sm"
-                  onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
-                  className="relative text-muted hover:text-text after:content-[''] after:absolute after:bottom-1 after:left-3 after:right-3 after:h-px after:origin-center after:scale-x-0 after:bg-current after:opacity-80 after:transition-transform after:duration-200 hover:after:scale-x-100"
-                  aria-label={`Đổi giao diện: ${themeLabel}`}
-                  title={`Giao diện: ${themeLabel}`}
+                  size="icon"
+                  onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                  className="h-10 w-10 rounded-xl bg-muted/20 hover:bg-muted/40 transition-all"
                 >
-                  {theme === 'dark' ? (
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="h-5 w-5"
-                      aria-hidden="true"
-                    >
-                      <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" />
-                    </svg>
-                  ) : (
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="h-5 w-5"
-                      aria-hidden="true"
-                    >
-                      <circle cx="12" cy="12" r="4" />
-                      <path d="M12 2v2" />
-                      <path d="M12 20v2" />
-                      <path d="M4.93 4.93l1.41 1.41" />
-                      <path d="M17.66 17.66l1.41 1.41" />
-                      <path d="M2 12h2" />
-                      <path d="M20 12h2" />
-                      <path d="M6.34 17.66l-1.41 1.41" />
-                      <path d="M19.07 4.93l-1.41 1.41" />
-                    </svg>
-                  )}
+                  {theme === 'dark' ? <Sun className="h-5 w-5 text-yellow-500" /> : <Moon className="h-5 w-5 text-indigo-400" />}
+                  <span className="sr-only">Toggle theme</span>
                 </Button>
+
                 {!user ? (
-                  <Button
-                    variant="secondary"
-                    onClick={() => navigate('/auth/login')}
-                    size="sm"
-                  >
+                  <Button variant="default" size="sm" onClick={() => navigate('/auth/login')} className="rounded-xl px-6 font-bold shadow-lg shadow-primary/20">
                     Đăng nhập
                   </Button>
                 ) : (
-                  <>
-                    <button
-                      type="button"
+                  <div className="flex items-center gap-3">
+                    <div className="hidden md:flex flex-col items-end">
+                      <span className="text-xs font-bold leading-none">{user.full_name || user.email.split('@')[0]}</span>
+                      <span className="text-[10px] font-bold text-primary uppercase tracking-tighter leading-none mt-1">{user.role}</span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-10 w-10 rounded-xl border-2 border-primary/10 bg-muted/30 overflow-hidden hover:border-primary/30 transition-all"
                       onClick={() => navigate('/profile')}
-                      className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border border-text/10 bg-bg/40 text-sm font-semibold text-text hover:bg-text/5"
-                      aria-label="Hồ sơ cá nhân"
-                      title="Hồ sơ cá nhân"
                     >
                       {user.avatar_url && !avatarFailed ? (
                         <img
@@ -224,36 +182,98 @@ export default function App() {
                           onError={() => setAvatarFailed(true)}
                         />
                       ) : (
-                        <span className="text-xs text-muted">
-                          {String(user.full_name || user.email || 'U').trim().slice(0, 1).toUpperCase()}
-                        </span>
+                        <User className="h-5 w-5 text-muted-foreground" />
                       )}
-                    </button>
-
-                    <span className="hidden text-sm text-muted sm:inline">{user.full_name || user.email}</span>
-                    <Button
-                      variant="secondary"
-                      onClick={() => {
-                        logout();
-                        navigate('/');
-                      }}
-                      size="sm"
-                    >
-                      Đăng xuất
                     </Button>
-                  </>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-10 w-10 md:hidden rounded-xl bg-muted/20"
+                      onClick={() => setIsMobileMenuOpen(true)}
+                    >
+                      <Menu className="h-6 w-6" />
+                    </Button>
+                  </div>
                 )}
               </div>
-            </nav>
+            </div>
+          </div>
+
+          {/* Mobile Menu Slide-over */}
+          <div className={cn(
+            "fixed inset-0 z-[100] md:hidden transition-all duration-500",
+            isMobileMenuOpen ? "visible" : "invisible"
+          )}>
+            {/* Backdrop */}
+            <div 
+              className={cn(
+                "absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-500",
+                isMobileMenuOpen ? "opacity-100" : "opacity-0"
+              )}
+              onClick={() => setIsMobileMenuOpen(false)}
+            />
+            
+            {/* Panel */}
+            <div className={cn(
+              "absolute right-0 top-0 h-full w-[300px] glass-surface glass-border border-y-0 border-r-0 p-8 shadow-2xl transition-transform duration-500 ease-out flex flex-col",
+              isMobileMenuOpen ? "translate-x-0" : "translate-x-full"
+            )}>
+              <div className="flex items-center justify-between mb-10">
+                <span className="font-extrabold text-xl tracking-tighter">Menu</span>
+                <Button variant="ghost" size="icon" onClick={() => setIsMobileMenuOpen(false)} className="rounded-xl">
+                  <X className="h-6 w-6" />
+                </Button>
+              </div>
+
+              <div className="relative w-full mb-8">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="search"
+                  placeholder="Tìm sự kiện..."
+                  className="pl-9 h-11 bg-muted/30 border-none rounded-xl"
+                  value={eventSearch}
+                  onChange={(e) => setEventSearch(e.target.value)}
+                />
+              </div>
+
+              <nav className="flex flex-col space-y-1 flex-1">
+                <Link to="/booking/queue" className="px-4 py-3 text-base font-bold hover:text-primary hover:bg-primary/5 rounded-xl transition-all">Hàng chờ</Link>
+                {user && (
+                  <>
+                    <Link to="/membership" className="px-4 py-3 text-base font-bold hover:text-primary hover:bg-primary/5 rounded-xl transition-all">Thành viên</Link>
+                    <Link to="/my-tickets" className="px-4 py-3 text-base font-bold hover:text-primary hover:bg-primary/5 rounded-xl transition-all">Vé của tôi</Link>
+                    <Link to="/feedback" className="px-4 py-3 text-base font-bold hover:text-primary hover:bg-primary/5 rounded-xl transition-all">Hỗ trợ</Link>
+                    <Link to="/profile" className="px-4 py-3 text-base font-bold hover:text-primary hover:bg-primary/5 rounded-xl transition-all">Hồ sơ cá nhân</Link>
+                  </>
+                )}
+                {user?.role === ROLES.ADMIN && (
+                  <Link to="/admin/dashboard" className="px-4 py-3 text-base font-bold hover:text-primary hover:bg-primary/5 rounded-xl transition-all text-primary">Admin Dashboard</Link>
+                )}
+              </nav>
+
+              {user && (
+                <div className="pt-6 border-t border-white/10">
+                  <button
+                    onClick={() => {
+                      logout();
+                      navigate('/');
+                    }}
+                    className="flex w-full items-center px-4 py-4 text-base font-bold text-destructive hover:bg-destructive/10 rounded-xl transition-all"
+                  >
+                    <LogOut className="mr-3 h-5 w-5" />
+                    Đăng xuất
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
       )}
 
       {location.pathname === '/' && (
-        <div className="border-b border-text/10 bg-bg/80 backdrop-blur">
+        <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           <div className="mx-auto w-full max-w-[1440px] px-4 md:px-8 lg:px-12">
-            {/* Thêm class ẩn thanh cuộn (scrollbar) để giao diện vuốt ngang nhìn mượt và sạch hơn */}
-            <nav className="flex items-center gap-2 overflow-x-auto py-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+            <nav className="flex items-center gap-1 overflow-x-auto py-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
               {(() => {
                 const params = new URLSearchParams(location.search);
                 const active = params.get('category') || CATEGORY_ALL;
@@ -266,48 +286,33 @@ export default function App() {
                   navigate({ pathname: '/', search: nextSearch ? `?${nextSearch}` : '' }, { replace: true });
                 }
 
-                // Nơi định nghĩa các class dùng chung cho mỗi nút danh mục
-                const baseItemClass = "group relative whitespace-nowrap px-4 py-3 text-sm font-medium transition-colors duration-300";
-
                 return (
                   <>
-                    {/* Nút "Tất cả" */}
-                    <button 
-                      type="button" 
-                      onClick={() => go(CATEGORY_ALL)} 
-                      className={`${baseItemClass} ${active === CATEGORY_ALL ? 'text-text font-semibold' : 'text-muted hover:text-text'}`}
+                    <Button
+                      variant={active === CATEGORY_ALL ? "secondary" : "ghost"}
+                      size="sm"
+                      onClick={() => go(CATEGORY_ALL)}
+                      className={cn(
+                        "rounded-full whitespace-nowrap px-4",
+                        active === CATEGORY_ALL && "bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary"
+                      )}
                     >
                       {CATEGORY_ALL_LABEL}
-                      
-                      {/* Đường gạch chân khi đang Active (có màu gradient và phát sáng nhẹ) */}
-                      {active === CATEGORY_ALL && (
-                        <span className="absolute bottom-0 left-0 h-[2px] w-full bg-gradient-to-r from-brand-600 to-brand-700 shadow-[0_-2px_8px_rgb(var(--tr-brand-600)/0.45)]"></span>
-                      )}
-                      {/* Đường gạch chân trượt mượt mà khi Hover (chỉ hiện khi chưa Active) */}
-                      {active !== CATEGORY_ALL && (
-                        <span className="absolute bottom-0 left-0 h-[2px] w-full origin-center scale-x-0 bg-text/30 transition-transform duration-300 ease-out group-hover:scale-x-100"></span>
-                      )}
-                    </button>
+                    </Button>
 
-                    {/* Vòng lặp các nút Danh mục còn lại */}
                     {CATEGORY_OPTIONS.map((c) => (
-                      <button 
-                        key={c.key} 
-                        type="button" 
-                        onClick={() => go(c.key)} 
-                        className={`${baseItemClass} ${active === c.key ? 'text-text font-semibold' : 'text-muted hover:text-text'}`}
+                      <Button
+                        key={c.key}
+                        variant={active === c.key ? "secondary" : "ghost"}
+                        size="sm"
+                        onClick={() => go(c.key)}
+                        className={cn(
+                          "rounded-full whitespace-nowrap px-4",
+                          active === c.key && "bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary"
+                        )}
                       >
                         {c.label}
-
-                        {/* Đường gạch chân khi đang Active */}
-                        {active === c.key && (
-                          <span className="absolute bottom-0 left-0 h-[2px] w-full bg-gradient-to-r from-brand-600 to-brand-700 shadow-[0_-2px_8px_rgb(var(--tr-brand-600)/0.45)]"></span>
-                        )}
-                        {/* Đường gạch chân trượt khi Hover */}
-                        {active !== c.key && (
-                          <span className="absolute bottom-0 left-0 h-[2px] w-full origin-center scale-x-0 bg-text/30 transition-transform duration-300 ease-out group-hover:scale-x-100"></span>
-                        )}
-                      </button>
+                      </Button>
                     ))}
                   </>
                 );
@@ -317,26 +322,63 @@ export default function App() {
         </div>
       )}
 
-      {showHeroSlider && (
-        <div className="mx-auto w-full max-w-[1440px] px-4 md:px-8 lg:px-12 pt-5">
-          <HeroSlider />
-        </div>
-      )}
+      <div className="flex-1">
+        {showHeroSlider && (
+          <div className="mx-auto w-full max-w-[1440px] px-4 md:px-8 lg:px-12 pt-6">
+            <HeroSlider />
+          </div>
+        )}
 
-      {showHeroSlider && (
-        <div className="mx-auto w-full max-w-[1440px] px-4 md:px-8 lg:px-12 pt-5">
-          <TrendingEvents />
-        </div>
-      )}
+        {showHeroSlider && (
+          <div className="mx-auto w-full max-w-[1440px] px-4 md:px-8 lg:px-12 pt-8">
+            <TrendingEvents />
+          </div>
+        )}
 
-      <main className="mx-auto w-full max-w-[1440px] px-4 md:px-8 lg:px-12 py-6">
-        <AppRoutes />
-      </main>
+        <main className="mx-auto w-full max-w-[1440px] px-4 md:px-8 lg:px-12 py-8">
+          <AppRoutes />
+        </main>
+      </div>
 
       {!isAuthPage && (
-        <footer className="border-t border-text/10">
-          <div className="mx-auto w-full max-w-[1440px] px-4 md:px-8 lg:px-12 py-6 text-xs text-muted">
-            TicketRush • Demo UI (React) • Có hỗ trợ light/dark
+        <footer className="border-t bg-muted/30">
+          <div className="mx-auto w-full max-w-[1440px] px-4 md:px-8 lg:px-12 py-12">
+            <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
+              <div className="col-span-1 md:col-span-2">
+                <Link to="/" className="flex items-center space-x-2">
+                  <img src={logoUrl} alt="TicketRush" className="h-6 w-6" />
+                  <span className="font-bold text-lg tracking-tight">TicketRush</span>
+                </Link>
+                <p className="mt-4 text-sm text-muted-foreground max-w-xs">
+                  Nền tảng săn vé sự kiện hàng đầu, mang đến trải nghiệm mua vé nhanh chóng, an toàn và minh bạch.
+                </p>
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold uppercase tracking-wider">Khám phá</h3>
+                <ul className="mt-4 space-y-2">
+                  <li><Link to="/" className="text-sm text-muted-foreground hover:text-primary transition-colors">Sự kiện mới</Link></li>
+                  <li><Link to="/" className="text-sm text-muted-foreground hover:text-primary transition-colors">Phổ biến</Link></li>
+                  <li><Link to="/booking/queue" className="text-sm text-muted-foreground hover:text-primary transition-colors">Hàng chờ</Link></li>
+                </ul>
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold uppercase tracking-wider">Hỗ trợ</h3>
+                <ul className="mt-4 space-y-2">
+                  <li><Link to="/feedback" className="text-sm text-muted-foreground hover:text-primary transition-colors">Liên hệ</Link></li>
+                  <li><Link to="/membership" className="text-sm text-muted-foreground hover:text-primary transition-colors">Thành viên</Link></li>
+                  <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">Điều khoản</a></li>
+                </ul>
+              </div>
+            </div>
+            <div className="mt-12 border-t pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
+              <p className="text-xs text-muted-foreground">
+                © {new Date().getFullYear()} TicketRush. All rights reserved.
+              </p>
+              <div className="flex space-x-6">
+                <span className="text-xs text-muted-foreground">Demo UI (React)</span>
+                <span className="text-xs text-muted-foreground">Ocean Breeze / Dark Amethyst</span>
+              </div>
+            </div>
           </div>
         </footer>
       )}

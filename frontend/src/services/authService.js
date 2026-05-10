@@ -120,10 +120,12 @@ async function resetPassword({ reset_token, new_password }) {
 }
 
 async function socialLogin(provider) {
+  const publicApiUrl = import.meta.env.VITE_PUBLIC_API_URL || 'http://localhost:8080';
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '/api/v1';
   if (provider === 'google') {
-    window.location.href = `${import.meta.env.VITE_API_BASE_URL}${API_ROUTES.AUTH_GOOGLE_LOGIN}`;
+    window.location.href = `${publicApiUrl}${apiBaseUrl}${API_ROUTES.AUTH_GOOGLE_LOGIN}`;
   } else if (provider === 'facebook') {
-    window.location.href = `${import.meta.env.VITE_API_BASE_URL}${API_ROUTES.AUTH_FACEBOOK_LOGIN}`;
+    window.location.href = `${publicApiUrl}${apiBaseUrl}${API_ROUTES.AUTH_FACEBOOK_LOGIN}`;
   }
 }
 
@@ -142,4 +144,9 @@ async function verify2FALogin(user_id, code) {
   return unwrap(res);
 }
 
-export default { login, register, forgotPassword, resetPassword, socialLogin, setup2FA, enable2FA, verify2FALogin };
+async function disable2FA(code) {
+  const res = await api.post(API_ROUTES.AUTH_DISABLE_2FA, { code });
+  return unwrap(res);
+}
+
+export default { login, register, forgotPassword, resetPassword, socialLogin, setup2FA, enable2FA, verify2FALogin, disable2FA };

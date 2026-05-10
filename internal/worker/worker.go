@@ -63,6 +63,38 @@ func (s *workerService) StartWorkers() {
 			}
 		}
 	}()
+
+	// Session Timeout Worker
+	tickerSessions := time.NewTicker(1 * time.Minute)
+	go func() {
+		for range tickerSessions.C {
+			s.releaseExpiredSessions()
+		}
+	}()
+}
+
+func (s *workerService) releaseExpiredSessions() {
+	ctx := context.Background()
+	sessions, err := s.queueRepo.ListSessions(ctx)
+	if err != nil {
+		log.Printf("Error listing sessions: %v", err)
+		return
+	}
+
+	now := time.Now().UTC()
+	for _, session := range sessions {
+		if session.Status == "allowed" && session.OrderID == nil && session.AllowedAt != nil {
+			if now.Sub(*session.AllowedAt) > 15*time.Minute+30*time.Second {
+				log.Printf("Expiring session for user %s on event %s", session.UserID, session.EventID)
+				if err := s.queueRepo.RemoveFromActive(ctx, session.EventID, session.UserID); err != nil {
+					log.Printf("Error removing user from active: %v", err)
+				}
+				if err := s.queueRepo.DeleteSession(ctx, session.Token, session.EventID, session.UserID); err != nil {
+					log.Printf("Error deleting session: %v", err)
+				}
+			}
+		}
+	}
 }
 
 func (s *workerService) releaseExpiredOrders() {

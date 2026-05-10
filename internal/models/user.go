@@ -26,6 +26,7 @@ type User struct {
 	Email            string          `gorm:"uniqueIndex;not null;type:varchar(255)" json:"email"`
 	PasswordHash     string          `gorm:"not null;type:varchar(255)" json:"-"`
 	FullName         string          `gorm:"not null;type:varchar(100)" json:"full_name"`
+	AvatarURL        string          `gorm:"type:varchar(255)" json:"avatar_url"`
 	Role             UserRole        `gorm:"type:varchar(20);default:'CUSTOMER'" json:"role"`
 	Gender           GenderType      `gorm:"type:varchar(20)" json:"gender"`
 	DateOfBirth      time.Time       `gorm:"type:date" json:"date_of_birth"`

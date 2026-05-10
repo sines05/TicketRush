@@ -1,0 +1,302 @@
+package tests
+
+import (
+	"testing"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/pquerna/otp/totp"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"golang.org/x/crypto/bcrypt"
+	"ticketrush/internal/config"
+	"ticketrush/internal/models"
+	"ticketrush/internal/service"
+)
+
+// MockUserRepository is a mock of UserRepository
+type MockUserRepository struct {
+	mock.Mock
+}
+
+func (m *MockUserRepository) Create(user *models.User) error {
+	args := m.Called(user)
+	return args.Error(0)
+}
+
+func (m *MockUserRepository) FindByEmail(email string) (*models.User, error) {
+	args := m.Called(email)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.User), args.Error(1)
+}
+
+func (m *MockUserRepository) FindByID(id uuid.UUID) (*models.User, error) {
+	args := m.Called(id)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.User), args.Error(1)
+}
+
+func (m *MockUserRepository) Update(user *models.User) error {
+	args := m.Called(user)
+	return args.Error(0)
+}
+
+func (m *MockUserRepository) UpdatePassword(userID uuid.UUID, newPasswordHash string) error {
+	args := m.Called(userID, newPasswordHash)
+	return args.Error(0)
+}
+
+func (m *MockUserRepository) CreatePasswordReset(reset *models.PasswordReset) error {
+	args := m.Called(reset)
+	return args.Error(0)
+}
+
+func (m *MockUserRepository) FindPasswordResetByToken(token string) (*models.PasswordReset, error) {
+	args := m.Called(token)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.PasswordReset), args.Error(1)
+}
+
+func (m *MockUserRepository) DeletePasswordReset(token string) error {
+	args := m.Called(token)
+	return args.Error(0)
+}
+
+func (m *MockUserRepository) Update2FA(userID uuid.UUID, enabled bool, secret string) error {
+	args := m.Called(userID, enabled, secret)
+	return args.Error(0)
+}
+
+func (m *MockUserRepository) UpdateNotificationToken(userID uuid.UUID, token string) error {
+	args := m.Called(userID, token)
+	return args.Error(0)
+}
+
+// MockNotificationService is a mock of NotificationService
+type MockNotificationService struct {
+	mock.Mock
+}
+
+func (m *MockNotificationService) NotifyTicketPurchased(user *models.User, tickets []models.Ticket, event *models.Event) {
+	m.Called(user, tickets, event)
+}
+
+func (m *MockNotificationService) NotifyWelcome(user *models.User) {
+	m.Called(user)
+}
+
+func (m *MockNotificationService) NotifyOrderConfirmation(user *models.User, order *models.Order) {
+	m.Called(user, order)
+}
+
+func (m *MockNotificationService) NotifySecurityEvent(user *models.User, eventName string) {
+	m.Called(user, eventName)
+}
+
+func (m *MockNotificationService) StartWorker() {
+	m.Called()
+}
+
+func TestUpdateProfile_Success(t *testing.T) {
+	mockRepo := new(MockUserRepository)
+	mockNotif := new(MockNotificationService)
+	cfg := &config.Config{JWTSecret: "secret"}
+	authServ := service.NewAuthService(mockRepo, mockNotif, cfg)
+
+	userID := uuid.New()
+	dobStr := "1990-01-01"
+	parsedDOB, _ := time.Parse("2006-01-02", dobStr)
+	
+	existingUser := &models.User{
+		BaseModel: models.BaseModel{ID: userID},
+		FullName:  "Old Name",
+		Email:     "test@example.com",
+	}
+
+	mockRepo.On("FindByID", userID).Return(existingUser, nil)
+	mockRepo.On("Update", mock.AnythingOfType("*models.User")).Return(nil)
+
+	updatedUser, err := authServ.UpdateProfile(userID, "New Name", "http://avatar.com", models.GenderMale, dobStr)
+
+	assert.NoError(t, err)
+	assert.Equal(t, "New Name", updatedUser.FullName)
+	assert.Equal(t, "http://avatar.com", updatedUser.AvatarURL)
+	assert.Equal(t, models.GenderMale, updatedUser.Gender)
+	assert.Equal(t, parsedDOB, updatedUser.DateOfBirth)
+	mockRepo.AssertExpectations(t)
+}
+
+func TestUpdateProfile_InvalidDOB(t *testing.T) {
+	mockRepo := new(MockUserRepository)
+	mockNotif := new(MockNotificationService)
+	cfg := &config.Config{JWTSecret: "secret"}
+	authServ := service.NewAuthService(mockRepo, mockNotif, cfg)
+
+	userID := uuid.New()
+	dobStr := "invalid-date"
+	
+	existingUser := &models.User{
+		BaseModel: models.BaseModel{ID: userID},
+	}
+
+	mockRepo.On("FindByID", userID).Return(existingUser, nil)
+
+	_, err := authServ.UpdateProfile(userID, "New Name", "http://avatar.com", models.GenderMale, dobStr)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid date_of_birth format")
+}
+
+func TestChangePassword_Success(t *testing.T) {
+	mockRepo := new(MockUserRepository)
+	mockNotif := new(MockNotificationService)
+	cfg := &config.Config{JWTSecret: "secret"}
+	authServ := service.NewAuthService(mockRepo, mockNotif, cfg)
+
+	userID := uuid.New()
+	oldPassword := "oldpassword"
+	newPassword := "newpassword"
+	hashedOldPassword, _ := bcrypt.GenerateFromPassword([]byte(oldPassword), bcrypt.DefaultCost)
+
+	existingUser := &models.User{
+		BaseModel:    models.BaseModel{ID: userID},
+		PasswordHash: string(hashedOldPassword),
+	}
+
+	mockRepo.On("FindByID", userID).Return(existingUser, nil)
+	mockRepo.On("UpdatePassword", userID, mock.AnythingOfType("string")).Return(nil)
+
+	err := authServ.ChangePassword(userID, oldPassword, newPassword)
+
+	assert.NoError(t, err)
+	mockRepo.AssertExpectations(t)
+}
+
+func TestChangePassword_IncorrectOldPassword(t *testing.T) {
+	mockRepo := new(MockUserRepository)
+	mockNotif := new(MockNotificationService)
+	cfg := &config.Config{JWTSecret: "secret"}
+	authServ := service.NewAuthService(mockRepo, mockNotif, cfg)
+
+	userID := uuid.New()
+	oldPassword := "oldpassword"
+	wrongPassword := "wrongpassword"
+	newPassword := "newpassword"
+	hashedOldPassword, _ := bcrypt.GenerateFromPassword([]byte(oldPassword), bcrypt.DefaultCost)
+
+	existingUser := &models.User{
+		BaseModel:    models.BaseModel{ID: userID},
+		PasswordHash: string(hashedOldPassword),
+	}
+
+	mockRepo.On("FindByID", userID).Return(existingUser, nil)
+
+	err := authServ.ChangePassword(userID, wrongPassword, newPassword)
+
+	assert.Error(t, err)
+	assert.Equal(t, "invalid old password", err.Error())
+	mockRepo.AssertNotCalled(t, "UpdatePassword", mock.Anything, mock.Anything)
+}
+
+func TestChangePassword_OAuthAccount(t *testing.T) {
+	mockRepo := new(MockUserRepository)
+	mockNotif := new(MockNotificationService)
+	cfg := &config.Config{JWTSecret: "secret"}
+	authServ := service.NewAuthService(mockRepo, mockNotif, cfg)
+
+	userID := uuid.New()
+	
+	existingUser := &models.User{
+		BaseModel:    models.BaseModel{ID: userID},
+		IsOAuth:      true,
+		PasswordHash: "",
+	}
+
+	mockRepo.On("FindByID", userID).Return(existingUser, nil)
+
+	err := authServ.ChangePassword(userID, "any", "new")
+
+	assert.Error(t, err)
+	assert.Equal(t, "cannot change password for OAuth account without password", err.Error())
+}
+
+func TestDisable2FA_Success(t *testing.T) {
+	mockRepo := new(MockUserRepository)
+	mockNotif := new(MockNotificationService)
+	cfg := &config.Config{JWTSecret: "secret"}
+	authServ := service.NewAuthService(mockRepo, mockNotif, cfg)
+
+	userID := uuid.New()
+	secret := "JBSWY3DPEHPK3PXP" // Example secret
+	code, _ := totp.GenerateCode(secret, time.Now().UTC())
+
+	existingUser := &models.User{
+		BaseModel:        models.BaseModel{ID: userID},
+		TwoFactorEnabled: true,
+		TwoFactorSecret:  secret,
+	}
+
+	mockRepo.On("FindByID", userID).Return(existingUser, nil)
+	mockRepo.On("Update2FA", userID, false, "").Return(nil)
+	mockNotif.On("NotifySecurityEvent", existingUser, "Two-Factor Authentication Disabled").Return()
+
+	err := authServ.Disable2FA(userID, code)
+
+	assert.NoError(t, err)
+	mockRepo.AssertExpectations(t)
+	mockNotif.AssertExpectations(t)
+}
+
+func TestDisable2FA_InvalidCode(t *testing.T) {
+	mockRepo := new(MockUserRepository)
+	mockNotif := new(MockNotificationService)
+	cfg := &config.Config{JWTSecret: "secret"}
+	authServ := service.NewAuthService(mockRepo, mockNotif, cfg)
+
+	userID := uuid.New()
+	secret := "JBSWY3DPEHPK3PXP"
+	invalidCode := "000000"
+
+	existingUser := &models.User{
+		BaseModel:        models.BaseModel{ID: userID},
+		TwoFactorEnabled: true,
+		TwoFactorSecret:  secret,
+	}
+
+	mockRepo.On("FindByID", userID).Return(existingUser, nil)
+
+	err := authServ.Disable2FA(userID, invalidCode)
+
+	assert.Error(t, err)
+	assert.Equal(t, "invalid verification code", err.Error())
+	mockRepo.AssertNotCalled(t, "Update2FA", mock.Anything, mock.Anything, mock.Anything)
+	mockNotif.AssertNotCalled(t, "NotifySecurityEvent", mock.Anything, mock.Anything)
+}
+
+func TestDisable2FA_AlreadyDisabled(t *testing.T) {
+	mockRepo := new(MockUserRepository)
+	mockNotif := new(MockNotificationService)
+	cfg := &config.Config{JWTSecret: "secret"}
+	authServ := service.NewAuthService(mockRepo, mockNotif, cfg)
+
+	userID := uuid.New()
+
+	existingUser := &models.User{
+		BaseModel:        models.BaseModel{ID: userID},
+		TwoFactorEnabled: false,
+	}
+
+	mockRepo.On("FindByID", userID).Return(existingUser, nil)
+
+	err := authServ.Disable2FA(userID, "123456")
+
+	assert.Error(t, err)
+	assert.Equal(t, "2FA is not enabled", err.Error())
+	mockRepo.AssertNotCalled(t, "Update2FA", mock.Anything, mock.Anything, mock.Anything)
+}

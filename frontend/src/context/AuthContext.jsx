@@ -46,7 +46,9 @@ export function AuthProvider({ children }) {
       role: data.role,
       avatar_url: data.avatar_url ?? null,
       gender: data.gender ?? null,
-      date_of_birth: data.date_of_birth ?? null
+      date_of_birth: data.date_of_birth ?? null,
+      is_oauth: data.is_oauth ?? false,
+      is_2fa_enabled: data.is_2fa_enabled ?? false
     };
 
     setToken(data.access_token);
@@ -71,7 +73,9 @@ export function AuthProvider({ children }) {
         role: userData.role,
         avatar_url: userData.avatar_url ?? null,
         gender: userData.gender ?? null,
-        date_of_birth: userData.date_of_birth ?? null
+        date_of_birth: userData.date_of_birth ?? null,
+        is_oauth: userData.is_oauth ?? false,
+        is_2fa_enabled: userData.is_2fa_enabled ?? false
       };
 
       setUser(nextUser);
@@ -106,7 +110,9 @@ export function AuthProvider({ children }) {
       role: data.role,
       avatar_url: data.avatar_url ?? null,
       gender: data.gender ?? gender ?? null,
-      date_of_birth: data.date_of_birth ?? date_of_birth ?? null
+      date_of_birth: data.date_of_birth ?? date_of_birth ?? null,
+      is_oauth: data.is_oauth ?? false,
+      is_2fa_enabled: data.is_2fa_enabled ?? false
     };
 
     setToken(data.access_token);
@@ -127,7 +133,9 @@ export function AuthProvider({ children }) {
       role: data.role,
       avatar_url: data.avatar_url ?? null,
       gender: data.gender ?? null,
-      date_of_birth: data.date_of_birth ?? null
+      date_of_birth: data.date_of_birth ?? null,
+      is_oauth: data.is_oauth ?? false,
+      is_2fa_enabled: data.is_2fa_enabled ?? true
     };
 
     setToken(data.access_token);

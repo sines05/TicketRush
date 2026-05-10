@@ -46,7 +46,7 @@ func main() {
 
 	userRepo := repository.NewUserRepository(db)
 	authService := service.NewAuthService(userRepo, notificationService, cfg)
-	authHandler := handler.NewAuthHandler(authService)
+	authHandler := handler.NewAuthHandler(authService, cfg)
 
 	eventRepo := repository.NewEventRepository(db)
 	eventMetricsRepo := repository.NewEventMetricsRepository(rdb)
@@ -66,8 +66,6 @@ func main() {
 	complaintRepo := repository.NewComplaintRepository(db)
 	complaintHandler := handler.NewComplaintHandler(complaintRepo)
 
-	adminDashboardHandler := handler.NewAdminDashboardHandler(orderRepo, eventRepo)
-
 	workerService := worker.NewWorkerService(db, queueService, queueRepo, hub, orderRepo)
 	workerService.StartWorkers()
 
@@ -76,9 +74,9 @@ func main() {
 
 	// CORS Middleware
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:5173"},
+		AllowOrigins:     []string{cfg.FrontendURL},
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "X-Queue-Token"},
 		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
 	}))
@@ -128,6 +126,7 @@ func main() {
 			// 2FA Management
 			protected.POST("/auth/setup-2fa", authHandler.Setup2FA)
 			protected.POST("/auth/enable-2fa", authHandler.Enable2FA)
+			protected.POST("/auth/disable-2fa", authHandler.Disable2FA)
 
 			// Membership
 			protected.POST("/membership/upgrade", membershipHandler.UpgradeTier)
@@ -140,6 +139,9 @@ func main() {
 			protected.GET("/complaints/my", complaintHandler.GetMyComplaints)
 
 			protected.GET("/users/me", authHandler.GetMe)
+			protected.PATCH("/users/me", authHandler.UpdateMe)
+			protected.POST("/users/change-password", authHandler.ChangePassword)
+			protected.POST("/users/notification-token", authHandler.UpdateNotificationToken)
 
 			// Admin Routes
 			admin := protected.Group("/admin")
@@ -149,14 +151,12 @@ func main() {
 				admin.POST("/events", eventHandler.CreateEvent)
 				admin.PUT("/events/:id", eventHandler.UpdateEvent)
 				admin.DELETE("/events/:id", eventHandler.DeleteEvent)
-				admin.GET("/dashboard/stats", adminDashboardHandler.GetStats)
+				admin.GET("/dashboard/stats", eventHandler.GetStats)
 				admin.GET("/tickets", orderHandler.GetTickets)
 				admin.POST("/tickets/check-in", orderHandler.CheckInTicket)
 				admin.GET("/complaints", complaintHandler.AdminGetAllComplaints)
 				admin.PATCH("/complaints/:id", complaintHandler.AdminUpdateComplaintStatus)
 			}
-
-			protected.POST("/users/notification-token", authHandler.UpdateNotificationToken)
 		}
 	}
 
