@@ -5,7 +5,6 @@ import { formatDateTime, formatVND } from '@/utils/formatters';
 import { resolveMediaUrl } from '@/utils/media';
 import bannerFallback from '@/assets/banner-sample.svg';
 import { Calendar } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { getCategoryLabel } from '@/constants/categories';
 
 const EventCard = memo(({ event }) => {

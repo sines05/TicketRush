@@ -8,7 +8,7 @@ import { formatVND } from '../../utils/formatters.js';
 import eventService from '../../services/eventService.js';
 import uploadService from '../../services/uploadService.js';
 import { resolveMediaUrl } from '../../utils/media.js';
-import { CATEGORY_OPTIONS, getCategoryKey, getCategoryLabel } from '../../constants/categories.js';
+import { CATEGORY_OPTIONS, getCategoryKey } from '../../constants/categories.js';
 
 function rowIndexToLabel(index) {
   return String.fromCharCode('A'.charCodeAt(0) + index);

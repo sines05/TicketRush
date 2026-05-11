@@ -29,14 +29,16 @@ type EventCreateRequest struct {
 	Category    string       `json:"category"`
 	Location    string       `json:"location"`
 	Address     string       `json:"address"`
-	Latitude    float64      `json:"latitude"`
-	Longitude   float64      `json:"longitude"`
+	Latitude    *float64     `json:"latitude"`
+	Longitude   *float64     `json:"longitude"`
 	StartTime   string       `json:"start_time"` // ISO8601
 	EndTime     string       `json:"end_time"`   // ISO8601
-	IsPublished bool         `json:"is_published"`
-	IsFeatured  bool         `json:"is_featured"`
-	IsHero      bool         `json:"is_hero"`
-	Zones       []ZoneConfig `json:"zones"`
+	IsPublished   bool           `json:"is_published"`
+	IsFeatured    bool           `json:"is_featured"`
+	IsHero        bool           `json:"is_hero"`
+	OrganizerMeta models.JSONMap `json:"organizer_meta"`
+	EventMeta     models.JSONMap `json:"event_meta"`
+	Zones         []ZoneConfig   `json:"zones"`
 }
 
 type EventService interface {
@@ -52,6 +54,7 @@ type EventService interface {
 	GetAdminStats(eventID *uuid.UUID) (map[string]interface{}, error)
 	UpdateEvent(id uuid.UUID, req EventCreateRequest) (*models.Event, error)
 	DeleteEvent(id uuid.UUID) error
+	GetSimilarEvents(ctx context.Context, eventID uuid.UUID) ([]models.Event, error)
 }
 
 type TrendingEvent struct {
@@ -108,9 +111,11 @@ func (s *eventService) CreateEvent(req EventCreateRequest) (*models.Event, error
 			Category:    req.Category,
 			StartTime:   startTime,
 			EndTime:     endTime,
-			IsPublished: req.IsPublished,
-			IsFeatured:  req.IsFeatured,
-			IsHero:      req.IsHero,
+			IsPublished:   req.IsPublished,
+			IsFeatured:    req.IsFeatured,
+			IsHero:        req.IsHero,
+			OrganizerMeta: req.OrganizerMeta,
+			EventMeta:     req.EventMeta,
 		}
 		if err := tx.Create(&event).Error; err != nil {
 			return err
@@ -415,6 +420,8 @@ func (s *eventService) UpdateEvent(id uuid.UUID, req EventCreateRequest) (*model
 	event.IsPublished = req.IsPublished
 	event.IsFeatured = req.IsFeatured
 	event.IsHero = req.IsHero
+	event.OrganizerMeta = req.OrganizerMeta
+	event.EventMeta = req.EventMeta
 
 	if err := s.eventRepo.UpdateEvent(event); err != nil {
 		return nil, err
@@ -432,4 +439,13 @@ func (s *eventService) DeleteEvent(id uuid.UUID) error {
 
 	// Delete event (cascade should handle zones and seats)
 	return s.eventRepo.DeleteEvent(id)
+}
+
+func (s *eventService) GetSimilarEvents(ctx context.Context, eventID uuid.UUID) ([]models.Event, error) {
+	event, err := s.eventRepo.GetEventByID(eventID)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.eventRepo.GetSimilarEvents(ctx, eventID, event.Category, 4)
 }

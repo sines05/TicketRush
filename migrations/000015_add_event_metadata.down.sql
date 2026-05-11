@@ -1,0 +1,2 @@
+ALTER TABLE events DROP COLUMN IF NOT EXISTS organizer_meta;
+ALTER TABLE events DROP COLUMN IF NOT EXISTS event_meta;

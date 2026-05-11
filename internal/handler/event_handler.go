@@ -99,6 +99,8 @@ func (h *EventHandler) ListEvents(c *gin.Context) {
 			"is_published": e.IsPublished,
 			"is_featured":  e.IsFeatured,
 			"is_hero":      e.IsHero,
+			"event_meta":     e.EventMeta,
+			"organizer_meta": e.OrganizerMeta,
 		})
 	}
 
@@ -191,12 +193,18 @@ func (h *EventHandler) GetEvent(c *gin.Context) {
 		"slug":         event.Slug,
 		"description":  event.Description,
 		"banner_url":   event.BannerURL,
+		"location":     event.Location,
+		"address":      event.Address,
+		"latitude":     event.Latitude,
+		"longitude":    event.Longitude,
 		"category":     event.Category,
 		"start_time":   event.StartTime,
 		"end_time":     event.EndTime,
 		"is_published": event.IsPublished,
 		"is_featured":  event.IsFeatured,
 		"is_hero":      event.IsHero,
+		"event_meta":     event.EventMeta,
+		"organizer_meta": event.OrganizerMeta,
 	}, "Thành công")
 }
 
@@ -319,4 +327,34 @@ func (h *EventHandler) DeleteEvent(c *gin.Context) {
 	}
 
 	utils.SendSuccess(c, http.StatusOK, nil, "Xóa sự kiện thành công")
+}
+
+func (h *EventHandler) GetSimilarEvents(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		utils.SendError(c, http.StatusBadRequest, "invalid event id", "INVALID_ID")
+		return
+	}
+
+	events, err := h.eventService.GetSimilarEvents(c.Request.Context(), id)
+	if err != nil {
+		utils.SendError(c, http.StatusInternalServerError, err.Error(), "FETCH_FAILED")
+		return
+	}
+
+	data := make([]map[string]interface{}, 0)
+	for _, e := range events {
+		data = append(data, map[string]interface{}{
+			"id":         e.ID,
+			"title":      e.Title,
+			"slug":       e.Slug,
+			"banner_url": e.BannerURL,
+			"category":   e.Category,
+			"start_time": e.StartTime,
+			"location":   e.Location,
+		})
+	}
+
+	utils.SendSuccess(c, http.StatusOK, data, "Thành công")
 }

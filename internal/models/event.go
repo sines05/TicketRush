@@ -39,8 +39,8 @@ type Event struct {
 	BannerURL   string      `gorm:"type:varchar(255)" json:"banner_url"`
 	Location    string      `gorm:"type:varchar(100);not null;default:'Hồ Chí Minh'" json:"location"`
 	Address     string      `gorm:"type:text" json:"address"`
-	Latitude    float64     `gorm:"type:decimal(10,8)" json:"latitude"`
-	Longitude   float64     `gorm:"type:decimal(11,8)" json:"longitude"`
+	Latitude    *float64    `gorm:"type:decimal(10,8)" json:"latitude"`
+	Longitude   *float64    `gorm:"type:decimal(11,8)" json:"longitude"`
 	StartTime   time.Time   `gorm:"not null" json:"start_time"`
 	EndTime     time.Time   `json:"end_time"`
 	IsPublished bool        `gorm:"default:false" json:"is_published"`
@@ -48,6 +48,8 @@ type Event struct {
 	IsHero      bool        `gorm:"default:false" json:"is_hero"`
 	Category    string      `gorm:"type:varchar(50);not null;default:'music_festival'" json:"category"`
 	IsQueueMode bool        `gorm:"default:false" json:"is_queue_mode"`
+	OrganizerMeta JSONMap   `gorm:"type:jsonb;default:'{}'" json:"organizer_meta"`
+	EventMeta     JSONMap   `gorm:"type:jsonb;default:'{}'" json:"event_meta"`
 	Zones       []EventZone `gorm:"foreignKey:EventID" json:"zones,omitempty"`
 }
 

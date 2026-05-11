@@ -78,6 +78,26 @@ func (m *MockUserRepository) UpdateNotificationToken(userID uuid.UUID, token str
 	return args.Error(0)
 }
 
+func (m *MockUserRepository) FindAll() ([]models.User, error) {
+	args := m.Called()
+	return args.Get(0).([]models.User), args.Error(1)
+}
+
+func (m *MockUserRepository) UpdateRole(userID uuid.UUID, role models.UserRole) error {
+	args := m.Called(userID, role)
+	return args.Error(0)
+}
+
+func (m *MockUserRepository) UpdateMembership(userID uuid.UUID, tierID *uuid.UUID) error {
+	args := m.Called(userID, tierID)
+	return args.Error(0)
+}
+
+func (m *MockUserRepository) Delete(userID uuid.UUID) error {
+	args := m.Called(userID)
+	return args.Error(0)
+}
+
 // MockNotificationService is a mock of NotificationService
 type MockNotificationService struct {
 	mock.Mock
@@ -97,6 +117,10 @@ func (m *MockNotificationService) NotifyOrderConfirmation(user *models.User, ord
 
 func (m *MockNotificationService) NotifySecurityEvent(user *models.User, eventName string) {
 	m.Called(user, eventName)
+}
+
+func (m *MockNotificationService) SendSystemNotification(userID uuid.UUID, title, message string) {
+	m.Called(userID, title, message)
 }
 
 func (m *MockNotificationService) StartWorker() {

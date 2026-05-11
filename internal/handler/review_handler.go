@@ -19,8 +19,13 @@ func NewReviewHandler(reviewRepo repository.ReviewRepository) *ReviewHandler {
 }
 
 func (h *ReviewHandler) CreateReview(c *gin.Context) {
-	userIDStr := c.GetString("user_id")
-	userID, _ := uuid.Parse(userIDStr)
+	userObj, exists := c.Get("user")
+	if !exists {
+		utils.SendError(c, http.StatusUnauthorized, "User not found in context", "UNAUTHORIZED")
+		return
+	}
+	user := userObj.(*models.User)
+	userID := user.ID
 
 	var input struct {
 		EventID uuid.UUID `json:"event_id" binding:"required"`
@@ -60,7 +65,10 @@ func (h *ReviewHandler) GetEventReviews(c *gin.Context) {
 		return
 	}
 
-	avg, _ := h.reviewRepo.GetAverageRating(c.Request.Context(), eventID)
+	avg, err := h.reviewRepo.GetAverageRating(c.Request.Context(), eventID)
+	if err != nil {
+		avg = 0 // Default to 0 if error or no reviews
+	}
 
 	utils.SendSuccess(c, http.StatusOK, gin.H{
 		"reviews":        reviews,

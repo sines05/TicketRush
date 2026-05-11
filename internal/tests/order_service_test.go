@@ -60,7 +60,9 @@ func (m *mockOrderRepo) GetRevenueStats(ctx context.Context, eventID *uuid.UUID)
 // mockQueueRepo always returns "allowed" so LockSeats can proceed
 type mockQueueRepo struct{}
 
-func (m *mockQueueRepo) AddToQueue(ctx context.Context, eventID uuid.UUID, userID uuid.UUID) error { return nil }
+func (m *mockQueueRepo) AddToQueue(ctx context.Context, eventID uuid.UUID, userID uuid.UUID, priority int) error {
+	return nil
+}
 func (m *mockQueueRepo) GetPosition(ctx context.Context, eventID uuid.UUID, userID uuid.UUID) (int64, error) { return 0, nil }
 func (m *mockQueueRepo) IsAllowed(ctx context.Context, eventID uuid.UUID, userID uuid.UUID) (bool, error) { return true, nil }
 func (m *mockQueueRepo) AllowUser(ctx context.Context, eventID uuid.UUID, userID uuid.UUID) error { return nil }
@@ -82,11 +84,17 @@ func (m *mockEventRepo) GetAllEvents(filter repository.EventFilter) ([]repositor
 	return nil, nil
 }
 func (m *mockEventRepo) GetFeaturedEvents(limit int) ([]models.Event, error) { return nil, nil }
-func (m *mockEventRepo) GetTrendingTicketStats(limit int, since time.Time) ([]repository.EventTrendingTicketStats, error) { return nil, nil }
+func (m *mockEventRepo) GetHeroEvents(limit int) ([]models.Event, error)     { return nil, nil }
+func (m *mockEventRepo) GetTrendingTicketStats(limit int, since time.Time) ([]repository.EventTrendingTicketStats, error) {
+	return nil, nil
+}
 func (m *mockEventRepo) UpdateEvent(event *models.Event) error { return nil }
 func (m *mockEventRepo) DeleteEvent(id uuid.UUID) error { return nil }
 func (m *mockEventRepo) GetSeatMap(eventID uuid.UUID) ([]models.EventZone, error) { return nil, nil }
 func (m *mockEventRepo) GetTotalSeats(ctx context.Context, eventID uuid.UUID) (int64, error) { return 0, nil }
+func (m *mockEventRepo) GetSimilarEvents(ctx context.Context, eventID uuid.UUID, category string, limit int) ([]models.Event, error) {
+	return nil, nil
+}
 
 type mockNotifier struct{}
 
@@ -94,6 +102,7 @@ func (m *mockNotifier) NotifyTicketPurchased(user *models.User, tickets []models
 func (m *mockNotifier) NotifyWelcome(user *models.User) {}
 func (m *mockNotifier) NotifyOrderConfirmation(user *models.User, order *models.Order) {}
 func (m *mockNotifier) NotifySecurityEvent(user *models.User, eventName string)      {}
+func (m *mockNotifier) SendSystemNotification(userID uuid.UUID, title, message string) {}
 func (m *mockNotifier) StartWorker()                                                 {}
 
 
@@ -109,6 +118,10 @@ func (m *mockUserRepo) FindPasswordResetByToken(token string) (*models.PasswordR
 func (m *mockUserRepo) DeletePasswordReset(token string) error { return nil }
 func (m *mockUserRepo) Update2FA(userID uuid.UUID, enabled bool, secret string) error { return nil }
 func (m *mockUserRepo) UpdateNotificationToken(userID uuid.UUID, token string) error { return nil }
+func (m *mockUserRepo) FindAll() ([]models.User, error)                              { return nil, nil }
+func (m *mockUserRepo) UpdateRole(userID uuid.UUID, role models.UserRole) error      { return nil }
+func (m *mockUserRepo) UpdateMembership(userID uuid.UUID, tierID *uuid.UUID) error   { return nil }
+func (m *mockUserRepo) Delete(userID uuid.UUID) error                                { return nil }
 
 // MockBroadcaster
 type mockBroadcaster struct {

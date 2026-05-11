@@ -32,7 +32,8 @@ export default [
         requestAnimationFrame: 'readonly',
         cancelAnimationFrame: 'readonly',
         process: 'readonly',
-        google: 'readonly'
+        google: 'readonly',
+        IntersectionObserver: 'readonly'
       },
       parserOptions: {
         ecmaFeatures: { jsx: true }

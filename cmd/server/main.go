@@ -105,6 +105,7 @@ func main() {
 		v1.GET("/events/trending", eventHandler.ListTrendingEvents)
 		v1.GET("/events/featured", eventHandler.ListFeaturedEvents)
 		v1.GET("/events/:id", eventHandler.GetEvent)
+		v1.GET("/events/:id/similar", eventHandler.GetSimilarEvents)
 		v1.GET("/events/:id/seat-map", eventHandler.GetSeatMap)
 		v1.GET("/events/:id/reviews", reviewHandler.GetEventReviews)
 		v1.GET("/membership/tiers", membershipHandler.GetTiers)

@@ -14,6 +14,7 @@ export const API_ROUTES = Object.freeze({
   TRENDING_EVENTS: '/events/trending',
   FEATURED_EVENTS: '/events/featured',
   EVENT_DETAIL: (idOrSlug) => `/events/${idOrSlug}`,
+  SIMILAR_EVENTS: (id) => `/events/${id}/similar`,
   SEAT_MAP: (idOrSlug) => `/events/${idOrSlug}/seat-map`,
 
   QUEUE_JOIN: '/queue/join',

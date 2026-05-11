@@ -26,9 +26,9 @@ func TestSeatLockConcurrency(t *testing.T) {
 	}
 
 	// Setup: Create a test user, event and one seat
-	user := models.User{Email: "test@ticketrush.com", PasswordHash: "hash", FullName: "Test User"}
+	user := models.User{Email: uuid.New().String() + "@ticketrush.com", PasswordHash: "hash", FullName: "Test User"}
 	db.Create(&user)
-	event := models.Event{Title: "Concurrency Test"}
+	event := models.Event{Title: "Concurrency Test", Slug: uuid.New().String()}
 	db.Create(&event)
 	zone := models.EventZone{EventID: event.ID, Name: "VIP", Price: 100}
 	db.Create(&zone)

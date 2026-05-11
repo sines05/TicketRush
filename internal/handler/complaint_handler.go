@@ -19,8 +19,13 @@ func NewComplaintHandler(complaintRepo repository.ComplaintRepository) *Complain
 }
 
 func (h *ComplaintHandler) CreateComplaint(c *gin.Context) {
-	userIDStr := c.GetString("user_id")
-	userID, _ := uuid.Parse(userIDStr)
+	userObj, exists := c.Get("user")
+	if !exists {
+		utils.SendError(c, http.StatusUnauthorized, "User not authenticated", "AUTH_REQUIRED")
+		return
+	}
+	u := userObj.(*models.User)
+	userID := u.ID
 
 	var input struct {
 		Title   string `json:"title" binding:"required"`
@@ -46,8 +51,13 @@ func (h *ComplaintHandler) CreateComplaint(c *gin.Context) {
 }
 
 func (h *ComplaintHandler) GetMyComplaints(c *gin.Context) {
-	userIDStr := c.GetString("user_id")
-	userID, _ := uuid.Parse(userIDStr)
+	userObj, exists := c.Get("user")
+	if !exists {
+		utils.SendError(c, http.StatusUnauthorized, "User not authenticated", "AUTH_REQUIRED")
+		return
+	}
+	u := userObj.(*models.User)
+	userID := u.ID
 
 	complaints, err := h.complaintRepo.GetComplaintsByUserID(c.Request.Context(), userID)
 	if err != nil {
@@ -85,7 +95,13 @@ func (h *ComplaintHandler) AdminUpdateComplaintStatus(c *gin.Context) {
 		return
 	}
 
-	if err := h.complaintRepo.UpdateComplaintStatus(c.Request.Context(), id, models.ComplaintStatus(input.Status)); err != nil {
+	newStatus := models.ComplaintStatus(input.Status)
+	if newStatus != models.ComplaintPending && newStatus != models.ComplaintResolved && newStatus != models.ComplaintRejected {
+		utils.SendError(c, http.StatusBadRequest, "Invalid status", "INVALID_STATUS")
+		return
+	}
+
+	if err := h.complaintRepo.UpdateComplaintStatus(c.Request.Context(), id, newStatus); err != nil {
 		utils.SendError(c, http.StatusInternalServerError, "Failed to update complaint status", "INTERNAL_ERROR")
 		return
 	}
