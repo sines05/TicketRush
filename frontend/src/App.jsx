@@ -9,11 +9,11 @@ import { useEffect, useState } from 'react';
 import notificationService from './services/notificationService.js';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { 
-  Search, 
-  User, 
-  LogOut, 
-  Moon, 
+import {
+  Search,
+  User,
+  LogOut,
+  Moon,
   Sun,
   Menu,
   X
@@ -124,9 +124,6 @@ export default function App() {
                 </div>
               </Link>
               <nav className="hidden md:flex items-center space-x-2 text-sm font-bold">
-                <Link to="/booking/queue" className={navItemClass(location.pathname === '/booking/queue')}>
-                  Hàng chờ
-                </Link>
                 {user && (
                   <>
                     <Link to="/membership" className={navItemClass(location.pathname === '/membership')}>Thành viên</Link>
@@ -144,7 +141,7 @@ export default function App() {
 
             <div className="flex flex-1 items-center justify-end space-x-5">
               <div className="hidden lg:flex flex-1 items-center justify-center px-4">
-                <button 
+                <button
                   onClick={() => setIsSearchOpen(true)}
                   className="w-full max-w-[500px] flex items-center bg-white dark:bg-white/10 rounded-full h-11 px-4 shadow-sm border border-black/5 dark:border-white/10 group transition-all hover:shadow-md"
                 >
@@ -154,7 +151,7 @@ export default function App() {
                   <span className="text-sm font-bold text-gray-900 dark:text-white/80 group-hover:text-primary transition-colors">Tìm kiếm</span>
                 </button>
               </div>
-              
+
               <div className="flex items-center space-x-3">
                 <Button
                   variant="ghost"
@@ -213,14 +210,14 @@ export default function App() {
             isMobileMenuOpen ? "visible" : "invisible"
           )}>
             {/* Backdrop */}
-            <div 
+            <div
               className={cn(
                 "absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-500 ease-spring",
                 isMobileMenuOpen ? "opacity-100" : "opacity-0"
               )}
               onClick={() => setIsMobileMenuOpen(false)}
             />
-            
+
             {/* Panel */}
             <div className={cn(
               "absolute right-0 top-0 h-full w-[300px] glass-surface glass-border border-y-0 border-r-0 p-8 shadow-2xl transition-transform duration-500 ease-spring flex flex-col",
@@ -233,7 +230,7 @@ export default function App() {
                 </Button>
               </div>
 
-              <button 
+              <button
                 onClick={() => {
                   setIsMobileMenuOpen(false);
                   setIsSearchOpen(true);
