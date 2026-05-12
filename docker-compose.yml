@@ -39,6 +39,10 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+      ai-db:
+        condition: service_healthy
+      llamaguard-service:
+        condition: service_started
     env_file: .env
     environment:
       DB_HOST: db
@@ -67,8 +71,72 @@ services:
     networks:
       - ticketrush-net
 
+  ai-agent:
+    build:
+      context: ./ai-agent
+      dockerfile: Dockerfile
+    container_name: ticketrush-ai-agent
+    restart: always
+    depends_on:
+      ai-db:
+        condition: service_healthy
+      llamaguard-service:
+        condition: service_started
+    env_file: .env
+    ports:
+      - "8001:8000"
+    networks:
+      - ticketrush-net
+
+  ai-db:
+    image: postgres:15-alpine
+    container_name: ticketrush-ai-db
+    restart: always
+    environment:
+      POSTGRES_USER: ${AI_DB_USER:-user}
+      POSTGRES_PASSWORD: ${AI_DB_PASSWORD:-password}
+      POSTGRES_DB: ${AI_DB_NAME:-ai_state}
+    ports:
+      - "5434:5432"
+    volumes:
+      - ai_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${AI_DB_USER:-user} -d ${AI_DB_NAME:-ai_state}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ticketrush-net
+
+  llamaguard-service:
+    image: python:3.11-slim
+    container_name: ticketrush-llamaguard
+    restart: always
+    command:
+      - python3
+      - -c
+      - |
+        import http.server
+        class H(http.server.BaseHTTPRequestHandler):
+            def do_GET(s):
+                s.send_response(200)
+                s.end_headers()
+            def do_POST(s):
+                s.send_response(200)
+                s.end_headers()
+                s.wfile.write(b'{"choices":[{"text":"safe"}]}')
+        http.server.HTTPServer(('', 8001), H).serve_forever()
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - ticketrush-net
+
 volumes:
   postgres_data:
+  ai_postgres_data:
 networks:
   ticketrush-net:
     driver: bridge

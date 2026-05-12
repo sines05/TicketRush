@@ -29,6 +29,8 @@ type Config struct {
 	SMTPUser             string
 	SMTPPass             string
 	SMTPFrom             string
+	AIAgentURL           string
+	InternalSecret       string
 }
 
 func LoadConfig() *Config {
@@ -58,10 +60,12 @@ func LoadConfig() *Config {
 		SMTPUser:             getEnv("SMTP_USER", ""),
 		SMTPPass:             getEnv("SMTP_PASS", ""),
 		SMTPFrom:             getEnv("SMTP_FROM", "no-reply@ticketrush.com"),
+		AIAgentURL:           getEnv("AI_AGENT_URL", "http://localhost:8001"),
+		InternalSecret:       getEnv("X_INTERNAL_SECRET", ""),
 	}
 
-	if cfg.GoogleClientID == "" || cfg.GoogleClientSecret == "" {
-		log.Printf("WARNING: OAuth credentials missing for %s", "Google")
+	if cfg.InternalSecret == "" {
+		log.Println("WARNING: X_INTERNAL_SECRET is not set!")
 	}
 	if cfg.FacebookClientID == "" {
 		log.Printf("WARNING: OAuth credentials missing for %s", "Facebook")
