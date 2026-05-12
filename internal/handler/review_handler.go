@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"ticketrush/internal/dto"
 	"ticketrush/internal/models"
 	"ticketrush/internal/repository"
 	"ticketrush/internal/utils"
@@ -71,7 +72,7 @@ func (h *ReviewHandler) GetEventReviews(c *gin.Context) {
 	}
 
 	utils.SendSuccess(c, http.StatusOK, gin.H{
-		"reviews":        reviews,
+		"reviews":        dto.ToReviewResponses(reviews),
 		"average_rating": avg,
 	}, "Reviews fetched successfully")
 }

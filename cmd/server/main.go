@@ -172,7 +172,7 @@ func main() {
 
 	// WebSocket endpoint (outside v1 for simplicity or as needed)
 	r.GET("/ws", func(c *gin.Context) {
-		websocket.ServeWs(hub, c.Writer, c.Request)
+		websocket.ServeWs(hub, authService, c.Writer, c.Request)
 	})
 
 	// Health check

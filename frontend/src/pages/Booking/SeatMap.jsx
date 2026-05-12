@@ -33,7 +33,7 @@ export default function SeatMap() {
   const [searchParams] = useSearchParams();
   const { selectedSeats, toggleSeat, isSelected, clearSelection, startBooking } =
     useContext(BookingContext);
-  const { user } = useAuth();
+  const { user, token } = useAuth();
 
   const eventId = useMemo(() => searchParams.get('eventId') || '', [searchParams]);
   const queueToken = useMemo(() => searchParams.get('queueToken') || '', [searchParams]);
@@ -73,7 +73,10 @@ export default function SeatMap() {
   const { secondsLeft, isExpired } = useCountdown({ endsAt: targetTime });
 
   // WebSocket real-time seat updates
-  const { status: wsStatus, setOnMessage, send } = useWebSocket('/ws', { enabled: !!eventId });
+  const { status: wsStatus, setOnMessage, send } = useWebSocket('/ws', { 
+    enabled: !!eventId,
+    token
+  });
 
   // Handle subscription
   useEffect(() => {

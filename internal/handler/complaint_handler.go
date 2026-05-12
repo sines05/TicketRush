@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"ticketrush/internal/dto"
 	"ticketrush/internal/models"
 	"ticketrush/internal/repository"
 	"ticketrush/internal/utils"
@@ -65,7 +66,7 @@ func (h *ComplaintHandler) GetMyComplaints(c *gin.Context) {
 		return
 	}
 
-	utils.SendSuccess(c, http.StatusOK, complaints, "Complaints fetched successfully")
+	utils.SendSuccess(c, http.StatusOK, dto.ToComplaintResponses(complaints), "Complaints fetched successfully")
 }
 
 func (h *ComplaintHandler) AdminGetAllComplaints(c *gin.Context) {
@@ -75,7 +76,7 @@ func (h *ComplaintHandler) AdminGetAllComplaints(c *gin.Context) {
 		return
 	}
 
-	utils.SendSuccess(c, http.StatusOK, complaints, "All complaints fetched successfully")
+	utils.SendSuccess(c, http.StatusOK, dto.ToComplaintResponses(complaints), "All complaints fetched successfully")
 }
 
 func (h *ComplaintHandler) AdminUpdateComplaintStatus(c *gin.Context) {

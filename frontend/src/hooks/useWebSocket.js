@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-export function useWebSocket(url, { enabled = true } = {}) {
+export function useWebSocket(url, { enabled = true, token = null } = {}) {
   const wsRef = useRef(null);
   const [status, setStatus] = useState('DISCONNECTED');
   const onMessageRef = useRef(null);
@@ -18,7 +18,7 @@ export function useWebSocket(url, { enabled = true } = {}) {
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const socketUrl = url.startsWith('ws') ? url : `${wsProtocol}//${window.location.host}${url}`;
 
-    const ws = new WebSocket(socketUrl);
+    const ws = new WebSocket(socketUrl, token ? [token] : []);
     wsRef.current = ws;
     setStatus('CONNECTING');
 
