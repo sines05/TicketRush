@@ -24,7 +24,7 @@ export default function Checkout() {
   const eventId = searchParams.get('eventId') || '';
   const orderId = searchParams.get('orderId') || '';
 
-  const { selectedSeats, clearBooking } = useContext(BookingContext);
+  const { selectedSeats, clearBooking, clearSelection } = useContext(BookingContext);
 
   const orderFromState = location.state?.order || null;
   const [order] = useState(orderFromState);
@@ -105,6 +105,7 @@ export default function Checkout() {
       );
 
       if (!USE_MOCK) {
+        clearSelection();
         setPaid(true);
         setTickets([]);
         return;
@@ -124,6 +125,7 @@ export default function Checkout() {
         };
       });
 
+      clearSelection();
       setPaid(true);
       setTickets(created);
     } catch (e) {
