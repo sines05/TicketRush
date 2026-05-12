@@ -119,12 +119,12 @@ func (s *workerService) releaseExpiredOrders() {
 			log.Printf("Failed to remove user %s from active set for event %s: %v", order.UserID, order.EventID, err)
 		}
 
-		// Clear OrderID from the session so they don't see the expired countdown
+		// Delete the session so they have to re-enter the queue or get a fresh session
 		session, err := s.queueRepo.GetSessionByEventAndUser(ctx, order.EventID, order.UserID)
 		if err == nil && session != nil {
-			session.OrderID = nil
-			session.ExpiresAt = nil
-			s.queueRepo.SaveSession(ctx, session, queue.SessionExpiration)
+			if err := s.queueRepo.DeleteSession(ctx, session.Token, order.EventID, order.UserID); err != nil {
+				log.Printf("Failed to delete session for user %s on event %s: %v", order.UserID, order.EventID, err)
+			}
 		}
 
 		cancel()
