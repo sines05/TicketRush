@@ -2,10 +2,10 @@ import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import Loading from '../../components/common/Loading.jsx';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardTitle } from '@/components/ui/card';
 import TicketItem from '../../components/tickets/TicketItem.jsx';
 import ticketService from '../../services/ticketService.js';
-import { Ticket, ArrowLeft, Search } from 'lucide-react';
+import { Ticket, ArrowLeft } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export default function MyTickets() {

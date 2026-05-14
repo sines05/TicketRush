@@ -36,11 +36,9 @@ import {
   TrendingUp, 
   Users2, 
   Calendar,
-  MoreHorizontal,
   Edit,
   Trash2,
-  ExternalLink,
-  AlertCircle
+  ExternalLink
 } from 'lucide-react';
 
 const GENDER_COLORS = {

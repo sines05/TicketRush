@@ -1,18 +1,18 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, ChevronRightSquare } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import eventService from '@/services/eventService';
 import EventCard from './EventCard';
 import { Skeleton } from '@/components/common/Skeleton';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, format, isAfter, isBefore } from 'date-fns';
+import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, format } from 'date-fns';
 
 export default function EventListWithTabs({ categoryKey, title }) {
   const [activeTab, setActiveTab] = useState('weekend'); // 'weekend' | 'month'
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [, setError] = useState('');
   const scrollRef = useRef(null);
 
   const dateFilter = useMemo(() => {

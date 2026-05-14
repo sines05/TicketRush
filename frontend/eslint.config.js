@@ -5,11 +5,11 @@ import refreshPlugin from 'eslint-plugin-react-refresh';
 
 export default [
   {
-    ignores: ['dist/**']
+    ignores: ['dist/**', '**/*.ts', '**/*.tsx']
   },
   js.configs.recommended,
   {
-    files: ['**/*.{js,jsx,ts,tsx}'],
+    files: ['**/*.{js,jsx}'],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'module',
@@ -31,6 +31,7 @@ export default [
         clearInterval: 'readonly',
         requestAnimationFrame: 'readonly',
         cancelAnimationFrame: 'readonly',
+        ResizeObserver: 'readonly',
         process: 'readonly',
         google: 'readonly'
       },

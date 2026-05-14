@@ -1,6 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import AppRoutes from './routes/AppRoutes.jsx';
-import { CATEGORY_ALL, CATEGORY_ALL_LABEL, CATEGORY_OPTIONS, getCategoryKey } from './constants/categories.js';
+import { CATEGORY_ALL, CATEGORY_ALL_LABEL, CATEGORY_OPTIONS } from './constants/categories.js';
 import { resolveMediaUrl } from './utils/media.js';
 import { useAuth } from './hooks/useAuth.js';
 import { ROLES } from './constants/roles.js';

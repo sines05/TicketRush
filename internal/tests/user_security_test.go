@@ -78,6 +78,29 @@ func (m *MockUserRepository) UpdateNotificationToken(userID uuid.UUID, token str
 	return args.Error(0)
 }
 
+func (m *MockUserRepository) FindAll() ([]models.User, error) {
+	args := m.Called()
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]models.User), args.Error(1)
+}
+
+func (m *MockUserRepository) UpdateRole(userID uuid.UUID, role models.UserRole) error {
+	args := m.Called(userID, role)
+	return args.Error(0)
+}
+
+func (m *MockUserRepository) UpdateMembership(userID uuid.UUID, tierID *uuid.UUID) error {
+	args := m.Called(userID, tierID)
+	return args.Error(0)
+}
+
+func (m *MockUserRepository) Delete(userID uuid.UUID) error {
+	args := m.Called(userID)
+	return args.Error(0)
+}
+
 // MockNotificationService is a mock of NotificationService
 type MockNotificationService struct {
 	mock.Mock
@@ -99,6 +122,10 @@ func (m *MockNotificationService) NotifySecurityEvent(user *models.User, eventNa
 	m.Called(user, eventName)
 }
 
+func (m *MockNotificationService) SendSystemNotification(userID uuid.UUID, title, message string) {
+	m.Called(userID, title, message)
+}
+
 func (m *MockNotificationService) StartWorker() {
 	m.Called()
 }
@@ -112,7 +139,7 @@ func TestUpdateProfile_Success(t *testing.T) {
 	userID := uuid.New()
 	dobStr := "1990-01-01"
 	parsedDOB, _ := time.Parse("2006-01-02", dobStr)
-	
+
 	existingUser := &models.User{
 		BaseModel: models.BaseModel{ID: userID},
 		FullName:  "Old Name",
@@ -140,7 +167,7 @@ func TestUpdateProfile_InvalidDOB(t *testing.T) {
 
 	userID := uuid.New()
 	dobStr := "invalid-date"
-	
+
 	existingUser := &models.User{
 		BaseModel: models.BaseModel{ID: userID},
 	}
@@ -211,7 +238,7 @@ func TestChangePassword_OAuthAccount(t *testing.T) {
 	authServ := service.NewAuthService(mockRepo, mockNotif, cfg)
 
 	userID := uuid.New()
-	
+
 	existingUser := &models.User{
 		BaseModel:    models.BaseModel{ID: userID},
 		IsOAuth:      true,
