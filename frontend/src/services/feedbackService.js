@@ -27,7 +27,7 @@ async function getAllComplaints() {
       { id: 'c2', title: 'Hoàn tiền vé', content: 'Tôi muốn hoàn tiền cho sự kiện đã bị hủy.', status: 'PENDING', created_at: '2026-05-01T09:15:00Z', user_email: 'user2@example.com' }
     ];
   }
-  const res = await api.get(API_ROUTES.COMPLAINTS);
+  const res = await api.get(API_ROUTES.ADMIN_COMPLAINTS);
   return unwrap(res);
 }
 
@@ -67,7 +67,7 @@ async function updateComplaintStatus(id, status) {
     await sleep(400);
     return { id, status };
   }
-  const res = await api.patch(`${API_ROUTES.COMPLAINTS}/${id}`, { status });
+  const res = await api.patch(API_ROUTES.ADMIN_COMPLAINT(id), { status });
   return unwrap(res);
 }
 

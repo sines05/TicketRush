@@ -42,6 +42,8 @@ export const API_ROUTES = Object.freeze({
   MEMBERSHIP_UPGRADE: '/membership/upgrade',
   COMPLAINTS_MY: '/complaints/my',
   COMPLAINTS: '/complaints',
+  ADMIN_COMPLAINTS: '/admin/complaints',
+  ADMIN_COMPLAINT: (complaintId) => `/admin/complaints/${complaintId}`,
   REVIEWS: '/reviews',
   EVENT_REVIEWS: (eventId) => `/events/${eventId}/reviews`,
   ADMIN_USERS: '/admin/users',

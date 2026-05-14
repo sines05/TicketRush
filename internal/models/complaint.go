@@ -12,6 +12,15 @@ const (
 	ComplaintRejected ComplaintStatus = "REJECTED"
 )
 
+func (s ComplaintStatus) IsValid() bool {
+	switch s {
+	case ComplaintPending, ComplaintResolved, ComplaintRejected:
+		return true
+	default:
+		return false
+	}
+}
+
 type Complaint struct {
 	BaseModel
 	UserID  uuid.UUID       `gorm:"type:uuid;not null;index:idx_complaints_user_id" json:"user_id"`

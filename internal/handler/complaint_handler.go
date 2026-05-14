@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 	"ticketrush/internal/models"
 	"ticketrush/internal/repository"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type ComplaintHandler struct {
@@ -85,7 +87,17 @@ func (h *ComplaintHandler) AdminUpdateComplaintStatus(c *gin.Context) {
 		return
 	}
 
-	if err := h.complaintRepo.UpdateComplaintStatus(c.Request.Context(), id, models.ComplaintStatus(input.Status)); err != nil {
+	status := models.ComplaintStatus(input.Status)
+	if !status.IsValid() {
+		utils.SendError(c, http.StatusBadRequest, "Invalid complaint status", "INVALID_STATUS")
+		return
+	}
+
+	if err := h.complaintRepo.UpdateComplaintStatus(c.Request.Context(), id, status); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			utils.SendError(c, http.StatusNotFound, "Complaint not found", "COMPLAINT_NOT_FOUND")
+			return
+		}
 		utils.SendError(c, http.StatusInternalServerError, "Failed to update complaint status", "INTERNAL_ERROR")
 		return
 	}

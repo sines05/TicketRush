@@ -39,5 +39,12 @@ func (r *complaintRepo) GetAllComplaints(ctx context.Context) ([]models.Complain
 }
 
 func (r *complaintRepo) UpdateComplaintStatus(ctx context.Context, id uuid.UUID, status models.ComplaintStatus) error {
-	return r.db.Model(&models.Complaint{}).Where("id = ?", id).Update("status", status).Error
+	result := r.db.WithContext(ctx).Model(&models.Complaint{}).Where("id = ?", id).Update("status", status)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
