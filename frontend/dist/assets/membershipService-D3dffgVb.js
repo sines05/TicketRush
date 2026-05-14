@@ -1,0 +1,1 @@
+import{z as t,A as r,D as s}from"./index-CaE-fE2t.js";async function a(){const e=await t.get(r.MEMBERSHIP_TIERS);return s(e)}async function i(){const e=await t.get(r.MY_MEMBERSHIP);return s(e)}async function c(e){const n=await t.post(r.MEMBERSHIP_UPGRADE,{tier_id:e});return s(n)}const E={getTiers:a,getMyMembership:i,upgradeTier:c};export{E as m};
