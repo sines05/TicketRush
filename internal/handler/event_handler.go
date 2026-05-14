@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"ticketrush/internal/dto"
 	"ticketrush/internal/models"
 	"ticketrush/internal/repository"
 	"ticketrush/internal/service"
@@ -85,29 +86,7 @@ func (h *EventHandler) ListEvents(c *gin.Context) {
 		return
 	}
 
-	data := make([]map[string]interface{}, 0)
-	for _, e := range events {
-		data = append(data, map[string]interface{}{
-			"id":           e.ID,
-			"title":        e.Title,
-			"slug":         e.Slug,
-			"description":  e.Description,
-			"banner_url":   e.BannerURL,
-			"location":     e.Location,
-			"address":      e.Address,
-			"latitude":     e.Latitude,
-			"longitude":    e.Longitude,
-			"category":     e.Category,
-			"min_price":    e.MinPrice,
-			"start_time":   e.StartTime,
-			"end_time":     e.EndTime,
-			"is_published": e.IsPublished,
-			"is_featured":  e.IsFeatured,
-			"is_hero":      e.IsHero,
-		})
-	}
-
-	utils.SendSuccess(c, http.StatusOK, data, "Thành công")
+	utils.SendSuccess(c, http.StatusOK, dto.ToEventSearchResponses(events), "Thành công")
 }
 
 func (h *EventHandler) ListFeaturedEvents(c *gin.Context) {
@@ -125,19 +104,7 @@ func (h *EventHandler) ListFeaturedEvents(c *gin.Context) {
 		return
 	}
 
-	data := make([]map[string]interface{}, 0)
-	for _, e := range events {
-		data = append(data, map[string]interface{}{
-			"id":         e.ID,
-			"title":      e.Title,
-			"slug":       e.Slug,
-			"banner_url": e.BannerURL,
-			"category":   e.Category,
-			"start_time": e.StartTime,
-		})
-	}
-
-	utils.SendSuccess(c, http.StatusOK, data, "Thành công")
+	utils.SendSuccess(c, http.StatusOK, dto.ToEventResponses(events), "Thành công")
 }
 
 func (h *EventHandler) ListHeroEvents(c *gin.Context) {
@@ -155,20 +122,7 @@ func (h *EventHandler) ListHeroEvents(c *gin.Context) {
 		return
 	}
 
-	data := make([]map[string]interface{}, 0)
-	for _, e := range events {
-		data = append(data, map[string]interface{}{
-			"id":          e.ID,
-			"title":       e.Title,
-			"slug":        e.Slug,
-			"banner_url":  e.BannerURL,
-			"category":    e.Category,
-			"start_time":  e.StartTime,
-			"description": e.Description,
-		})
-	}
-
-	utils.SendSuccess(c, http.StatusOK, data, "Thành công")
+	utils.SendSuccess(c, http.StatusOK, dto.ToEventResponses(events), "Thành công")
 }
 
 func (h *EventHandler) GetEvent(c *gin.Context) {
@@ -190,19 +144,7 @@ func (h *EventHandler) GetEvent(c *gin.Context) {
 	// Best-effort view tracking (7-day rolling window) for trending ranking.
 	_ = h.eventService.TrackEventView(c.Request.Context(), event.ID)
 
-	utils.SendSuccess(c, http.StatusOK, gin.H{
-		"id":           event.ID,
-		"title":        event.Title,
-		"slug":         event.Slug,
-		"description":  event.Description,
-		"banner_url":   event.BannerURL,
-		"category":     event.Category,
-		"start_time":   event.StartTime,
-		"end_time":     event.EndTime,
-		"is_published": event.IsPublished,
-		"is_featured":  event.IsFeatured,
-		"is_hero":      event.IsHero,
-	}, "Thành công")
+	utils.SendSuccess(c, http.StatusOK, dto.ToEventResponse(*event), "Thành công")
 }
 
 func (h *EventHandler) ListTrendingEvents(c *gin.Context) {
@@ -218,25 +160,7 @@ func (h *EventHandler) ListTrendingEvents(c *gin.Context) {
 		return
 	}
 
-	out := make([]map[string]interface{}, 0, len(data))
-	for _, e := range data {
-		out = append(out, map[string]interface{}{
-			"id":         e.ID,
-			"title":      e.Title,
-			"slug":       e.Slug,
-			"banner_url": e.BannerURL,
-			"category":   e.Category,
-			"location":   e.Location,
-			"min_price":  e.MinPrice,
-			"start_time": e.StartTime,
-			"rank":       e.Rank,
-			"sold_7d":    e.Sold7d,
-			"views_7d":   e.Views7d,
-			"score":      e.Score,
-		})
-	}
-
-	utils.SendSuccess(c, http.StatusOK, out, "Thành công")
+	utils.SendSuccess(c, http.StatusOK, dto.ToTrendingEventResponses(data), "Thành công")
 }
 
 func (h *EventHandler) GetSeatMap(c *gin.Context) {
@@ -324,4 +248,21 @@ func (h *EventHandler) DeleteEvent(c *gin.Context) {
 	}
 
 	utils.SendSuccess(c, http.StatusOK, nil, "Xóa sự kiện thành công")
+}
+
+func (h *EventHandler) GetSimilarEvents(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		utils.SendError(c, http.StatusBadRequest, "invalid event id", "INVALID_ID")
+		return
+	}
+
+	events, err := h.eventService.GetSimilarEvents(c.Request.Context(), id)
+	if err != nil {
+		utils.SendError(c, http.StatusInternalServerError, err.Error(), "FETCH_FAILED")
+		return
+	}
+
+	utils.SendSuccess(c, http.StatusOK, dto.ToEventResponses(events), "Thành công")
 }

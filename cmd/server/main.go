@@ -73,6 +73,11 @@ func main() {
 
 	adminUserHandler := handler.NewAdminUserHandler(userRepo, notificationService)
 
+	aiProxyService := service.NewAIProxyService(cfg)
+	aiProxyHandler := handler.NewAIProxyHandler(aiProxyService)
+
+	aiInternalHandler := handler.NewAIInternalHandler(userRepo, orderRepo)
+
 	workerService := worker.NewWorkerService(db, queueService, queueRepo, hub, orderRepo)
 	workerService.StartWorkers()
 
@@ -87,7 +92,7 @@ func main() {
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{cfg.FrontendURL},
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "X-Queue-Token"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "X-Queue-Token", "X-Internal-Secret"},
 		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
 	}))
@@ -110,11 +115,13 @@ func main() {
 		}
 
 		// Public Routes
+		v1.POST("/chat", middleware.OptionalAuthMiddleware(authService), aiProxyHandler.Chat)
 		v1.GET("/events", eventHandler.ListEvents)
 		v1.GET("/events/hero", eventHandler.ListHeroEvents)
 		v1.GET("/events/trending", eventHandler.ListTrendingEvents)
 		v1.GET("/events/featured", eventHandler.ListFeaturedEvents)
 		v1.GET("/events/:id", eventHandler.GetEvent)
+		v1.GET("/events/:id/similar", eventHandler.GetSimilarEvents)
 		v1.GET("/events/:id/seat-map", eventHandler.GetSeatMap)
 		v1.GET("/events/:id/reviews", reviewHandler.GetEventReviews)
 		v1.GET("/membership/tiers", membershipHandler.GetTiers)
@@ -179,9 +186,18 @@ func main() {
 		}
 	}
 
+	// Internal API Group for AI Agent
+	internalAPI := r.Group("/api/internal/v1")
+	internalAPI.Use(middleware.InternalAuthMiddleware(cfg))
+	{
+		internalAPI.GET("/events", eventHandler.ListEvents)
+		internalAPI.GET("/user/profile", aiInternalHandler.GetUserProfile)
+		internalAPI.GET("/user/orders", aiInternalHandler.GetUserOrders)
+	}
+
 	// WebSocket endpoint (outside v1 for simplicity or as needed)
 	r.GET("/ws", func(c *gin.Context) {
-		websocket.ServeWs(hub, c.Writer, c.Request)
+		websocket.ServeWs(hub, authService, c.Writer, c.Request)
 	})
 
 	// Health check

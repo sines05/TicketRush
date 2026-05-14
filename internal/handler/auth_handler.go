@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"ticketrush/internal/config"
+	"ticketrush/internal/dto"
 	"ticketrush/internal/models"
 	"ticketrush/internal/service"
 	"ticketrush/internal/utils"
@@ -321,17 +322,7 @@ func (h *AuthHandler) GetMe(c *gin.Context) {
 	}
 
 	u := user.(*models.User)
-	utils.SendSuccess(c, http.StatusOK, gin.H{
-		"id":            u.ID,
-		"email":         u.Email,
-		"full_name":     u.FullName,
-		"avatar_url":    u.AvatarURL,
-		"role":          u.Role,
-		"gender":        u.Gender,
-		"date_of_birth": u.DateOfBirth,
-		"is_oauth":      u.IsOAuth,
-		"is_2fa_enabled": u.TwoFactorEnabled,
-	}, "")
+	utils.SendSuccess(c, http.StatusOK, dto.ToUserResponse(*u), "")
 }
 
 type updateMeRequest struct {
@@ -361,17 +352,7 @@ func (h *AuthHandler) UpdateMe(c *gin.Context) {
 		return
 	}
 
-	utils.SendSuccess(c, http.StatusOK, gin.H{
-		"id":            updatedUser.ID,
-		"email":         updatedUser.Email,
-		"full_name":     updatedUser.FullName,
-		"avatar_url":    updatedUser.AvatarURL,
-		"role":          updatedUser.Role,
-		"gender":        updatedUser.Gender,
-		"date_of_birth": updatedUser.DateOfBirth,
-		"is_oauth":      updatedUser.IsOAuth,
-		"is_2fa_enabled": updatedUser.TwoFactorEnabled,
-	}, "Cập nhật thông tin thành công")
+	utils.SendSuccess(c, http.StatusOK, dto.ToUserResponse(*updatedUser), "Cập nhật thông tin thành công")
 }
 
 type changePasswordRequest struct {

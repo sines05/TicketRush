@@ -3,6 +3,7 @@ package handler
 import (
 	"errors"
 	"net/http"
+	"ticketrush/internal/dto"
 	"ticketrush/internal/models"
 	"ticketrush/internal/repository"
 	"ticketrush/internal/utils"
@@ -21,8 +22,13 @@ func NewComplaintHandler(complaintRepo repository.ComplaintRepository) *Complain
 }
 
 func (h *ComplaintHandler) CreateComplaint(c *gin.Context) {
-	userIDStr := c.GetString("user_id")
-	userID, _ := uuid.Parse(userIDStr)
+	userObj, exists := c.Get("user")
+	if !exists {
+		utils.SendError(c, http.StatusUnauthorized, "User not authenticated", "AUTH_REQUIRED")
+		return
+	}
+	u := userObj.(*models.User)
+	userID := u.ID
 
 	var input struct {
 		Title   string `json:"title" binding:"required"`
@@ -48,8 +54,13 @@ func (h *ComplaintHandler) CreateComplaint(c *gin.Context) {
 }
 
 func (h *ComplaintHandler) GetMyComplaints(c *gin.Context) {
-	userIDStr := c.GetString("user_id")
-	userID, _ := uuid.Parse(userIDStr)
+	userObj, exists := c.Get("user")
+	if !exists {
+		utils.SendError(c, http.StatusUnauthorized, "User not authenticated", "AUTH_REQUIRED")
+		return
+	}
+	u := userObj.(*models.User)
+	userID := u.ID
 
 	complaints, err := h.complaintRepo.GetComplaintsByUserID(c.Request.Context(), userID)
 	if err != nil {
@@ -57,7 +68,7 @@ func (h *ComplaintHandler) GetMyComplaints(c *gin.Context) {
 		return
 	}
 
-	utils.SendSuccess(c, http.StatusOK, complaints, "Complaints fetched successfully")
+	utils.SendSuccess(c, http.StatusOK, dto.ToComplaintResponses(complaints), "Complaints fetched successfully")
 }
 
 func (h *ComplaintHandler) AdminGetAllComplaints(c *gin.Context) {
@@ -67,7 +78,7 @@ func (h *ComplaintHandler) AdminGetAllComplaints(c *gin.Context) {
 		return
 	}
 
-	utils.SendSuccess(c, http.StatusOK, complaints, "All complaints fetched successfully")
+	utils.SendSuccess(c, http.StatusOK, dto.ToComplaintResponses(complaints), "All complaints fetched successfully")
 }
 
 func (h *ComplaintHandler) AdminUpdateComplaintStatus(c *gin.Context) {

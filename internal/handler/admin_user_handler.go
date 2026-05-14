@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"ticketrush/internal/dto"
 	"ticketrush/internal/models"
 	"ticketrush/internal/repository"
 	"ticketrush/internal/service"
@@ -27,7 +28,7 @@ func (h *AdminUserHandler) ListUsers(c *gin.Context) {
 		return
 	}
 
-	utils.SendSuccess(c, http.StatusOK, users, "Thành công")
+	utils.SendSuccess(c, http.StatusOK, dto.ToUserResponses(users), "Thành công")
 }
 
 type updateRoleRequest struct {

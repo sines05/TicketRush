@@ -122,11 +122,16 @@ func (m *mockEventRepo) GetHeroEvents(limit int) ([]models.Event, error)     { r
 func (m *mockEventRepo) GetTrendingTicketStats(limit int, since time.Time) ([]repository.EventTrendingTicketStats, error) {
 	return nil, nil
 }
-func (m *mockEventRepo) UpdateEvent(event *models.Event) error                    { return nil }
-func (m *mockEventRepo) DeleteEvent(id uuid.UUID) error                           { return nil }
-func (m *mockEventRepo) GetSeatMap(eventID uuid.UUID) ([]models.EventZone, error) { return nil, nil }
+func (m *mockEventRepo) UpdateEvent(event *models.Event) error { return nil }
+func (m *mockEventRepo) DeleteEvent(id uuid.UUID) error        { return nil }
+func (m *mockEventRepo) GetSeatMap(eventID uuid.UUID) ([]models.EventZone, error) {
+	return nil, nil
+}
 func (m *mockEventRepo) GetTotalSeats(ctx context.Context, eventID uuid.UUID) (int64, error) {
 	return 0, nil
+}
+func (m *mockEventRepo) GetSimilarEvents(ctx context.Context, eventID uuid.UUID, category string, limit int) ([]models.Event, error) {
+	return nil, nil
 }
 
 type mockNotifier struct{}

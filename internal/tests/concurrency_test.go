@@ -24,16 +24,36 @@ func TestSeatLockConcurrency(t *testing.T) {
 		t.Skip("Database not available for concurrency test")
 		return
 	}
+	if !db.Migrator().HasColumn(&models.Event{}, "organizer_meta") ||
+		!db.Migrator().HasColumn(&models.Event{}, "event_meta") ||
+		!db.Migrator().HasColumn(&models.EventZone{}, "layout_meta") {
+		t.Skip("Database schema is not migrated for concurrency test")
+	}
 
 	// Setup: Create a test user, event and one seat
-	user := models.User{Email: "test@ticketrush.com", PasswordHash: "hash", FullName: "Test User"}
-	db.Create(&user)
-	event := models.Event{Title: "Concurrency Test"}
-	db.Create(&event)
+	user := models.User{Email: uuid.New().String() + "@ticketrush.com", PasswordHash: "hash", FullName: "Test User"}
+	if err := db.Create(&user).Error; err != nil {
+		t.Skipf("Database not writable for concurrency test: %v", err)
+	}
+	t.Cleanup(func() { db.Unscoped().Delete(&user) })
+
+	event := models.Event{Title: "Concurrency Test", Slug: uuid.New().String()}
+	if err := db.Create(&event).Error; err != nil {
+		t.Skipf("Database event setup failed: %v", err)
+	}
+	t.Cleanup(func() { db.Unscoped().Delete(&event) })
+
 	zone := models.EventZone{EventID: event.ID, Name: "VIP", Price: 100}
-	db.Create(&zone)
+	if err := db.Create(&zone).Error; err != nil {
+		t.Skipf("Database zone setup failed: %v", err)
+	}
+	t.Cleanup(func() { db.Unscoped().Delete(&zone) })
+
 	seat := models.Seat{ZoneID: zone.ID, RowLabel: "A", SeatNumber: 1, Status: models.SeatAvailable}
-	db.Create(&seat)
+	if err := db.Create(&seat).Error; err != nil {
+		t.Skipf("Database seat setup failed: %v", err)
+	}
+	t.Cleanup(func() { db.Unscoped().Delete(&seat) })
 
 	orderRepo := repository.NewOrderRepository(db)
 	orderSvc := service.NewOrderService(orderRepo, &mockEventRepo{}, &mockQueueRepo{}, &mockBroadcaster{}, &mockNotifier{}, &mockUserRepo{})
@@ -63,10 +83,4 @@ func TestSeatLockConcurrency(t *testing.T) {
 
 	assert.Equal(t, 1, successCount, "Exactly one user should successfully lock the seat")
 	assert.Equal(t, numRequests-1, failCount, "All other users should fail to lock the seat")
-
-	// Cleanup
-	db.Unscoped().Delete(&seat)
-	db.Unscoped().Delete(&zone)
-	db.Unscoped().Delete(&event)
-	db.Unscoped().Delete(&user)
 }

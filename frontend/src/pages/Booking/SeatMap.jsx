@@ -55,7 +55,7 @@ export default function SeatMap() {
   const [searchParams] = useSearchParams();
   const { selectedSeats, toggleSeat, clearSelection, startBooking } =
     useContext(BookingContext);
-  const { user } = useAuth();
+  const { user, token } = useAuth();
 
   const [selected, setSelected] = useState(() => new Set());
 
@@ -106,7 +106,10 @@ export default function SeatMap() {
   const { secondsLeft, isExpired } = useCountdown({ endsAt: targetTime });
 
   // WebSocket real-time seat updates
-  const { status: wsStatus, setOnMessage, send } = useWebSocket('/ws', { enabled: !!eventId });
+  const { status: wsStatus, setOnMessage, send } = useWebSocket('/ws', { 
+    enabled: !!eventId,
+    token
+  });
 
   // Handle subscription
   useEffect(() => {
@@ -470,9 +473,15 @@ export default function SeatMap() {
               Thời gian chọn ghế của bạn đã kết thúc. Vui lòng quay lại hàng chờ để tiếp tục.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <Button onClick={() => navigate('/')} className="w-full">
-              Quay lại trang chủ
+          <DialogFooter className="flex flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => navigate('/')} className="flex-1">
+              Về trang chủ
+            </Button>
+            <Button 
+              onClick={() => navigate(`/events/${event?.slug || eventId}`)} 
+              className="flex-1 shadow-lg shadow-primary/20"
+            >
+              Quay lại hàng chờ
             </Button>
           </DialogFooter>
         </DialogContent>

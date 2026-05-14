@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"ticketrush/internal/service"
 
 	"github.com/gorilla/websocket"
 )
@@ -27,8 +28,22 @@ type clientMessage struct {
 	Channel string `json:"channel"` // "global" or "event:{eventID}"
 }
 
-func ServeWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
-	conn, err := upgrader.Upgrade(w, r, nil)
+func ServeWs(hub *Hub, authService service.AuthService, w http.ResponseWriter, r *http.Request) {
+	protocol := r.Header.Get("Sec-WebSocket-Protocol")
+	if protocol == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	_, err := authService.ValidateToken(protocol)
+	if err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	conn, err := upgrader.Upgrade(w, r, http.Header{
+		"Sec-WebSocket-Protocol": []string{protocol},
+	})
 	if err != nil {
 		log.Printf("Upgrade error: %v", err)
 		return

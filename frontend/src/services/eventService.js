@@ -246,4 +246,17 @@ async function getHeroEvents(limit = 10) {
   return EVENTS.filter((e) => Boolean(e.is_featured)).slice(0, limit);
 }
 
-export default { getEvents, getHeroEvents, getFeaturedEvents, getTrendingEvents, getEventDetail, getSeatMap, createEvent, getAdminEvents, updateEvent, deleteEvent, getDashboardStats };
+async function getSimilarEvents(eventId, limit = 4) {
+  if (!USE_MOCK && eventId) {
+    const res = await api.get(API_ROUTES.SIMILAR_EVENTS(eventId), { params: { limit } });
+    return unwrap(res);
+  }
+
+  await sleep(300);
+  // Mock: just return some events from the same category
+  const evt = EVENTS.find(e => e.id === eventId);
+  const category = evt?.category || 'other';
+  return EVENTS.filter((e) => e.category === category && e.id !== eventId).slice(0, limit);
+}
+
+export default { getEvents, getHeroEvents, getFeaturedEvents, getTrendingEvents, getEventDetail, getSeatMap, createEvent, getAdminEvents, updateEvent, deleteEvent, getDashboardStats, getSimilarEvents };

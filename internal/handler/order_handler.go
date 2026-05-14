@@ -2,11 +2,11 @@ package handler
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"ticketrush/internal/dto"
 	"ticketrush/internal/models"
 	"ticketrush/internal/queue"
 	"ticketrush/internal/service"
@@ -58,12 +58,7 @@ func (h *OrderHandler) LockSeats(c *gin.Context) {
 	// Update session with Order ID so frontend can recover
 	_ = h.queueService.UpdateSessionOrder(c.Request.Context(), token, order.ID, order.ExpiresAt)
 
-	utils.SendSuccess(c, http.StatusOK, gin.H{
-		"order_id":     order.ID,
-		"total_amount": order.TotalAmount,
-		"status":       order.Status,
-		"expires_at":   order.ExpiresAt,
-	}, "Thành công")
+	utils.SendSuccess(c, http.StatusOK, dto.ToOrderResponse(*order), "Thành công")
 }
 
 type checkoutRequest struct {
@@ -92,11 +87,7 @@ func (h *OrderHandler) Checkout(c *gin.Context) {
 		return
 	}
 
-	utils.SendSuccess(c, http.StatusOK, gin.H{
-		"order_id":     order.ID,
-		"status":       order.Status,
-		"ticket_count": len(order.OrderItems),
-	}, "Thanh toán thành công! Vé đã được tạo.")
+	utils.SendSuccess(c, http.StatusOK, dto.ToOrderResponse(*order), "Thanh toán thành công! Vé đã được tạo.")
 }
 
 type cancelOrderRequest struct {
@@ -142,23 +133,7 @@ func (h *OrderHandler) GetMyTickets(c *gin.Context) {
 		return
 	}
 
-	data := make([]map[string]interface{}, 0)
-	for _, t := range tickets {
-		data = append(data, map[string]interface{}{
-			"ticket_id":       t.ID,
-			"event_title":     t.Seat.Zone.Event.Title,
-			"event_banner_url": t.Seat.Zone.Event.BannerURL,
-			"zone_name":       t.Seat.Zone.Name,
-			"seat_label":      fmt.Sprintf("%s-%d", t.Seat.RowLabel, t.Seat.SeatNumber),
-			"row_label":       t.Seat.RowLabel,
-			"seat_number":     t.Seat.SeatNumber,
-			"price":           t.Seat.Zone.Price,
-			"qr_code_token":   t.QRCodeToken,
-			"is_checked_in":   t.IsCheckedIn,
-		})
-	}
-
-	utils.SendSuccess(c, http.StatusOK, data, "Thành công")
+	utils.SendSuccess(c, http.StatusOK, dto.ToTicketResponses(tickets), "Thành công")
 }
 
 func (h *OrderHandler) GetTickets(c *gin.Context) {
@@ -179,23 +154,7 @@ func (h *OrderHandler) GetTickets(c *gin.Context) {
 		return
 	}
 
-	data := make([]map[string]interface{}, 0)
-	for _, t := range tickets {
-		data = append(data, map[string]interface{}{
-			"ticket_id":       t.ID,
-			"event_title":     t.Seat.Zone.Event.Title,
-			"event_banner_url": t.Seat.Zone.Event.BannerURL,
-			"zone_name":       t.Seat.Zone.Name,
-			"seat_label":      fmt.Sprintf("%s-%d", t.Seat.RowLabel, t.Seat.SeatNumber),
-			"row_label":       t.Seat.RowLabel,
-			"seat_number":     t.Seat.SeatNumber,
-			"price":           t.Seat.Zone.Price,
-			"qr_code_token":   t.QRCodeToken,
-			"is_checked_in":   t.IsCheckedIn,
-		})
-	}
-
-	utils.SendSuccess(c, http.StatusOK, data, "Thành công")
+	utils.SendSuccess(c, http.StatusOK, dto.ToTicketResponses(tickets), "Thành công")
 }
 
 func (h *OrderHandler) CheckInTicket(c *gin.Context) {
@@ -219,15 +178,5 @@ func (h *OrderHandler) CheckInTicket(c *gin.Context) {
 		return
 	}
 
-	utils.SendSuccess(c, http.StatusOK, map[string]interface{}{
-		"ticket_id":       ticket.ID,
-		"event_title":     ticket.Seat.Zone.Event.Title,
-		"event_banner_url": ticket.Seat.Zone.Event.BannerURL,
-		"zone_name":       ticket.Seat.Zone.Name,
-		"seat_label":      fmt.Sprintf("%s-%d", ticket.Seat.RowLabel, ticket.Seat.SeatNumber),
-		"row_label":       ticket.Seat.RowLabel,
-		"seat_number":     ticket.Seat.SeatNumber,
-		"qr_code_token":   ticket.QRCodeToken,
-		"is_checked_in":   ticket.IsCheckedIn,
-	}, "Vé đã được xác nhận.")
+	utils.SendSuccess(c, http.StatusOK, dto.ToTicketResponse(*ticket), "Vé đã được xác nhận.")
 }

@@ -165,6 +165,8 @@ export function AuthProvider({ children }) {
     localStorage.removeItem(STORAGE_TOKEN);
     localStorage.removeItem(STORAGE_USER);
     queryClient.clear();
+    window.sessionStorage.clear();
+    window.location.href = '/';
   }, [queryClient]);
 
   const value = useMemo(() => {

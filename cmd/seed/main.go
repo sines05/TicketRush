@@ -15,6 +15,24 @@ import (
 	"ticketrush/internal/utils"
 )
 
+func floatPtr(f float64) *float64 { return &f }
+
+type CityCoord struct {
+	Lat float64
+	Lon float64
+}
+
+var cityCoords = map[string]CityCoord{
+	"Hồ Chí Minh": {Lat: 10.762622, Lon: 106.660172},
+	"Hà Nội":      {Lat: 21.028511, Lon: 105.804817},
+	"Đà Nẵng":     {Lat: 16.054407, Lon: 108.202167},
+	"Cần Thơ":     {Lat: 10.045162, Lon: 105.746857},
+	"Đà Lạt":      {Lat: 11.940419, Lon: 108.458313},
+	"Nha Trang":   {Lat: 12.238791, Lon: 109.196749},
+	"Hải Phòng":   {Lat: 20.844912, Lon: 106.688084},
+	"Huế":         {Lat: 16.463713, Lon: 107.590866},
+}
+
 func main() {
 	rand.Seed(time.Now().UnixNano())
 	cfg := config.LoadConfig()
@@ -181,7 +199,7 @@ func main() {
 	}
 
 	categories := []string{"music_festival", "sports", "arts_stage", "education_workshop", "experience_entertainment", "other"}
-	locations := []string{"Hồ Chí Minh", "Hà Nội", "Đà Nẵng", "Cần Thơ", "Đà Lạt", "Nha Trang"}
+	locations := []string{"Hồ Chí Minh", "Hà Nội", "Đà Nẵng", "Cần Thơ", "Đà Lạt", "Nha Trang", "Hải Phòng", "Huế"}
 
 	var eventSeeds []eventSeed
 
@@ -195,6 +213,8 @@ func main() {
 					BannerURL:   "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?auto=format&fit=crop&w=1200&q=80",
 					Location:    "Hà Nội",
 					Address:     "Sân vận động Quốc gia Mỹ Đình, Hà Nội",
+					Latitude:    floatPtr(cityCoords["Hà Nội"].Lat),
+					Longitude:   floatPtr(cityCoords["Hà Nội"].Lon),
 					StartTime:   time.Now().UTC().AddDate(0, 0, 14),
 					EndTime:     time.Now().UTC().AddDate(0, 0, 14).Add(4 * time.Hour),
 					IsPublished: true,
@@ -218,6 +238,8 @@ func main() {
 					BannerURL:   "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=1200&q=80",
 					Location:    "Hà Nội",
 					Address:     "Sân vận động Quốc gia Mỹ Đình, Hà Nội",
+					Latitude:    floatPtr(cityCoords["Hà Nội"].Lat),
+					Longitude:   floatPtr(cityCoords["Hà Nội"].Lon),
 					StartTime:   time.Now().UTC().AddDate(0, 1, 0),
 					EndTime:     time.Now().UTC().AddDate(0, 1, 0).Add(5 * time.Hour),
 					IsPublished: true,
@@ -241,6 +263,8 @@ func main() {
 					BannerURL:   "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?auto=format&fit=crop&w=1200&q=80",
 					Location:    "Hồ Chí Minh",
 					Address:     "Sân vận động Quân khu 7, TP.HCM",
+					Latitude:    floatPtr(cityCoords["Hồ Chí Minh"].Lat),
+					Longitude:   floatPtr(cityCoords["Hồ Chí Minh"].Lon),
 					StartTime:   time.Now().UTC().AddDate(0, 0, 21),
 					EndTime:     time.Now().UTC().AddDate(0, 0, 21).Add(5 * time.Hour),
 					IsPublished: true,
@@ -257,14 +281,18 @@ func main() {
 			title := titles[rand.Intn(len(titles))]
 			title = fmt.Sprintf("%s #%d", title, i+1)
 			startTime := time.Now().UTC().AddDate(0, 0, rand.Intn(90)-30)
+			location := locations[rand.Intn(len(locations))]
+			coord := cityCoords[location]
 
 			es = eventSeed{
 				event: models.Event{
 					Title:       title,
 					Description: descriptions[rand.Intn(len(descriptions))],
 					BannerURL:   banners[rand.Intn(len(banners))],
-					Location:    locations[rand.Intn(len(locations))],
-					Address:     fmt.Sprintf("Địa điểm tổ chức tại %s", locations[rand.Intn(len(locations))]),
+					Location:    location,
+					Address:     fmt.Sprintf("Địa điểm tổ chức tại %s", location),
+					Latitude:    floatPtr(coord.Lat),
+					Longitude:   floatPtr(coord.Lon),
 					StartTime:   startTime,
 					EndTime:     startTime.Add(time.Duration(2+rand.Intn(4)) * time.Hour),
 					IsPublished: rand.Intn(100) < 90,

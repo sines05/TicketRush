@@ -36,6 +36,7 @@ type EventRepository interface {
 	DeleteEvent(id uuid.UUID) error
 	GetSeatMap(eventID uuid.UUID) ([]models.EventZone, error)
 	GetTotalSeats(ctx context.Context, eventID uuid.UUID) (int64, error)
+	GetSimilarEvents(ctx context.Context, eventID uuid.UUID, category string, limit int) ([]models.Event, error)
 }
 
 type EventTrendingTicketStats struct {
@@ -206,4 +207,13 @@ func (r *eventRepo) GetTotalSeats(ctx context.Context, eventID uuid.UUID) (int64
 		Where("event_zones.event_id = ?", eventID).
 		Count(&count).Error
 	return count, err
+}
+
+func (r *eventRepo) GetSimilarEvents(ctx context.Context, eventID uuid.UUID, category string, limit int) ([]models.Event, error) {
+	var events []models.Event
+	err := r.db.WithContext(ctx).
+		Where("category = ? AND id <> ? AND is_published = ?", category, eventID, true).
+		Limit(limit).
+		Find(&events).Error
+	return events, err
 }

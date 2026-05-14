@@ -142,7 +142,7 @@ func (r *orderRepo) CompleteOrder(ctx context.Context, orderID uuid.UUID) (*mode
 			return err
 		}
 
-		// 3. Update seats status to SOLD
+		// 3. Update seats status to SOLD and clear locks
 		var seatIDs []uuid.UUID
 		for _, item := range order.OrderItems {
 			seatIDs = append(seatIDs, item.SeatID)
@@ -150,7 +150,11 @@ func (r *orderRepo) CompleteOrder(ctx context.Context, orderID uuid.UUID) (*mode
 
 		if err := tx.Model(&models.Seat{}).
 			Where("id IN ?", seatIDs).
-			Update("status", models.SeatSold).Error; err != nil {
+			Updates(map[string]interface{}{
+				"status":            models.SeatSold,
+				"locked_by_user_id": nil,
+				"locked_at":         nil,
+			}).Error; err != nil {
 			return err
 		}
 

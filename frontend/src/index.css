@@ -29,6 +29,7 @@
     --tr-destructive: 0 84.2% 60.2%;
     --tr-destructive-foreground: 210 40% 98%;
 
+    --tr-surface: 0 0% 100%;
     --tr-border: 214.3 31.8% 91.4%;
     --tr-input: 214.3 31.8% 91.4%;
     --tr-ring: 187 75% 35%;
@@ -69,6 +70,7 @@
     --tr-destructive: 0 62.8% 30.6%;
     --tr-destructive-foreground: 354 100% 97%;
 
+    --tr-surface: 263 30% 10%;
     --tr-border: 263 30% 20%;
     --tr-input: 263 30% 20%;
     --tr-ring: 148 31% 72%;
@@ -165,8 +167,8 @@ body {
 /* Glassmorphism for all light-mode surfaces using `bg-surface` */
 .bg-surface {
   background-color: hsl(var(--tr-card) / 0.25);
-  -webkit-backdrop-filter: blur(4px);
-  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
 }
 
 * {

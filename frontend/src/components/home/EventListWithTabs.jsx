@@ -12,7 +12,6 @@ export default function EventListWithTabs({ categoryKey, title }) {
   const [activeTab, setActiveTab] = useState('weekend'); // 'weekend' | 'month'
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [, setError] = useState('');
   const scrollRef = useRef(null);
 
   const dateFilter = useMemo(() => {
@@ -49,7 +48,7 @@ export default function EventListWithTabs({ categoryKey, title }) {
       })
       .catch((e) => {
         if (!mounted) return;
-        setError(e?.message || 'Không tải được danh sách sự kiện');
+        console.error(e?.message || 'Không tải được danh sách sự kiện');
       })
       .finally(() => {
         if (!mounted) return;

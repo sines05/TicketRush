@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Autoplay, Pagination, Navigation } from 'swiper/modules';
 import { PlayCircle, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -20,6 +21,9 @@ import 'swiper/css/navigation';
  * @param {Array} props.events - List of event objects to display
  */
 export default function HeroCarousel({ events = [] }) {
+  const prevRef = useRef(null);
+  const nextRef = useRef(null);
+
   if (!events || events.length === 0) return null;
 
   return (
@@ -28,7 +32,7 @@ export default function HeroCarousel({ events = [] }) {
         modules={[Autoplay, Pagination, Navigation]}
         spaceBetween={16}
         slidesPerView={1}
-        loop={events.length > 2}
+        loop={events.length > 1}
         autoplay={{
           delay: 5000,
           disableOnInteraction: false,
@@ -41,8 +45,12 @@ export default function HeroCarousel({ events = [] }) {
           bulletActiveClass: '!bg-primary !w-6',
         }}
         navigation={{
-          nextEl: '.hero-carousel-next',
-          prevEl: '.hero-carousel-prev',
+          prevEl: prevRef.current,
+          nextEl: nextRef.current,
+        }}
+        onBeforeInit={(swiper) => {
+          swiper.params.navigation.prevEl = prevRef.current;
+          swiper.params.navigation.nextEl = nextRef.current;
         }}
         breakpoints={{
           1024: {
@@ -91,16 +99,18 @@ export default function HeroCarousel({ events = [] }) {
 
         {/* Custom Navigation Arrows */}
         <button
+          ref={prevRef}
           type="button"
-          className="hero-carousel-prev absolute left-2 top-1/2 z-10 flex h-12 w-8 -translate-y-1/2 items-center justify-center rounded-md bg-card/80 text-foreground opacity-0 transition-all duration-300 hover:bg-card group-hover:opacity-100 md:left-4 md:h-16 md:w-10"
+          className="hero-carousel-prev absolute left-2 top-1/2 z-20 flex h-12 w-8 -translate-y-1/2 items-center justify-center rounded-md bg-card/80 text-foreground opacity-0 transition-all duration-300 hover:bg-card group-hover:opacity-100 md:left-4 md:h-16 md:w-10"
           aria-label="Previous slide"
         >
           <ChevronLeft className="h-6 w-6 md:h-8 md:w-8" />
         </button>
 
         <button
+          ref={nextRef}
           type="button"
-          className="hero-carousel-next absolute right-2 top-1/2 z-10 flex h-12 w-8 -translate-y-1/2 items-center justify-center rounded-md bg-card/80 text-foreground opacity-0 transition-all duration-300 hover:bg-card group-hover:opacity-100 md:right-4 md:h-16 md:w-10"
+          className="hero-carousel-next absolute right-2 top-1/2 z-20 flex h-12 w-8 -translate-y-1/2 items-center justify-center rounded-md bg-card/80 text-foreground opacity-0 transition-all duration-300 hover:bg-card group-hover:opacity-100 md:right-4 md:h-16 md:w-10"
           aria-label="Next slide"
         >
           <ChevronRight className="h-6 w-6 md:h-8 md:w-8" />
@@ -112,3 +122,4 @@ export default function HeroCarousel({ events = [] }) {
     </section>
   );
 }
+

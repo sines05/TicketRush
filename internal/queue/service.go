@@ -42,7 +42,7 @@ func (s *service) getOrCreateSession(ctx context.Context, eventID uuid.UUID, use
 	if err == nil && session != nil {
 		if session.Status != status {
 			session.Status = status
-			if status == "allowed" && session.AllowedAt == nil {
+			if status == "allowed" {
 				now := time.Now().UTC()
 				session.AllowedAt = &now
 			}
@@ -163,10 +163,8 @@ func (s *service) ProcessQueue(ctx context.Context, eventID uuid.UUID) error {
 		session, err := s.repo.GetSessionByEventAndUser(ctx, eventID, userID)
 		if err == nil && session != nil {
 			session.Status = "allowed"
-			if session.AllowedAt == nil {
-				now := time.Now().UTC()
-				session.AllowedAt = &now
-			}
+			now := time.Now().UTC()
+			session.AllowedAt = &now
 			s.repo.SaveSession(ctx, session, SessionExpiration)
 		}
 	}

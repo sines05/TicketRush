@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import ErrorBoundary from './components/common/ErrorBoundary.jsx';
 import SearchOverlay from './components/common/SearchOverlay.jsx';
+import ChatWidget from './components/ChatWidget.jsx';
 
 const THEME_KEY = 'tr_theme';
 
@@ -376,6 +377,7 @@ export default function App() {
           </div>
         </footer>
       )}
+      <ChatWidget />
     </div>
   );
 }
