@@ -15,6 +15,7 @@ import (
 
 type WorkerService interface {
 	StartWorkers()
+	ReleaseExpiredSessions()
 }
 
 type workerService struct {
@@ -68,12 +69,12 @@ func (s *workerService) StartWorkers() {
 	tickerSessions := time.NewTicker(1 * time.Minute)
 	go func() {
 		for range tickerSessions.C {
-			s.releaseExpiredSessions()
+			s.ReleaseExpiredSessions()
 		}
 	}()
 }
 
-func (s *workerService) releaseExpiredSessions() {
+func (s *workerService) ReleaseExpiredSessions() {
 	ctx := context.Background()
 	sessions, err := s.queueRepo.ListSessions(ctx)
 	if err != nil {
@@ -83,8 +84,26 @@ func (s *workerService) releaseExpiredSessions() {
 
 	now := time.Now().UTC()
 	for _, session := range sessions {
-		if session.Status == "allowed" && session.OrderID == nil && session.AllowedAt != nil {
+		if session.Status == "allowed" && session.AllowedAt != nil {
+			shouldExpire := false
 			if now.Sub(*session.AllowedAt) > 15*time.Minute+30*time.Second {
+				if session.OrderID == nil {
+					shouldExpire = true
+				} else {
+					// Check if the order is still pending
+					order, err := s.orderRepo.GetOrderByID(*session.OrderID)
+					if err != nil {
+						// If order not found, it's a zombie session
+						log.Printf("Order %s not found for session cleanup, treating as zombie", *session.OrderID)
+						shouldExpire = true
+					} else if order.Status != models.OrderPending {
+						// Order is COMPLETED or CANCELLED, but session still exists
+						shouldExpire = true
+					}
+				}
+			}
+
+			if shouldExpire {
 				log.Printf("Expiring session for user %s on event %s", session.UserID, session.EventID)
 				if err := s.queueRepo.RemoveFromActive(ctx, session.EventID, session.UserID); err != nil {
 					log.Printf("Error removing user from active: %v", err)

@@ -56,6 +56,9 @@ func (m *mockOrderRepo) GetTicketsByEventID(eventID *uuid.UUID) ([]models.Ticket
 func (m *mockOrderRepo) CheckInTicket(ctx context.Context, qrCodeToken string) (*models.Ticket, error) { return nil, nil }
 func (m *mockOrderRepo) GetTicketsByOrderID(orderID uuid.UUID) ([]models.Ticket, error) { return nil, nil }
 func (m *mockOrderRepo) GetRevenueStats(ctx context.Context, eventID *uuid.UUID) (float64, int64, error) { return 0, 0, nil }
+func (m *mockOrderRepo) FindPendingOrderByUserAndEvent(ctx context.Context, userID uuid.UUID, eventID uuid.UUID) (*models.Order, error) {
+	return nil, nil
+}
 
 // mockQueueRepo always returns "allowed" so LockSeats can proceed
 type mockQueueRepo struct{}
