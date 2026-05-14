@@ -2,8 +2,10 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"ticketrush/internal/models"
@@ -14,12 +16,22 @@ import (
 	"gorm.io/gorm"
 )
 
+var ErrDuplicateZoneName = errors.New("duplicate zone name in event")
+
 type ZoneConfig struct {
-	Name        string         `json:"name"`
-	Price       float64        `json:"price"`
-	TotalRows   int            `json:"total_rows"`
-	SeatsPerRow int            `json:"seats_per_row"`
-	LayoutMeta  models.JSONMap `json:"layout_meta"`
+	Name          string         `json:"name"`
+	Price         float64        `json:"price"`
+	TotalRows     int            `json:"total_rows"`
+	SeatsPerRow   int            `json:"seats_per_row"`
+	RowSeatCounts []int          `json:"row_seat_counts"`
+	LayoutMeta    models.JSONMap `json:"layout_meta"`
+	CanvasX       float64        `json:"canvas_x"`
+	CanvasY       float64        `json:"canvas_y"`
+	Width         float64        `json:"width"`
+	Height        float64        `json:"height"`
+	RotationAngle float64        `json:"rotation_angle"`
+	Capacity      int            `json:"capacity"`
+	ShapeType     string         `json:"shape_type"`
 }
 
 type EventCreateRequest struct {
@@ -76,6 +88,62 @@ type eventService struct {
 	db          *gorm.DB
 }
 
+func rowLabelFromIndex(index int) string {
+	if index < 0 {
+		index = 0
+	}
+	label := ""
+	for index >= 0 {
+		label = string(rune('A'+(index%26))) + label
+		index = index/26 - 1
+	}
+	return label
+}
+
+func normalizedRowSeatCounts(zCfg ZoneConfig) []int {
+	counts := make([]int, 0)
+	for _, count := range zCfg.RowSeatCounts {
+		if count > 0 {
+			counts = append(counts, count)
+		}
+	}
+	if len(counts) > 0 {
+		return counts
+	}
+
+	if zCfg.TotalRows <= 0 || zCfg.SeatsPerRow <= 0 {
+		return counts
+	}
+	for r := 0; r < zCfg.TotalRows; r++ {
+		counts = append(counts, zCfg.SeatsPerRow)
+	}
+	return counts
+}
+
+func validateZoneNames(zones []ZoneConfig) error {
+	seen := make(map[string]int, len(zones))
+	for idx, zone := range zones {
+		name := strings.TrimSpace(zone.Name)
+		if name == "" {
+			return fmt.Errorf("zone %d name cannot be empty", idx+1)
+		}
+		key := strings.ToLower(name)
+		if firstIndex, exists := seen[key]; exists {
+			return fmt.Errorf("%w: %q (zones %d and %d)", ErrDuplicateZoneName, name, firstIndex+1, idx+1)
+		}
+		seen[key] = idx
+	}
+	return nil
+}
+
+func isUniqueZoneNameError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	return strings.Contains(err.Error(), "idx_event_zone_name") && strings.Contains(err.Error(), "duplicate key value violates unique constraint")
+}
+
 func NewEventService(eventRepo repository.EventRepository, metricsRepo repository.EventMetricsRepository, db *gorm.DB) EventService {
 	return &eventService{
 		eventRepo:   eventRepo,
@@ -85,6 +153,10 @@ func NewEventService(eventRepo repository.EventRepository, metricsRepo repositor
 }
 
 func (s *eventService) CreateEvent(req EventCreateRequest) (*models.Event, error) {
+	if err := validateZoneNames(req.Zones); err != nil {
+		return nil, err
+	}
+
 	var event models.Event
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		startTime, err := time.Parse(time.RFC3339, req.StartTime)
@@ -117,23 +189,53 @@ func (s *eventService) CreateEvent(req EventCreateRequest) (*models.Event, error
 		}
 
 		for _, zCfg := range req.Zones {
+			zoneName := strings.TrimSpace(zCfg.Name)
+			rowSeatCounts := normalizedRowSeatCounts(zCfg)
+			totalRows := len(rowSeatCounts)
+			seatsPerRow := 0
+			totalCapacity := 0
+			for _, count := range rowSeatCounts {
+				if count > seatsPerRow {
+					seatsPerRow = count
+				}
+				totalCapacity += count
+			}
+			if zCfg.Capacity > 0 {
+				totalCapacity = zCfg.Capacity
+			}
+
+			shapeType := zCfg.ShapeType
+			if shapeType == "" {
+				shapeType = "theatre"
+			}
+
 			zone := models.EventZone{
-				EventID:     event.ID,
-				Name:        zCfg.Name,
-				Price:       zCfg.Price,
-				TotalRows:   zCfg.TotalRows,
-				SeatsPerRow: zCfg.SeatsPerRow,
-				LayoutMeta:  zCfg.LayoutMeta,
+				EventID:       event.ID,
+				Name:          zoneName,
+				Price:         zCfg.Price,
+				TotalRows:     totalRows,
+				SeatsPerRow:   seatsPerRow,
+				LayoutMeta:    zCfg.LayoutMeta,
+				CanvasX:       zCfg.CanvasX,
+				CanvasY:       zCfg.CanvasY,
+				Width:         zCfg.Width,
+				Height:        zCfg.Height,
+				RotationAngle: zCfg.RotationAngle,
+				Capacity:      totalCapacity,
+				ShapeType:     shapeType,
 			}
 			if err := tx.Create(&zone).Error; err != nil {
+				if isUniqueZoneNameError(err) {
+					return fmt.Errorf("%w: %q", ErrDuplicateZoneName, zoneName)
+				}
 				return err
 			}
 
 			// Bulk Insert Seats
 			var seats []models.Seat
-			for r := 0; r < zCfg.TotalRows; r++ {
-				rowLabel := fmt.Sprintf("%c", 'A'+r)
-				for c := 1; c <= zCfg.SeatsPerRow; c++ {
+			for r, count := range rowSeatCounts {
+				rowLabel := rowLabelFromIndex(r)
+				for c := 1; c <= count; c++ {
 					seats = append(seats, models.Seat{
 						ZoneID:     zone.ID,
 						RowLabel:   rowLabel,
@@ -141,6 +243,9 @@ func (s *eventService) CreateEvent(req EventCreateRequest) (*models.Event, error
 						Status:     models.SeatAvailable,
 					})
 				}
+			}
+			if len(seats) == 0 {
+				return fmt.Errorf("zone %q has no seats", zoneName)
 			}
 			if err := tx.Create(&seats).Error; err != nil {
 				return err
@@ -276,10 +381,20 @@ func (s *eventService) GetSeatMap(eventID uuid.UUID) (map[string]interface{}, er
 			})
 		}
 		result = append(result, map[string]interface{}{
-			"zone_id": zone.ID,
-			"name":    zone.Name,
-			"price":   zone.Price,
-			"seats":   seats,
+			"zone_id":        zone.ID,
+			"name":           zone.Name,
+			"price":          zone.Price,
+			"total_rows":     zone.TotalRows,
+			"seats_per_row":  zone.SeatsPerRow,
+			"layout_meta":    zone.LayoutMeta,
+			"canvas_x":       zone.CanvasX,
+			"canvas_y":       zone.CanvasY,
+			"width":          zone.Width,
+			"height":         zone.Height,
+			"rotation_angle": zone.RotationAngle,
+			"capacity":       zone.Capacity,
+			"shape_type":     zone.ShapeType,
+			"seats":          seats,
 		})
 	}
 

@@ -5,8 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 
-	"github.com/google/uuid"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type JSONMap map[string]interface{}
@@ -54,13 +55,21 @@ type Event struct {
 type EventZone struct {
 	BaseModel
 	EventID     uuid.UUID `gorm:"type:uuid;not null;index:idx_event_zone_name,unique" json:"event_id"`
-	Name        string     `gorm:"not null;type:varchar(50);index:idx_event_zone_name,unique" json:"name"`
-	Price       float64    `gorm:"type:decimal(12,2);not null" json:"price"`
-	TotalRows   int        `gorm:"not null" json:"total_rows"`
-	SeatsPerRow int        `gorm:"not null" json:"seats_per_row"`
-	LayoutMeta  JSONMap    `gorm:"type:jsonb;default:'{}'" json:"layout_meta"`
-	Seats       []Seat     `gorm:"foreignKey:ZoneID" json:"seats,omitempty"`
-	Event       Event      `gorm:"foreignKey:EventID" json:"-"`
+	Name        string    `gorm:"not null;type:varchar(50);index:idx_event_zone_name,unique" json:"name"`
+	Price       float64   `gorm:"type:decimal(12,2);not null" json:"price"`
+	TotalRows   int       `gorm:"not null" json:"total_rows"`
+	SeatsPerRow int       `gorm:"not null" json:"seats_per_row"`
+	// Geometric / layout properties for hierarchical seat map
+	CanvasX       float64 `gorm:"type:decimal(10,2);default:0" json:"canvas_x"`
+	CanvasY       float64 `gorm:"type:decimal(10,2);default:0" json:"canvas_y"`
+	Width         float64 `gorm:"type:decimal(10,2);default:0" json:"width"`
+	Height        float64 `gorm:"type:decimal(10,2);default:0" json:"height"`
+	RotationAngle float64 `gorm:"type:decimal(6,2);default:0" json:"rotation_angle"`
+	Capacity      int     `gorm:"default:0" json:"capacity"`
+	ShapeType     string  `gorm:"type:varchar(50);default:'theatre'" json:"shape_type"`
+	LayoutMeta    JSONMap `gorm:"type:jsonb;default:'{}'" json:"layout_meta"`
+	Seats         []Seat  `gorm:"foreignKey:ZoneID" json:"seats,omitempty"`
+	Event         Event   `gorm:"foreignKey:EventID" json:"-"`
 }
 
 type Seat struct {

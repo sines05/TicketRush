@@ -203,7 +203,6 @@ func (s *authService) GoogleLoginCallback(code string) (string, *models.User, er
 	// 1. Exchange code for token
 	token, err := s.googleCfg.Exchange(context.Background(), code)
 	if err != nil {
-		fmt.Printf("ERROR: Google Code Exchange failed: %v\n", err)
 		return "", nil, fmt.Errorf("code exchange failed: %v", err)
 	}
 
@@ -234,7 +233,7 @@ func (s *authService) GoogleLoginCallback(code string) (string, *models.User, er
 			FullName:     userInfo.Name,
 			Role:         models.RoleCustomer,
 			Gender:       models.GenderOther, // Default or prompt later
-			DateOfBirth:  time.Now().UTC(),         // Default or prompt later
+			DateOfBirth:  time.Now().UTC(),   // Default or prompt later
 		}
 		if err := s.userRepo.Create(user); err != nil {
 			return "", nil, fmt.Errorf("failed to create oauth user: %v", err)
@@ -271,7 +270,7 @@ func (s *authService) ForgotPassword(email string) error {
 
 	// Create a reset token
 	resetToken := uuid.New().String()
-	
+
 	reset := &models.PasswordReset{
 		UserID:    user.ID,
 		Token:     resetToken,
@@ -281,13 +280,6 @@ func (s *authService) ForgotPassword(email string) error {
 	if err := s.userRepo.CreatePasswordReset(reset); err != nil {
 		return err
 	}
-
-	// In a real application, send this token via Email.
-	// For this exercise, we print it to the console.
-	fmt.Printf("\n======================================================\n")
-	fmt.Printf("PASSWORD RESET TOKEN FOR %s:\n", email)
-	fmt.Printf("%s\n", resetToken)
-	fmt.Printf("======================================================\n\n")
 
 	return nil
 }

@@ -1,7 +1,12 @@
 package main
 
 import (
+	"errors"
 	"log"
+	"net"
+	"net/http"
+	"os"
+	"strings"
 
 	"ticketrush/internal/config"
 	"ticketrush/internal/handler"
@@ -20,6 +25,7 @@ import (
 func main() {
 	// 1. Load Configuration
 	cfg := config.LoadConfig()
+	configureGin()
 
 	// 2. Initialize Database
 	db := repository.NewPostgresDB(cfg)
@@ -71,7 +77,11 @@ func main() {
 	workerService.StartWorkers()
 
 	// 6. Setup Gin
-	r := gin.Default()
+	r := gin.New()
+	r.Use(gin.Recovery())
+	if err := r.SetTrustedProxies(nil); err != nil {
+		log.Fatalf("Failed to configure trusted proxies: %v", err)
+	}
 
 	// CORS Middleware
 	r.Use(cors.New(cors.Config{
@@ -180,7 +190,36 @@ func main() {
 	})
 
 	log.Printf("Server starting on port %s...", cfg.Port)
-	if err := r.Run(":" + cfg.Port); err != nil {
+	if err := serve(r, cfg.Port); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
+}
+
+func configureGin() {
+	if os.Getenv(gin.EnvGinMode) == "" {
+		gin.SetMode(gin.ReleaseMode)
+	}
+}
+
+func serve(handler http.Handler, port string) error {
+	address := ":" + port
+	listener, err := net.Listen("tcp", address)
+	if err != nil {
+		if isAddressInUse(err) {
+			return errors.New("port " + port + " is already in use; stop the existing TicketRush server or run with another port, for example: $env:PORT='8081'; go run cmd/server/main.go")
+		}
+		return err
+	}
+
+	server := &http.Server{
+		Addr:    address,
+		Handler: handler,
+	}
+	return server.Serve(listener)
+}
+
+func isAddressInUse(err error) bool {
+	errText := strings.ToLower(err.Error())
+	return strings.Contains(errText, "address already in use") ||
+		strings.Contains(errText, "only one usage of each socket address")
 }

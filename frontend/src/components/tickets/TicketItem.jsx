@@ -13,9 +13,14 @@ export default function TicketItem({ ticket }) {
 
   return (
     <div className="overflow-hidden rounded-2xl border bg-card text-card-foreground shadow-sm"> 
-      <div className="grid md:grid-cols-[1.6fr_1fr]">
-        <div className="relative h-52 overflow-hidden">
-          <img src={bannerUrl} alt={ticket.event_title} className="w-full h-full object-cover object-center" loading="lazy" />
+      <div className="grid items-stretch md:grid-cols-[1.6fr_1fr]">
+        <div className="relative h-52 overflow-hidden md:h-full md:min-h-52">
+          <img
+            src={bannerUrl}
+            alt={ticket.event_title}
+            className="absolute inset-0 h-full w-full object-cover object-center"
+            loading="lazy"
+          />
         </div>
 
         <div className="relative p-4">

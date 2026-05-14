@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
+import { Rnd } from 'react-rnd';
 
 interface Seat {
   id: string;
@@ -7,17 +8,34 @@ interface Seat {
 
 interface Zone {
   zone_id: string;
-  zone_name: string;
+  // support both backend snake_case and frontend camelCase
+  name?: string;
+  zone_name?: string;
   price: number;
-  seats: Seat[][];
-  level?: string; // 'upper', 'lower', etc.
+  seats?: Seat[][];
+  level?: string;
   offset_x?: number;
   offset_y?: number;
+  // geometry (snake_case from backend)
+  canvas_x?: number;
+  canvas_y?: number;
+  width?: number;
+  height?: number;
+  rotation_angle?: number;
+  capacity?: number;
+  shape_type?: string;
+  // camelCase aliases
+  canvasX?: number;
+  canvasY?: number;
+  rotationAngle?: number;
+  shapeType?: string;
 }
 
 interface CanvasSeatmapProps {
   eventId: string;
   zones: Zone[];
+  editable?: boolean; // admin mode
+  onZonesChange?: (zones: Zone[]) => void;
   onSeatSelect: (seatId: string) => void;
   selectedSeatIds: string[];
   currentLevel?: string;
@@ -28,15 +46,17 @@ const SEAT_MARGIN = 5;
 const ZONE_GAP = 100;
 const ZONE_LABEL_HEIGHT = 60;
 const SEAT_COLORS = {
-  AVAILABLE: '#10B981', // Green-500
+  AVAILABLE: '#60a5fa', // Blue (default seat color)
   LOCKED: '#F59E0B',    // Amber-500
   SOLD: '#EF4444',      // Red-500
-  SELECTED: '#3B82F6',  // Blue-500
+  SELECTED: '#22c55e',  // Green for selected
 };
 
 export const CanvasSeatmap: React.FC<CanvasSeatmapProps> = ({
   eventId,
   zones,
+  editable = false,
+  onZonesChange,
   onSeatSelect,
   selectedSeatIds,
 }) => {
@@ -83,8 +103,8 @@ export const CanvasSeatmap: React.FC<CanvasSeatmapProps> = ({
           });
           return next;
         });
-      } catch (err) {
-        console.error('WS Error:', err);
+      } catch {
+        // Ignore malformed realtime payloads.
       }
     };
 
@@ -107,6 +127,13 @@ export const CanvasSeatmap: React.FC<CanvasSeatmapProps> = ({
     selectedLevel ? zones.filter(z => z.level === selectedLevel) : zones
   , [zones, selectedLevel]);
 
+  // Local editable state for zones (to update positions/sizes/rotation)
+  const [localZones, setLocalZones] = useState<Zone[]>(() => zones.map(z => ({ ...z })));
+
+  useEffect(() => {
+    setLocalZones(zones.map(z => ({ ...z })));
+  }, [zones]);
+
   const [pulseScale, setPulseScale] = useState(1);
   const [recentlyUpdatedSeats, setRecentlyUpdatedSeats] = useState<Record<string, number>>({});
 
@@ -127,11 +154,38 @@ export const CanvasSeatmap: React.FC<CanvasSeatmapProps> = ({
     let currentY = 0;
     return visibleZones.map(zone => {
       const offset = currentY;
-      const zoneHeight = zone.seats.length * (SEAT_SIZE + SEAT_MARGIN) + ZONE_LABEL_HEIGHT;
+      const zoneHeight = (zone.seats?.length ?? 0) * (SEAT_SIZE + SEAT_MARGIN) + ZONE_LABEL_HEIGHT;
       currentY += zoneHeight + ZONE_GAP;
       return offset;
     });
   }, [visibleZones]);
+
+  // helpers to read/write geometry with both snake_case and camelCase
+  const readGeom = (z: Zone) => ({
+    x: Number(z.canvasX ?? z.canvas_x ?? 0),
+    y: Number(z.canvasY ?? z.canvas_y ?? 0),
+    width: Number(z.width ?? 0),
+    height: Number(z.height ?? 0),
+    rotation: Number(z.rotationAngle ?? z.rotation_angle ?? 0),
+    capacity: Number(z.capacity ?? 0),
+    shapeType: String(z.shapeType ?? z.shape_type ?? 'theatre'),
+    name: z.name ?? z.zone_name ?? 'Zone',
+  });
+
+  const writeGeom = (z: Zone, geom: { x?: number; y?: number; width?: number; height?: number; rotation?: number }) => {
+    const updated: Zone = { ...z };
+    if (geom.x !== undefined) { updated.canvas_x = geom.x; updated.canvasX = geom.x; }
+    if (geom.y !== undefined) { updated.canvas_y = geom.y; updated.canvasY = geom.y; }
+    if (geom.width !== undefined) { updated.width = geom.width; }
+    if (geom.height !== undefined) { updated.height = geom.height; }
+    if (geom.rotation !== undefined) { updated.rotation_angle = geom.rotation; updated.rotationAngle = geom.rotation; }
+    return updated;
+  };
+
+  const triggerZonesChange = (nextZones: Zone[]) => {
+    setLocalZones(nextZones);
+    if (onZonesChange) onZonesChange(nextZones);
+  };
 
   const draw = useCallback((ctx: CanvasRenderingContext2D) => {
     const { width, height } = ctx.canvas;
@@ -151,14 +205,15 @@ export const CanvasSeatmap: React.FC<CanvasSeatmapProps> = ({
       ctx.shadowColor = 'rgba(0,0,0,0.5)';
       ctx.fillStyle = '#94A3B8'; // slate-400
       ctx.font = '500 14px Inter, sans-serif';
-      ctx.fillText(`ZONE: ${zone.zone_name.toUpperCase()}`, zoneX, zoneY - 30);
+      const zLabel = (zone.zone_name ?? zone.name ?? 'Zone').toString().toUpperCase();
+      ctx.fillText(`ZONE: ${zLabel}`, zoneX, zoneY - 30);
       
       ctx.fillStyle = '#FFFFFF';
       ctx.font = 'bold 24px Inter, sans-serif';
       ctx.fillText(`$${zone.price}`, zoneX, zoneY - 8);
       ctx.shadowBlur = 0;
 
-      zone.seats.forEach((row, rowIdx) => {
+      zone.seats?.forEach((row, rowIdx) => {
         row.forEach((seat, colIdx) => {
           const x = zoneX + colIdx * (SEAT_SIZE + SEAT_MARGIN);
           const y = zoneY + rowIdx * (SEAT_SIZE + SEAT_MARGIN);
@@ -242,6 +297,67 @@ export const CanvasSeatmap: React.FC<CanvasSeatmapProps> = ({
 
     ctx.restore();
   }, [visibleZones, zoneOffsets, transform, selectedSeatIds, seatStatusOverrides]);
+
+  // Admin rendering: show draggable/resizable blocks using Rnd
+  const renderAdminZones = () => {
+    return localZones.map((zone, idx) => {
+      const geom = readGeom(zone);
+      // Compute default size if missing, proportional to capacity
+      const capacity = Math.max(0, geom.capacity || 0);
+      let w = geom.width && geom.width > 0 ? geom.width : Math.max(120, 40 + capacity * 8);
+      let h = geom.height && geom.height > 0 ? geom.height : Math.max(80, 30 + capacity * 4);
+
+      const x = geom.x ?? (50 + idx * 20);
+      const y = geom.y ?? (50 + idx * 20);
+
+      const name = geom.name;
+
+      return (
+        <Rnd
+          key={zone.zone_id || idx}
+          size={{ width: w, height: h }}
+          position={{ x, y }}
+          onDragStop={(e, d) => {
+            const next = localZones.map(z => z.zone_id === zone.zone_id ? writeGeom(z, { x: d.x, y: d.y }) : z);
+            triggerZonesChange(next);
+          }}
+          onResizeStop={(e, direction, ref, delta, position) => {
+            const newW = parseFloat(ref.style.width.replace('px',''));
+            const newH = parseFloat(ref.style.height.replace('px',''));
+            const next = localZones.map(z => z.zone_id === zone.zone_id ? writeGeom(z, { width: newW, height: newH, x: position.x, y: position.y }) : z);
+            triggerZonesChange(next);
+          }}
+          bounds="parent"
+          dragHandleClassName="zone-drag-handle"
+          enableResizing={{ top:true, right:true, bottom:true, left:true, topRight:true, bottomRight:true, bottomLeft:true, topLeft:true }}
+        >
+          <div
+            className="relative rounded-md border bg-background/70 shadow-sm select-none p-2"
+            style={{ width: '100%', height: '100%', transform: `rotate(${geom.rotation}deg)`, transformOrigin: 'center' }}
+          >
+            <div className="zone-drag-handle absolute top-1 left-2 text-xs font-semibold">{name}</div>
+            <div className="absolute top-1 right-2 text-xs text-muted">{zone.shapeType ?? zone.shape_type}</div>
+            <div className="absolute bottom-2 left-2 text-xs">Capacity: {zone.capacity ?? 0}</div>
+
+            {/* rotation control */}
+            <div className="absolute top-1 left-1/2 -translate-x-1/2 flex items-center gap-2">
+              <input
+                aria-label={`Rotate ${name}`}
+                type="number"
+                value={Math.round(geom.rotation)}
+                onChange={(e) => {
+                  const val = Number(e.target.value) || 0;
+                  const next = localZones.map(z => z.zone_id === zone.zone_id ? writeGeom(z, { rotation: ((val % 360) + 360) % 360 }) : z);
+                  triggerZonesChange(next);
+                }}
+                className="w-16 text-xs p-1 rounded bg-slate-700 text-white"
+              />
+            </div>
+          </div>
+        </Rnd>
+      );
+    });
+  };
 
   const animate = useCallback(() => {
     const canvas = canvasRef.current;
@@ -467,6 +583,12 @@ export const CanvasSeatmap: React.FC<CanvasSeatmapProps> = ({
         role="img"
         aria-label="Sơ đồ ghế ngồi tương tác. Sử dụng chuột để kéo và cuộn để phóng to. Nhấp vào ghế trống để chọn."
       />
+      {/* Admin editable zone blocks (react-rnd) */}
+      {editable && (
+        <div className="absolute inset-0 pointer-events-auto">
+          {renderAdminZones()}
+        </div>
+      )}
       <div className="sr-only">
         Sơ đồ ghế ngồi tương tác. Hiện tại đang hiển thị tầng {selectedLevel?.toUpperCase()}.
         Sử dụng các nút điều khiển để phóng to, thu nhỏ hoặc đặt lại chế độ xem.

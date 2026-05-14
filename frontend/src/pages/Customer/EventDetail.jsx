@@ -117,12 +117,12 @@ export default function EventDetail() {
       )}
 
       <section className="overflow-hidden rounded-2xl border border-text/10 bg-surface">
-        <div className="grid md:grid-cols-[1.6fr_1fr]">
-          <div className="relative">
+        <div className="grid items-stretch md:grid-cols-[1.6fr_1fr]">
+          <div className="relative h-64 overflow-hidden md:h-full md:min-h-[19rem]">
             <img
               src={resolveMediaUrl(event.banner_url) || bannerFallback}
               alt={event.title}
-              className="h-64 w-full object-cover md:h-[19rem]"
+              className="absolute inset-0 h-full w-full object-cover"
               loading="lazy"
             />
           </div>

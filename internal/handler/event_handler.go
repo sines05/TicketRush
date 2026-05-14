@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -32,6 +33,10 @@ func (h *EventHandler) CreateEvent(c *gin.Context) {
 
 	_, err := h.eventService.CreateEvent(req)
 	if err != nil {
+		if errors.Is(err, service.ErrDuplicateZoneName) {
+			utils.SendError(c, http.StatusBadRequest, "Tên zone bị trùng trong cùng một sự kiện", "DUPLICATE_ZONE_NAME")
+			return
+		}
 		utils.SendError(c, http.StatusInternalServerError, err.Error(), "CREATE_FAILED")
 		return
 	}

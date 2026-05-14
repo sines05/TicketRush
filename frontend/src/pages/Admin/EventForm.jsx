@@ -2,16 +2,118 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Button from '../../components/common/Button.jsx';
 import Input from '../../components/common/Input.jsx';
-import Seat from '../../components/booking/Seat.jsx';
-import { SEAT_STATUS } from '../../constants/status.js';
 import { formatVND } from '../../utils/formatters.js';
 import eventService from '../../services/eventService.js';
 import uploadService from '../../services/uploadService.js';
 import { resolveMediaUrl } from '../../utils/media.js';
-import { CATEGORY_OPTIONS, getCategoryKey, getCategoryLabel } from '../../constants/categories.js';
+import { CATEGORY_OPTIONS, getCategoryKey } from '../../constants/categories.js';
+import { ShapePalette, readAddZoneActionFromDrop } from '../../components/SeatBuilder/ShapePalette.tsx';
+import { FloorGroup } from '../../components/SeatBuilder/FloorGroup.tsx';
+import { ZoneBlock } from '../../components/SeatBuilder/ZoneBlock.tsx';
 
-function rowIndexToLabel(index) {
-  return String.fromCharCode('A'.charCodeAt(0) + index);
+const SHAPE_LABELS = {
+  theatre: 'Theatre',
+  semi_circle: 'Bán nguyệt',
+  banquet: 'Bàn tròn',
+  standing_block: 'Khu đứng',
+  chevron: 'Chữ V',
+  legacy: 'Lưới ghế'
+};
+
+const SHAPE_TYPES = new Set(['theatre', 'banquet', 'standing_block', 'chevron']);
+const ZONE_MAP_DRAFT_PREFIX = 'ticketrush:zone-map-draft:';
+const ZONE_MAP_SAVE_MESSAGE = 'ticketrush:zone-map-saved';
+const showLegacyZoneBuilder = import.meta.env.VITE_SHOW_LEGACY_ZONE_BUILDER === 'true';
+
+function clampNumber(value, min, max, fallback = min) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(min, Math.min(max, n));
+}
+
+function clampInt(value, min, max, fallback = min) {
+  return Math.floor(clampNumber(value, min, max, fallback));
+}
+
+function getShapeType(zone) {
+  const type = typeof zone?.shapeType === 'string' ? zone.shapeType : '';
+  if (type === 'semi_circle') return 'theatre';
+  return SHAPE_TYPES.has(type) ? type : 'legacy';
+}
+
+function getShapeParams(zone) {
+  return zone?.shapeParams && typeof zone.shapeParams === 'object' ? zone.shapeParams : {};
+}
+
+function buildShapeRowSeatCounts(zone) {
+  const shapeType = getShapeType(zone);
+  if (shapeType === 'legacy') return null;
+
+  const params = getShapeParams(zone);
+  if (shapeType === 'theatre' || shapeType === 'semi_circle') {
+    const rows = clampInt(params.rows, 1, 500, Number(zone?.totalRows) || 1);
+    const seatsPerRow = clampInt(params.seatsPerRow, 1, 800, Number(zone?.seatsPerRow) || 1);
+    return Array.from({ length: rows }, () => seatsPerRow);
+  }
+
+  if (shapeType === 'banquet') {
+    const tableCount = clampInt(params.tableCount ?? params.tablesCount, 1, 500, Number(zone?.totalRows) || 1);
+    const seatsPerTable = clampInt(params.seatsPerTable, 1, 80, Number(zone?.seatsPerRow) || 1);
+    return Array.from({ length: tableCount }, () => seatsPerTable);
+  }
+
+  if (shapeType === 'standing_block') {
+    const capacity = clampInt(params.capacity, 1, 1000000, Number(zone?.seatsPerRow) || 1);
+    return [capacity];
+  }
+
+  if (shapeType === 'chevron') {
+    const rows = clampInt(params.rows, 1, 500, Number(zone?.totalRows) || 1);
+    const seatsPerSide = clampInt(params.seatsPerRow, 1, 400, Math.max(1, Math.floor((Number(zone?.seatsPerRow) || 2) / 2)));
+    return Array.from({ length: rows }, () => seatsPerSide * 2);
+  }
+
+  return null;
+}
+
+function getShapeSummary(zone) {
+  const shapeType = getShapeType(zone);
+  const counts = buildRowSeatCounts(zone);
+  const total = counts.reduce((sum, v) => sum + (Number(v) || 0), 0);
+  const params = getShapeParams(zone);
+
+  if (shapeType === 'banquet') {
+    const tableCount = clampInt(params.tableCount ?? params.tablesCount, 1, 500, counts.length || 1);
+    const seatsPerTable = clampInt(params.seatsPerTable, 1, 80, counts[0] || 1);
+    return `${tableCount} bàn x ${seatsPerTable} ghế`;
+  }
+
+  if (shapeType === 'standing_block') return `${total} vé đứng`;
+
+  if (shapeType === 'chevron') {
+    const rows = clampInt(params.rows, 1, 500, counts.length || 1);
+    const seatsPerSide = clampInt(params.seatsPerRow, 1, 400, Math.max(1, Math.floor((counts[0] || 2) / 2)));
+    return `${rows} hàng x ${seatsPerSide} ghế/mỗi cánh`;
+  }
+
+  if (shapeType === 'semi_circle') {
+    const rows = clampInt(params.rows, 1, 500, counts.length || 1);
+    const seatsPerRow = clampInt(params.seatsPerRow, 1, 800, counts[0] || 1);
+    return `${rows} cung x ${seatsPerRow} ghế`;
+  }
+
+  return `${counts.length} hàng x ${counts[0] || 0} ghế`;
+}
+
+function patchShapeParams(zone, patch) {
+  const nextParams = { ...getShapeParams(zone), ...patch };
+  const counts = buildShapeRowSeatCounts({ ...zone, shapeParams: nextParams }) || [];
+  return {
+    shapeParams: nextParams,
+    totalRows: counts.length || 1,
+    seatsPerRow: counts.length ? Math.max(...counts) : 1,
+    customCounts: ''
+  };
 }
 
 function parseCounts(text) {
@@ -30,6 +132,9 @@ function parseCounts(text) {
 
 function buildRowSeatCounts(zone) {
   if (!zone) return [];
+
+  const shapeCounts = buildShapeRowSeatCounts(zone);
+  if (shapeCounts) return shapeCounts;
 
   const totalRows = Math.max(0, Number(zone.totalRows) || 0);
   const seatsPerRow = Math.max(0, Number(zone.seatsPerRow) || 0);
@@ -86,85 +191,6 @@ function buildRowSeatCounts(zone) {
   }
 }
 
-function buildPreviewRows(rowSeatCounts, zoneIndex = 0) {
-  const counts = Array.isArray(rowSeatCounts) ? rowSeatCounts : [];
-  const maxSeatCount = counts.length ? Math.max(...counts) : 0;
-  const rows = [];
-
-  for (let r = 0; r < counts.length; r++) {
-    const rowLabel = rowIndexToLabel(r);
-
-    const seats = [];
-    for (let c = 1; c <= counts[r]; c++) {
-      seats.push({
-        seat_id: `preview-${zoneIndex}-${r + 1}-${c}`,
-        row_label: rowLabel,
-        seat_number: c,
-        status: SEAT_STATUS.AVAILABLE,
-        shortLabel: String(c)
-      });
-    }
-    rows.push({ rowLabel, seats });
-  }
-
-  return { rows, maxSeatCount };
-}
-
-function normalizeLayoutMeta(meta) {
-  const m = meta || {};
-  const align = m.align === 'right' || m.align === 'left' || m.align === 'center' ? m.align : 'left';
-  const style = m.style === 'center_aisle' || m.style === 'three_blocks' || m.style === 'plain' ? m.style : 'plain';
-  const aisleSize = Math.max(1, Math.min(6, Number(m.aisle_size) || 2));
-  return { align, style, aisleSize };
-}
-
-function buildRowCells(seatsInRow, maxSeatCount, meta) {
-  const seats = Array.isArray(seatsInRow) ? seatsInRow : [];
-  const seatCount = seats.length;
-  const { align, style, aisleSize } = normalizeLayoutMeta(meta);
-
-  const aisleCount = style === 'three_blocks' ? 2 : style === 'center_aisle' ? 1 : 0;
-  const totalCols = Math.max(0, Number(maxSeatCount) || 0) + aisleCount * aisleSize;
-  const baseCols = seatCount + aisleCount * aisleSize;
-  const pad = Math.max(0, totalCols - baseCols);
-  const leftPad = align === 'right' ? pad : align === 'center' ? Math.floor(pad / 2) : 0;
-  const rightPad = pad - leftPad;
-
-  const blocks = (() => {
-    if (style === 'center_aisle') {
-      const left = Math.floor(seatCount / 2);
-      return [left, seatCount - left];
-    }
-    if (style === 'three_blocks') {
-      const base = Math.floor(seatCount / 3);
-      const rem = seatCount - base * 3;
-      const out = [base, base, base];
-      const order = [1, 0, 2];
-      for (let i = 0; i < rem; i++) out[order[i]] += 1;
-      return out;
-    }
-    return [seatCount];
-  })();
-
-  const cells = [];
-  for (let i = 0; i < leftPad; i++) cells.push(null);
-
-  let idx = 0;
-  for (let b = 0; b < blocks.length; b++) {
-    const take = blocks[b];
-    for (let i = 0; i < take; i++) {
-      cells.push(seats[idx++] || null);
-    }
-    if (b < blocks.length - 1) {
-      for (let i = 0; i < aisleSize; i++) cells.push(null);
-    }
-  }
-
-  for (let i = 0; i < rightPad; i++) cells.push(null);
-
-  return { cells, cols: totalCols };
-}
-
 function getZoneBoxSize(zone) {
   const counts = buildRowSeatCounts(zone);
   const totalSeats = counts.reduce((sum, v) => sum + (Number(v) || 0), 0);
@@ -175,33 +201,22 @@ function getZoneBoxSize(zone) {
   return { width, height, sizePercent };
 }
 
-function MiniSeating({ zone }) {
-  const counts = buildRowSeatCounts(zone);
-  const totalSeats = counts.reduce((sum, v) => sum + (Number(v) || 0), 0);
-  const rows = counts.length;
-  const maxCols = counts.length ? Math.max(...counts) : 1;
+function makeUniqueZoneName(existingZones, baseName) {
+  const fallback = String(baseName || 'Zone').trim() || 'Zone';
+  const existingNames = new Set(
+    (existingZones || [])
+      .map((zone) => String(zone?.name || '').trim().toLowerCase())
+      .filter(Boolean)
+  );
 
-  if (zone.seatType === 'standing') {
-    return (
-      <div className="w-full h-full rounded border-2 flex items-center justify-center text-xs font-semibold text-center" style={{borderColor: zone.color || '#60a5fa', backgroundColor: (zone.color || '#60a5fa') + '40'}}>
-        Standing<br/>{totalSeats} seats
-      </div>
-    );
-  } else {
-    // seated
-    const cellSize = Math.max(2, Math.min(8, 60 / maxCols)); // px
-    return (
-      <div className="w-full h-full rounded p-1" style={{backgroundColor: (zone.color || '#60a5fa') + '10'}}>
-        <div className="grid gap-px h-full" style={{gridTemplateRows: `repeat(${rows}, 1fr)`, gridTemplateColumns: `repeat(${maxCols}, 1fr)`}}>
-          {counts.map((count, r) =>
-            Array.from({length: maxCols}, (_, c) =>
-              c < count ? <div key={`${r}-${c}`} className="rounded-sm" style={{backgroundColor: zone.color || '#60a5fa', width: cellSize + 'px', height: cellSize + 'px'}}></div> : <div key={`${r}-${c}`}></div>
-            )
-          ).flat()}
-        </div>
-      </div>
-    );
+  if (!existingNames.has(fallback.toLowerCase())) return fallback;
+
+  let suffix = 2;
+  while (existingNames.has(`${fallback} ${suffix}`.toLowerCase())) {
+    suffix += 1;
   }
+
+  return `${fallback} ${suffix}`;
 }
 
 export default function EventForm() {
@@ -239,7 +254,9 @@ export default function EventForm() {
       posX: 15,
       posY: 30,
       color: '#60a5fa',
-      seatType: 'seated'
+      seatType: 'seated',
+      shapeType: 'theatre',
+      shapeParams: { rows: 5, seatsPerRow: 10 }
     }
   ]);
   const [activeZoneIndex, setActiveZoneIndex] = useState(0);
@@ -249,7 +266,62 @@ export default function EventForm() {
 
   const [dragging, setDragging] = useState(null);
 
+  const [floorGroups, setFloorGroups] = useState(() => [
+    { id: 'floor-1', name: 'Floor 1', isCollapsed: false },
+    { id: 'balcony', name: 'Balcony', isCollapsed: false },
+    { id: 'pit', name: 'Pit', isCollapsed: false }
+  ]);
+  const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
+
   const activeZone = zones[activeZoneIndex] || zones[0] || null;
+  const zoneMapDraftKeyRef = useRef(`event-form-${eventId || 'new'}-${Math.random().toString(16).slice(2)}`);
+
+  useEffect(() => {
+    function onZoneMapSaved(event) {
+      if (event.origin !== window.location.origin) return;
+      if (event.data?.type !== ZONE_MAP_SAVE_MESSAGE) return;
+      if (event.data?.draftKey !== zoneMapDraftKeyRef.current) return;
+      if (!Array.isArray(event.data?.zones)) return;
+      setZones(event.data.zones);
+    }
+
+    window.addEventListener('message', onZoneMapSaved);
+    return () => window.removeEventListener('message', onZoneMapSaved);
+  }, []);
+
+  function openZoneMapBuilder() {
+    const draftKey = zoneMapDraftKeyRef.current;
+    try {
+      window.localStorage.setItem(
+        `${ZONE_MAP_DRAFT_PREFIX}${draftKey}`,
+        JSON.stringify({
+          saved_at: new Date().toISOString(),
+          zones
+        })
+      );
+    } catch {
+      // ignore local storage failures and still try to open the builder
+    }
+
+    const builderUrl = new URL('/admin/events/zone-map', window.location.origin);
+    builderUrl.searchParams.set('draft', draftKey);
+    window.open(builderUrl.toString(), '_blank');
+  }
+
+  useEffect(() => {
+    const el = placementRef.current;
+    if (!el) return;
+    if (typeof ResizeObserver === 'undefined') return;
+
+    const ro = new ResizeObserver((entries) => {
+      const rect = entries?.[0]?.contentRect;
+      if (!rect) return;
+      setCanvasSize({ width: rect.width, height: rect.height });
+    });
+
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   // Collision detection: check if two zones overlap
   function checkZoneOverlap(z1, z2) {
@@ -320,15 +392,6 @@ export default function EventForm() {
   }, [dragging]);
 
   const rowSeatCounts = useMemo(() => buildRowSeatCounts(activeZone), [activeZone]);
-  const preview = useMemo(() => buildPreviewRows(rowSeatCounts, activeZoneIndex), [rowSeatCounts, activeZoneIndex]);
-
-  const previewLayoutMeta = useMemo(() => {
-    return {
-      align: activeZone?.renderAlign || 'left',
-      style: activeZone?.renderStyle || 'plain',
-      aisle_size: activeZone?.aisleSize ?? 2
-    };
-  }, [activeZone]);
 
   const totalSeatsInActiveZone = useMemo(() => rowSeatCounts.reduce((sum, v) => sum + (Number(v) || 0), 0), [rowSeatCounts]);
 
@@ -395,6 +458,11 @@ export default function EventForm() {
           const color = meta?.color || '#60a5fa';
           const seatType = meta?.seat_type === 'standing' ? 'standing' : 'seated';
 
+          const rawShapeType = meta?.shape_type || meta?.shapeType || z?.shape_type || z?.shapeType;
+          const shapeType = typeof rawShapeType === 'string' && rawShapeType.trim().length ? rawShapeType : null;
+          const rawShapeParams = meta?.shape_params || meta?.shapeParams;
+          const shapeParams = rawShapeParams && typeof rawShapeParams === 'object' ? rawShapeParams : {};
+
           return {
             key: `zone-${idx + 1}-${z.zone_id}`,
             name: z?.name || `Zone ${idx + 1}`,
@@ -411,7 +479,14 @@ export default function EventForm() {
             posX,
             posY,
             color,
-            seatType
+            seatType,
+            shapeType: shapeType || 'legacy',
+            shapeParams:
+              shapeType && Object.keys(shapeParams || {}).length
+                ? shapeParams
+                : seatType === 'standing'
+                  ? { capacity: counts.reduce((sum, v) => sum + (Number(v) || 0), 0) }
+                  : { rows: counts.length || 1, seatsPerRow: max || 1 }
           };
         });
 
@@ -440,27 +515,37 @@ export default function EventForm() {
       const counts = buildRowSeatCounts(z);
       const total_rows = counts.length || Math.max(0, Number(z.totalRows) || 0);
       const seats_per_row = counts.length ? Math.max(...counts) : Math.max(0, Number(z.seatsPerRow) || 0);
+
+      const normalizedShapeType = getShapeType(z);
+      const shouldPersistShape = normalizedShapeType !== 'legacy';
+      const shapeParams = getShapeParams(z);
+      const capacity = counts.reduce((sum, v) => sum + (Number(v) || 0), 0);
       const out = {
         name: z.name,
         price: Number(z.price) || 0,
         total_rows,
         seats_per_row,
+        row_seat_counts: counts,
         seat_type: z.seatType || 'seated',
         color: z.color || '#60a5fa',
+        capacity,
+        shape_type: shouldPersistShape ? normalizedShapeType : 'theatre',
         layout_meta: {
-          align: z.layout === 'grid' ? 'left' : z.renderAlign || 'left',
+          align: shouldPersistShape || z.layout === 'grid' ? 'left' : z.renderAlign || 'left',
           style: z.renderStyle || 'plain',
           aisle_size: Math.max(1, Math.min(6, Number(z.aisleSize) || 2)),
           pos_x: Math.max(0, Math.min(100, Number(z.posX) || 0)),
           pos_y: Math.max(0, Math.min(100, Number(z.posY) || 0)),
           color: z.color || '#60a5fa',
-          seat_type: z.seatType || 'seated'
+          seat_type: z.seatType || 'seated',
+          ...(shouldPersistShape
+            ? {
+                shape_type: normalizedShapeType,
+                shape_params: shapeParams,
+              }
+            : {}),
         }
       };
-
-      if (z.layout === 'custom' || z.layout === 'tapered') {
-        out.row_seat_counts = counts;
-      }
 
       return out;
     });
@@ -482,30 +567,95 @@ export default function EventForm() {
     setZones((prev) => prev.map((z, i) => (i === index ? { ...z, ...patch } : z)));
   }
 
-  function addZone() {
+  function addZone(shapeType, zoneDefaults) {
     setZones((prev) => {
       const nextIndex = prev.length;
+      const normalizedShapeType = typeof shapeType === 'string' ? shapeType : null;
+      const defaults = zoneDefaults && typeof zoneDefaults === 'object' ? zoneDefaults : null;
+      const seatMode = defaults?.seatMode === 'standing' ? 'standing' : 'seated';
+      const isStanding = seatMode === 'standing' || normalizedShapeType === 'standing' || normalizedShapeType === 'standing_block';
+
+      const defaultShapeParams = defaults?.shapeParams && typeof defaults.shapeParams === 'object' ? defaults.shapeParams : {};
+
+      const canonicalSeatCounts = (() => {
+        if (normalizedShapeType === 'theatre' || normalizedShapeType === 'semi_circle') {
+          const rows = Number(defaultShapeParams.rows) || (normalizedShapeType === 'theatre' ? 10 : 6);
+          const seatsPerRow = Number(defaultShapeParams.seatsPerRow) || (normalizedShapeType === 'theatre' ? 14 : 12);
+          return { totalRows: rows, seatsPerRow };
+        }
+        if (normalizedShapeType === 'banquet') {
+          const tableCount = Number(defaultShapeParams.tableCount) || 4;
+          const seatsPerTable = Number(defaultShapeParams.seatsPerTable) || 8;
+          return { totalRows: tableCount, seatsPerRow: seatsPerTable };
+        }
+        if (normalizedShapeType === 'standing_block') {
+          const cap = Number(defaultShapeParams.capacity) || 300;
+          return { totalRows: 1, seatsPerRow: cap };
+        }
+        if (normalizedShapeType === 'chevron') {
+          const rows = Number(defaultShapeParams.rows) || 8;
+          const perSide = Number(defaultShapeParams.seatsPerRow) || 7;
+          return { totalRows: rows, seatsPerRow: perSide * 2 };
+        }
+        return null;
+      })();
+
+      const shapeDefaults = (() => {
+        if (normalizedShapeType === 'fan') return { totalRows: 7, seatsPerRow: 10, customCounts: '6,8,10,12,14,16,18', layout: 'custom' };
+        if (normalizedShapeType === 'curved_rows') return { totalRows: 6, seatsPerRow: 12, customCounts: '', layout: 'grid' };
+        if (normalizedShapeType === 'round_table') return { totalRows: 1, seatsPerRow: 8, customCounts: '', layout: 'grid' };
+        if (normalizedShapeType === 'standing') return { totalRows: 1, seatsPerRow: 50, customCounts: '', layout: 'grid' };
+        if (canonicalSeatCounts) return { totalRows: canonicalSeatCounts.totalRows, seatsPerRow: canonicalSeatCounts.seatsPerRow, customCounts: '', layout: 'grid' };
+        return { totalRows: 5, seatsPerRow: 10, customCounts: '', layout: 'grid' };
+      })();
+
+      const shapeParams = (() => {
+        if (normalizedShapeType === 'curved_rows') return { rows: 6, seatsPerRow: 12, arcAngle: 180 };
+        if (normalizedShapeType === 'round_table') return { tablesCount: 1, seatsPerTable: 8 };
+        if (normalizedShapeType === 'fan') return { rows: 7, startSeats: 6, increment: 2 };
+        if (normalizedShapeType === 'standing') return { width: 240, height: 160 };
+        if (Object.keys(defaultShapeParams || {}).length) return defaultShapeParams;
+        return {};
+      })();
+
       const next = prev.concat({
         key: `zone-${prev.length + 1}-${Math.random().toString(16).slice(2)}`,
-        name: `Zone ${prev.length + 1}`,
-        price: 150000,
-        layout: 'grid',
-        totalRows: 5,
-        seatsPerRow: 10,
+        name: makeUniqueZoneName(
+          prev,
+          defaults?.name || (normalizedShapeType ? `${normalizedShapeType.replace(/_/g, ' ')} Zone` : 'Zone')
+        ),
+        price: Number(defaults?.price) || 150000,
+        layout: shapeDefaults.layout,
+        totalRows: shapeDefaults.totalRows,
+        seatsPerRow: shapeDefaults.seatsPerRow,
         taperedStart: 12,
         taperedEnd: 6,
-        customCounts: '',
+        customCounts: shapeDefaults.customCounts,
         renderAlign: 'left',
         renderStyle: 'plain',
         aisleSize: 2,
         posX: Math.min(85, 15 + nextIndex * 18),
         posY: 30 + (nextIndex % 2) * 28,
-        color: '#60a5fa',
-        seatType: 'seated'
+        color: defaults?.color || '#60a5fa',
+        seatType: isStanding ? 'standing' : 'seated',
+
+        // Extended (non-CRUD) shape metadata; ignored by payload mapping.
+        shapeType: normalizedShapeType || 'legacy',
+        shapeParams,
+        floorGroupId: null,
       });
       setActiveZoneIndex(nextIndex);
       return next;
     });
+  }
+
+  function onAssignZoneToGroup(zoneId, groupId) {
+    setZones((prev) => prev.map((z) => (z.key === zoneId ? { ...z, floorGroupId: groupId } : z)));
+  }
+
+  function onToggleGroupCollapse(groupId) {
+    if (groupId === '__unassigned__') return;
+    setFloorGroups((prev) => prev.map((g) => (g.id === groupId ? { ...g, isCollapsed: !g.isCollapsed } : g)));
   }
 
   function removeActiveZone() {
@@ -679,117 +829,211 @@ export default function EventForm() {
           </label>
         </div>
 
-        <div className="mt-6 grid gap-4 md:grid-cols-2">
-          <div className="rounded-2xl border border-text/10 bg-bg/40 p-4">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <div className="text-sm font-semibold">Zone Placement</div>
-                <div className="mt-1 text-xs text-muted">Kéo thả để sắp xếp vị trí các zone trên sân khấu</div>
-              </div>
-              <Button variant="secondary" size="sm" onClick={addZone}>+ Thêm zone</Button>
+        <div className="mt-6 rounded-2xl border border-text/10 bg-bg/40 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="text-sm font-semibold">Zone map</div>
+              <div className="text-xs text-muted">Mo builder o tab moi de thiet ke zone map va luu lai zones.</div>
             </div>
+            <Button onClick={openZoneMapBuilder}>Mo zone map builder</Button>
+          </div>
 
-            <div className="grid gap-2 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 mb-4">
-              {zones.map((z, idx) => (
-                <button
-                  key={z.key}
-                  type="button"
-                  onClick={() => setActiveZoneIndex(idx)}
-                  className={`rounded-lg border p-3 text-sm transition text-left ${
-                    idx === activeZoneIndex
-                      ? 'border-brand-600/60 bg-brand-600/15 text-text'
-                      : 'border-text/10 bg-bg/30 text-muted hover:bg-text/5 hover:text-text'
-                  }`}
-                >
-                  <div className="font-semibold truncate">{z.name || `Zone ${idx + 1}`}</div>
-                  <div className="text-xs mt-1">{formatVND(Number(z.price) || 0)}</div>
-                  <div className="text-[10px] text-muted mt-1">
-                    {(() => {
-                      const counts = buildRowSeatCounts(z);
-                      return `${counts.length} rows`;
-                    })()}
+          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {zones.map((z, idx) => {
+              const counts = buildRowSeatCounts(z);
+              const total = counts.reduce((sum, v) => sum + (Number(v) || 0), 0);
+              return (
+                <div key={z.key} className="rounded-xl border border-text/10 bg-surface p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-semibold">{z.name || `Zone ${idx + 1}`}</div>
+                      <div className="mt-1 text-xs text-muted">{SHAPE_LABELS[getShapeType(z)] || 'Zone'}</div>
+                    </div>
+                    <div
+                      className="h-4 w-4 shrink-0 rounded-full border border-black/10"
+                      style={{ backgroundColor: z.color || '#60a5fa' }}
+                      aria-hidden="true"
+                    />
                   </div>
-                </button>
-              ))}
-            </div>
+                  <div className="mt-3 text-sm">{formatVND(Number(z.price) || 0)}</div>
+                  <div className="mt-1 text-xs text-muted">{getShapeSummary(z)}</div>
+                  <div className="mt-1 text-xs text-muted">{total} ghe</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
 
-            <div className="rounded-2xl border border-text/10 bg-bg/30 p-4">
-              <div className="text-xs font-semibold text-muted mb-3">Visual Layout (Kéo để di chuyển, zones không được đè lên nhau)</div>
+        {showLegacyZoneBuilder && (
+        <div className="mt-6 flex gap-4">
+          {/* LEFT: Shape palette */}
+          <div className="w-72 shrink-0">
+            <div className="rounded-2xl border border-text/10 bg-bg/40 p-4">
+              <div className="text-sm font-semibold mb-3">Shape Palette</div>
+              <ShapePalette />
+            </div>
+          </div>
+
+          {/* MIDDLE: Canvas */}
+          <div className="min-w-0 flex-1">
+            <div className="rounded-2xl border border-text/10 bg-bg/40 p-4">
+              <div className="text-sm font-semibold mb-3">Canvas</div>
               <div className="overflow-hidden rounded-xl border border-text/10 bg-bg/40">
-                <div ref={placementRef} className="relative h-56 sm:h-64 md:h-72">
+                <div
+                  ref={placementRef}
+                  className="relative h-[70vh] min-h-[520px]"
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'copy';
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const action = readAddZoneActionFromDrop(e);
+                    const shapeType = action?.payload?.shapeType;
+                    const zoneDefaults = action?.payload?.zoneDefaults;
+                    if (shapeType) addZone(shapeType, zoneDefaults);
+                  }}
+                >
                   <div className="absolute left-3 right-3 top-3 flex items-center justify-center">
                     <div className="h-2 w-3/5 rounded-full bg-brand-600/40" aria-hidden="true" />
                   </div>
 
-                  {zones.map((z, idx) => (
-                    <div
-                      key={`zone-pos-${z.key}`}
-                      onClick={() => setActiveZoneIndex(idx)}
-                      onPointerDown={(e) => {
-                        e.preventDefault();
-                        const originX = Number(z.posX) || 0;
-                        const originY = Number(z.posY) || 0;
-                        setDragging({ zoneIndex: idx, startX: e.clientX, startY: e.clientY, originX, originY });
-                      }}
-                      className={`absolute select-none rounded-xl border transition active:cursor-grabbing cursor-grab ${
-                        idx === activeZoneIndex
-                          ? 'border-brand-600/60 bg-brand-600/15'
-                          : 'border-text/10 bg-surface'
-                      }`}
-                      style={{
-                        left: `${Math.max(0, Math.min(100, Number(z.posX) || 0))}%`,
-                        top: `${Math.max(0, Math.min(100, Number(z.posY) || 0))}%`,
-                        transform: 'translate(-50%, -50%)',
-                        width: `${getZoneBoxSize(z).width}px`,
-                        height: `${getZoneBoxSize(z).height}px`
-                      }}
-                      title="Kéo để di chuyển (không thể đè lên zone khác)"
-                    >
-                      <MiniSeating zone={z} />
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="mt-3 rounded-2xl border border-text/10 bg-bg/40 p-4">
-                <div className="text-sm font-semibold mb-3">Chi tiết sơ đồ zone</div>
-                <div className="text-sm text-muted mb-3">
-                  <p><strong>Tổng ghế:</strong> {totalSeatsInActiveZone}</p>
-                  <p><strong>Màu:</strong> <span style={{ color: activeZone?.color }}>{activeZone?.color}</span></p>
-                  <p><strong>Loại:</strong> {activeZone?.seatType === 'standing' ? 'Đứng' : 'Ngồi'}</p>
-                </div>
-                <div className="rounded-xl border border-text/10 bg-bg/30 p-4">
-                  <div className="text-sm font-semibold mb-3">Sơ đồ ghế chi tiết</div>
-                  <div className="overflow-auto max-h-96">
-                    {preview.rows.length === 0 ? (
-                      <div className="text-sm text-muted text-center py-8">Chưa có dữ liệu</div>
-                    ) : (
-                      <div className="space-y-2">
-                        {preview.rows.map((row) => (
-                          <div key={row.rowLabel} className="flex items-center gap-2">
-                            <div className="w-6 text-xs font-semibold text-muted text-right">{row.rowLabel}</div>
-                            {(() => {
-                              const built = buildRowCells(row.seats, preview.maxSeatCount, previewLayoutMeta);
+                  {(() => {
+                    const UNASSIGNED_ID = '__unassigned__';
+                    const allGroups = [{ id: UNASSIGNED_ID, name: 'Unassigned', isCollapsed: false }].concat(floorGroups);
+
+                    const byGroup = new Map();
+                    for (const g of allGroups) byGroup.set(g.id, []);
+                    for (let i = 0; i < zones.length; i++) {
+                      const z = zones[i];
+                      const gid = z.floorGroupId || UNASSIGNED_ID;
+                      if (!byGroup.has(gid)) byGroup.set(gid, []);
+                      byGroup.get(gid).push({ z, idx: i });
+                    }
+
+                    const zoneBox = (z) => getZoneBoxSize(z);
+                    const centerPx = (z) => {
+                      const x = (Math.max(0, Math.min(100, Number(z.posX) || 0)) / 100) * (canvasSize.width || 1);
+                      const y = (Math.max(0, Math.min(100, Number(z.posY) || 0)) / 100) * (canvasSize.height || 1);
+                      return { x, y };
+                    };
+
+                    const groupBounds = (items) => {
+                      if (!items.length) return null;
+                      let minX = Infinity;
+                      let minY = Infinity;
+                      let maxX = -Infinity;
+                      let maxY = -Infinity;
+                      for (const it of items) {
+                        const z = it.z;
+                        const c = centerPx(z);
+                        const s = zoneBox(z);
+                        minX = Math.min(minX, c.x - s.width / 2);
+                        minY = Math.min(minY, c.y - s.height / 2);
+                        maxX = Math.max(maxX, c.x + s.width / 2);
+                        maxY = Math.max(maxY, c.y + s.height / 2);
+                      }
+
+                      const pad = 18;
+                      minX = Math.max(0, minX - pad);
+                      minY = Math.max(0, minY - pad);
+                      maxX = Math.min(canvasSize.width || 1, maxX + pad);
+                      maxY = Math.min(canvasSize.height || 1, maxY + pad);
+
+                      return { x: minX, y: minY, width: Math.max(1, maxX - minX), height: Math.max(40, maxY - minY) };
+                    };
+
+                    return allGroups
+                      .map((g) => {
+                        const items = byGroup.get(g.id) || [];
+                        const bounds = groupBounds(items);
+                        if (!bounds) return null;
+                        return (
+                          <FloorGroup
+                            key={g.id}
+                            group={g}
+                            bounds={bounds}
+                            allGroups={floorGroups}
+                            onToggleCollapse={onToggleGroupCollapse}
+                            onAssignZoneToGroup={onAssignZoneToGroup}
+                          >
+                            {items.map(({ z, idx }) => {
+                              const s = zoneBox(z);
+                              const c = centerPx(z);
+                              const left = c.x - bounds.x;
+                              const top = c.y - bounds.y;
+                              const shapeType = typeof z.shapeType === 'string' ? z.shapeType : 'legacy';
+                              const shapeParams = z.shapeParams && typeof z.shapeParams === 'object' ? z.shapeParams : {};
                               return (
-                                <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${built.cols}, minmax(0, 1fr))` }}>
-                                  {built.cells.map((s, idx) => {
-                                    if (!s) return <div key={`${row.rowLabel}-empty-${idx}`} className="h-6 w-6 rounded bg-text/5" />;
-                                    return <Seat key={s.seat_id} seat={s} selected={false} onClick={() => {}} />;
-                                  })}
-                                </div>
+                                <ZoneBlock
+                                  key={`zone-pos-${z.key}`}
+                                  zone={{
+                                    id: z.key,
+                                    name: z.name,
+                                    price: Number(z.price) || 0,
+                                    color: z.color || '#60a5fa',
+                                    width: s.width,
+                                    height: s.height,
+                                    seatMode: z.seatType === 'standing' ? 'standing' : 'seated',
+                                    shapeType,
+                                    shapeParams
+                                  }}
+                                  onClick={() => setActiveZoneIndex(idx)}
+                                  onPointerDown={(e) => {
+                                    e.preventDefault();
+                                    const originX = Number(z.posX) || 0;
+                                    const originY = Number(z.posY) || 0;
+                                    setDragging({ zoneIndex: idx, startX: e.clientX, startY: e.clientY, originX, originY });
+                                  }}
+                                  className={
+                                    idx === activeZoneIndex
+                                      ? 'border-brand-600/60 bg-brand-600/15 active:cursor-grabbing cursor-grab'
+                                      : 'border-text/10 bg-surface active:cursor-grabbing cursor-grab'
+                                  }
+                                  style={{ left, top, transform: 'translate(-50%, -50%)' }}
+                                />
                               );
-                            })()}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                            })}
+                          </FloorGroup>
+                        );
+                      })
+                      .filter(Boolean);
+                  })()}
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-text/10 bg-bg/40 p-4">
-            <div className="text-sm font-semibold mb-4">Zone Configuration</div>
+          {/* RIGHT: Zone config */}
+          <div className="w-96 shrink-0">
+            <div className="rounded-2xl border border-text/10 bg-bg/40 p-4">
+              <div className="text-sm font-semibold mb-3">Zones</div>
+              <div className="max-h-56 overflow-auto pr-1 space-y-2">
+                {zones.map((z, idx) => (
+                  <button
+                    key={z.key}
+                    type="button"
+                    onClick={() => setActiveZoneIndex(idx)}
+                    className={`w-full rounded-lg border p-3 text-sm transition text-left ${
+                      idx === activeZoneIndex
+                        ? 'border-brand-600/60 bg-brand-600/15 text-text'
+                        : 'border-text/10 bg-bg/30 text-muted hover:bg-text/5 hover:text-text'
+                    }`}
+                  >
+                    <div className="font-semibold truncate">{z.name || `Zone ${idx + 1}`}</div>
+                    <div className="text-xs mt-1">{formatVND(Number(z.price) || 0)}</div>
+                    <div className="text-[10px] text-muted mt-1">
+                      {(() => {
+                        const counts = buildRowSeatCounts(z);
+                        const total = counts.reduce((sum, v) => sum + (Number(v) || 0), 0);
+                        return `${SHAPE_LABELS[getShapeType(z)] || 'Zone'} - ${getShapeSummary(z)} - ${total} ghe`;
+                      })()}
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              <div className="mt-4 text-sm font-semibold mb-4">Zone Configuration</div>
 
             {activeZone && (
               <div className="space-y-4">
@@ -801,6 +1045,111 @@ export default function EventForm() {
                   onChange={(e) => setZoneField(activeZoneIndex, { price: e.target.value })}
                 />
 
+                <div className="rounded-xl border border-text/10 bg-bg/30 p-3">
+                  <div className="text-[11px] font-semibold uppercase tracking-wide text-muted">Loai zone</div>
+                  <div className="mt-1 text-sm font-semibold">{SHAPE_LABELS[getShapeType(activeZone)] || getShapeType(activeZone)}</div>
+                  <div className="mt-1 text-xs text-muted">{getShapeSummary(activeZone)}</div>
+                </div>
+
+                {getShapeType(activeZone) !== 'legacy' && (
+                  <label className="block mb-3">
+                    <div className="mb-1 text-sm text-muted">Mau zone</div>
+                    <input
+                      type="color"
+                      value={activeZone.color || '#60a5fa'}
+                      onChange={(e) => setZoneField(activeZoneIndex, { color: e.target.value })}
+                      className="w-full h-10 rounded-md border border-text/10 bg-surface"
+                    />
+                  </label>
+                )}
+
+                {getShapeType(activeZone) !== 'legacy' && (
+                  <div className="grid gap-3 rounded-xl border border-text/10 bg-bg/20 p-3">
+                    {(getShapeType(activeZone) === 'theatre' || getShapeType(activeZone) === 'semi_circle') && (
+                      <>
+                        <Input
+                          label={getShapeType(activeZone) === 'semi_circle' ? 'So cung ghe' : 'So hang'}
+                          type="number"
+                          value={getShapeParams(activeZone).rows ?? activeZone.totalRows}
+                          onChange={(e) => setZoneField(activeZoneIndex, patchShapeParams(activeZone, { rows: e.target.value }))}
+                        />
+                        <Input
+                          label="Ghe moi hang"
+                          type="number"
+                          value={getShapeParams(activeZone).seatsPerRow ?? activeZone.seatsPerRow}
+                          onChange={(e) => setZoneField(activeZoneIndex, patchShapeParams(activeZone, { seatsPerRow: e.target.value }))}
+                        />
+                      </>
+                    )}
+
+                    {getShapeType(activeZone) === 'semi_circle' && (
+                      <Input
+                        label="Goc cung (do)"
+                        type="number"
+                        value={getShapeParams(activeZone).arcAngle ?? 160}
+                        onChange={(e) => setZoneField(activeZoneIndex, patchShapeParams(activeZone, { arcAngle: e.target.value }))}
+                      />
+                    )}
+
+                    {getShapeType(activeZone) === 'banquet' && (
+                      <>
+                        <Input
+                          label="So ban tron"
+                          type="number"
+                          value={getShapeParams(activeZone).tableCount ?? 4}
+                          onChange={(e) => setZoneField(activeZoneIndex, patchShapeParams(activeZone, { tableCount: e.target.value }))}
+                        />
+                        <Input
+                          label="Ghe moi ban"
+                          type="number"
+                          value={getShapeParams(activeZone).seatsPerTable ?? 8}
+                          onChange={(e) => setZoneField(activeZoneIndex, patchShapeParams(activeZone, { seatsPerTable: e.target.value }))}
+                        />
+                        <Input
+                          label="Ban kinh ban"
+                          type="number"
+                          value={getShapeParams(activeZone).tableRadius ?? 34}
+                          onChange={(e) => setZoneField(activeZoneIndex, patchShapeParams(activeZone, { tableRadius: e.target.value }))}
+                        />
+                      </>
+                    )}
+
+                    {getShapeType(activeZone) === 'standing_block' && (
+                      <Input
+                        label="Suc chua ve dung"
+                        type="number"
+                        value={getShapeParams(activeZone).capacity ?? activeZone.seatsPerRow}
+                        onChange={(e) => setZoneField(activeZoneIndex, patchShapeParams(activeZone, { capacity: e.target.value }))}
+                      />
+                    )}
+
+                    {getShapeType(activeZone) === 'chevron' && (
+                      <>
+                        <Input
+                          label="So hang"
+                          type="number"
+                          value={getShapeParams(activeZone).rows ?? activeZone.totalRows}
+                          onChange={(e) => setZoneField(activeZoneIndex, patchShapeParams(activeZone, { rows: e.target.value }))}
+                        />
+                        <Input
+                          label="Ghe moi canh"
+                          type="number"
+                          value={getShapeParams(activeZone).seatsPerRow ?? 7}
+                          onChange={(e) => setZoneField(activeZoneIndex, patchShapeParams(activeZone, { seatsPerRow: e.target.value }))}
+                        />
+                        <Input
+                          label="Goc mo"
+                          type="number"
+                          value={getShapeParams(activeZone).angle ?? 30}
+                          onChange={(e) => setZoneField(activeZoneIndex, patchShapeParams(activeZone, { angle: e.target.value }))}
+                        />
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {getShapeType(activeZone) === 'legacy' && (
+                  <>
                 <label className="block mb-3">
                   <div className="mb-1 text-sm text-muted">Loại ghế</div>
                   <select
@@ -933,6 +1282,8 @@ export default function EventForm() {
                     />
                   )}
                 </div>
+                  </>
+                )}
 
                 <div className="border-t border-text/10 pt-4 flex items-center justify-between">
                   <div className="text-xs text-muted">
@@ -955,8 +1306,11 @@ export default function EventForm() {
                 Chọn một zone từ danh sách phía trên để cấu hình
               </div>
             )}
+            </div>
           </div>
         </div>
+
+        )}
 
         <div className="mt-6 flex items-center justify-between">
           <div className="text-xs text-muted">{isEdit ? 'Lưu thay đổi hoặc xoá sự kiện.' : 'Tạo sự kiện trên backend (cần đăng nhập ADMIN).'} </div>

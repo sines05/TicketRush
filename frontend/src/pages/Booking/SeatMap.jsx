@@ -1,6 +1,13 @@
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
-import Seat from '../../components/booking/Seat.jsx';
+import SeatIcon from '../../components/SeatIcon.tsx';
+import { ZoneShapePreview } from '../../components/SeatBuilder/ZoneBlock.tsx';
+import {
+  generateBanquet,
+  generateChevron,
+  generateSemiCircle,
+  generateTheatreAuditorium,
+} from '../../components/SeatBuilder/shapeGenerators.ts';
 import { Button } from '../../components/ui/button.jsx';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../../components/ui/card.jsx';
 import Loading from '../../components/common/Loading.jsx';
@@ -27,13 +34,39 @@ function seatLabel(seat) {
   return `${seat.row_label}-${seat.seat_number}`;
 }
 
+function seatCoordKey(rowLabel, seatNumber) {
+  const row = typeof rowLabel === 'string' ? rowLabel : '';
+  const n = Number(seatNumber);
+  if (!row || !Number.isFinite(n)) return '';
+  return `${row}${Math.max(1, Math.floor(n))}`;
+}
+
+function getZoneShapeMeta(zone) {
+  const meta = zone?.layout_meta || {};
+  const rawType = meta?.shape_type || meta?.shapeType || zone?.shape_type || zone?.shapeType;
+  const shapeType = rawType === 'semi_circle' ? 'theatre' : typeof rawType === 'string' ? rawType : 'theatre';
+  const seatMode = meta?.seat_type === 'standing' || shapeType === 'standing_block' ? 'standing' : 'seated';
+  return { shapeType, seatMode };
+}
+
 export default function SeatMap() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const { selectedSeats, toggleSeat, isSelected, clearSelection, startBooking } =
+  const { selectedSeats, toggleSeat, clearSelection, startBooking } =
     useContext(BookingContext);
   const { user } = useAuth();
+
+  const [selected, setSelected] = useState(() => new Set());
+
+  useEffect(() => {
+    const next = new Set();
+    for (const s of selectedSeats || []) {
+      const id = s?.seat_id || s?.seatId;
+      if (id) next.add(id);
+    }
+    setSelected(next);
+  }, [selectedSeats]);
 
   const eventId = useMemo(() => searchParams.get('eventId') || '', [searchParams]);
   const queueToken = useMemo(() => searchParams.get('queueToken') || '', [searchParams]);
@@ -175,12 +208,39 @@ export default function SeatMap() {
     }
 
     const t = total > 1 ? index / (total - 1) : 0.5;
-    return { x: 15 + t * 70, y: 35 + (index % 2) * 25 };
+    return { x: 15 + t * 70, y: 52 + (index % 2) * 16 };
   }, []);
 
   const activeZone = useMemo(() => {
     return zones.find((z) => z.zone_id === activeZoneId) || zones[0] || null;
   }, [zones, activeZoneId]);
+
+  const bookedSeats = useMemo(() => {
+    const out = new Set();
+    const list = activeZone?.seats ?? [];
+    for (const s of list) {
+      const id = s?.seat_id || s?.seatId;
+      if (!id) continue;
+      const lockedByMe =
+        s.status === 'LOCKED' &&
+        s.locked_by_user_id &&
+        user?.user_id &&
+        s.locked_by_user_id === user.user_id;
+      const isUnavailable = s.status !== 'AVAILABLE' && !lockedByMe;
+      if (isUnavailable) out.add(id);
+    }
+    return out;
+  }, [activeZone, user]);
+
+  const toggleSelectedSeatId = useCallback((seatId) => {
+    if (!seatId) return;
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(seatId)) next.delete(seatId);
+      else next.add(seatId);
+      return next;
+    });
+  }, []);
 
   const activeZoneLayout = useMemo(() => {
     const meta = activeZone?.layout_meta || {};
@@ -189,6 +249,76 @@ export default function SeatMap() {
     const aisleSize = Math.max(1, Math.min(6, Number(meta?.aisle_size) || 2));
     return { align, style, aisleSize };
   }, [activeZone]);
+
+  const activeZoneColor = useMemo(() => {
+    const metaColor = activeZone?.layout_meta?.color;
+    return metaColor || activeZone?.color;
+  }, [activeZone]);
+
+  const activeZoneShape = useMemo(() => {
+    const meta = activeZone?.layout_meta || {};
+    const rawType = meta?.shape_type || meta?.shapeType || activeZone?.shape_type || activeZone?.shapeType;
+    const shapeType = typeof rawType === 'string' ? rawType : '';
+    const rawParams = meta?.shape_params || meta?.shapeParams;
+    const shapeParams = rawParams && typeof rawParams === 'object' ? rawParams : {};
+    return { shapeType, shapeParams };
+  }, [activeZone]);
+
+  const activeZoneGeneratedLayout = useMemo(() => {
+    const zone = activeZone;
+    if (!zone) return null;
+
+    const { shapeType, shapeParams } = activeZoneShape;
+    if (!shapeType) return null;
+
+    // Standing blocks are currently represented as many "seats" in the API;
+    // keep the grid-based rendering for those.
+    if (shapeType === 'standing_block') return null;
+
+    const seats = zone?.seats ?? [];
+    const byRow = new Map();
+    for (const s of seats) {
+      const key = s?.row_label;
+      if (!key) continue;
+      byRow.set(key, (byRow.get(key) || 0) + 1);
+    }
+    const inferredRows = byRow.size || 1;
+    const inferredMax = Math.max(1, ...Array.from(byRow.values()));
+
+    const result = (() => {
+      if (shapeType === 'theatre') {
+        const rows = Number(shapeParams.rows) || inferredRows;
+        const seatsPerRow = Number(shapeParams.seatsPerRow) || inferredMax;
+        return generateTheatreAuditorium(rows, seatsPerRow);
+      }
+      if (shapeType === 'semi_circle') {
+        const rows = Number(shapeParams.rows) || inferredRows;
+        const seatsPerRow = Number(shapeParams.seatsPerRow) || inferredMax;
+        const arcAngle = Number(shapeParams.arcAngle) || 160;
+        return generateSemiCircle(rows, seatsPerRow, arcAngle);
+      }
+      if (shapeType === 'banquet') {
+        const tableCount = Number(shapeParams.tableCount ?? shapeParams.tablesCount) || inferredRows;
+        const seatsPerTable = Number(shapeParams.seatsPerTable) || inferredMax;
+        const tableRadius = Number(shapeParams.tableRadius) || 34;
+        return generateBanquet(tableCount, seatsPerTable, tableRadius);
+      }
+      if (shapeType === 'chevron') {
+        const rows = Number(shapeParams.rows) || inferredRows;
+        const perSide = Number(shapeParams.seatsPerRow) || Math.max(1, Math.floor(inferredMax / 2));
+        const angle = Number(shapeParams.angle) || 30;
+        return generateChevron(rows, perSide, angle);
+      }
+      return null;
+    })();
+
+    if (!result) return null;
+    const coordById = new Map();
+    for (const c of result.seats || []) {
+      coordById.set(c.id, c);
+    }
+    return { shapeType, result, coordById };
+  }, [activeZone, activeZoneShape]);
 
   const buildRowCells = useCallback((seatsInRow, maxSeatCount) => {
     const seats = Array.isArray(seatsInRow) ? seatsInRow : [];
@@ -386,35 +516,39 @@ export default function SeatMap() {
               <CardDescription>Chọn một khu vực để xem chi tiết chỗ ngồi</CardDescription>
             </CardHeader>
             <CardContent className="pt-6">
-              <div className="relative h-56 w-full rounded-2xl border bg-muted/20 overflow-hidden shadow-inner">
+              <div className="relative h-72 w-full rounded-2xl border bg-muted/20 overflow-hidden shadow-inner px-3 pt-3 pb-3">
                 <div className="absolute left-1/2 top-4 -translate-x-1/2 w-1/2 h-2 rounded-full bg-primary/20 blur-[1px]" />
                 <div className="absolute left-1/2 top-8 -translate-x-1/2 text-[10px] font-black text-primary/40 tracking-[0.5em] uppercase">SÂN KHẤU</div>
-                
-                {zones.map((z, idx) => {
-                  const pos = getZonePos(z, idx, zones.length);
-                  const active = z.zone_id === activeZoneId;
-                  return (
-                    <button
-                      key={`zone-map-${z.zone_id}`}
-                      type="button"
-                      onClick={() => setActiveZoneId(z.zone_id)}
-                      className={cn(
-                        "absolute w-32 rounded-xl border p-2.5 text-left transition-all duration-300 shadow-sm",
-                        active
-                          ? "border-primary bg-primary text-primary-foreground ring-4 ring-primary/20 scale-110 z-20 shadow-xl"
-                          : "border-border/50 bg-card/80 backdrop-blur-sm hover:border-primary/50 hover:bg-accent hover:scale-105 z-10"
-                      )}
-                      style={{ left: `${pos.x}%`, top: `${pos.y}%`, transform: 'translate(-50%, -50%)' }}
-                    >
-                      <div className={cn("text-[10px] font-black truncate uppercase tracking-tight", active ? "text-primary-foreground" : "text-foreground")}>
-                        {z.name}
-                      </div>
-                      <div className={cn("text-[9px] font-medium mt-0.5", active ? "text-primary-foreground/80" : "text-muted-foreground")}>
-                        {formatVND(z.price)}
-                      </div>
-                    </button>
-                  );
-                })}
+                <div className="absolute left-0 right-0 top-14 bottom-3">
+                  {zones.map((z, idx) => {
+                    const pos = getZonePos(z, idx, zones.length);
+                    const active = z.zone_id === activeZoneId;
+                    const zoneShape = getZoneShapeMeta(z);
+                    const zoneColor = z?.layout_meta?.color || z?.color || '#60a5fa';
+                    return (
+                      <button
+                        key={`zone-map-${z.zone_id}`}
+                        type="button"
+                        onClick={() => setActiveZoneId(z.zone_id)}
+                        className={cn(
+                          "absolute h-28 w-40 p-0 transition-transform duration-200 origin-center",
+                          active ? "scale-110 z-20" : "hover:scale-105 z-10"
+                        )}
+                        style={{ left: `${pos.x}%`, top: `${pos.y}%`, transform: 'translate(-50%, -50%)' }}
+                        aria-label={z.name}
+                      >
+                        <div className="h-full w-full flex items-center justify-center">
+                          <ZoneShapePreview
+                            color={zoneColor}
+                            shapeType={zoneShape.shapeType}
+                            seatMode={zoneShape.seatMode}
+                            className="h-full w-full p-1.5"
+                          />
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               <div className="mt-8 flex flex-wrap gap-2">
@@ -456,22 +590,43 @@ export default function SeatMap() {
               </div>
 
               <div className="overflow-auto pb-8 px-2">
-                <div className="min-w-max space-y-4 px-4">
-                  {zoneRows.map((row) => (
-                    <div key={row.rowLabel} className="flex items-center gap-6">
-                      <div className="w-8 h-8 flex items-center justify-center rounded-full bg-muted/50 text-[10px] font-black text-muted-foreground border border-border/50">
-                        {row.rowLabel}
-                      </div>
+                {activeZoneGeneratedLayout ? (
+                  <div className="flex min-w-full justify-center">
+                    <div className="min-w-max px-4">
                       <div
-                        className="grid gap-2.5"
-                        style={{ gridTemplateColumns: `repeat(${row.cols}, minmax(0, 1fr))` }}
+                        className="relative"
+                        style={{
+                          width: Math.max(1, activeZoneGeneratedLayout.result.suggestedWidth || 1),
+                          height: Math.max(1, activeZoneGeneratedLayout.result.suggestedHeight || 1),
+                        }}
                       >
-                        {row.cells.map((s, idx) => {
-                          if (!s) {
-                            return <div key={`${row.rowLabel}-empty-${idx}`} className="h-8 w-8 rounded-md bg-muted/10" />;
-                          }
+                        {activeZoneGeneratedLayout.shapeType === 'banquet' &&
+                          (activeZoneGeneratedLayout.result.tables || []).map((table, index) => (
+                            <div
+                              key={`table-${index}`}
+                              className="absolute rounded-full border border-border/70 bg-muted/30 shadow-inner"
+                              style={{
+                                left: table.cx,
+                                top: table.cy,
+                                width: table.radius * 2,
+                                height: table.radius * 2,
+                                transform: 'translate(-50%, -50%)',
+                              }}
+                            />
+                          ))}
 
-                          const lockedByMe = s.status === 'LOCKED' && s.locked_by_user_id && user?.user_id && s.locked_by_user_id === user.user_id;
+                        {(activeZone?.seats ?? []).map((s) => {
+                          const seatId = s.seat_id || s.seatId;
+                          const key = seatCoordKey(s.row_label, s.seat_number);
+                          const coord = key ? activeZoneGeneratedLayout.coordById.get(key) : null;
+                          if (!coord) return null;
+
+                          const lockedByMe =
+                            s.status === 'LOCKED' &&
+                            s.locked_by_user_id &&
+                            user?.user_id &&
+                            s.locked_by_user_id === user.user_id;
+
                           const seatForSelect = {
                             ...s,
                             lockedByMe,
@@ -479,22 +634,114 @@ export default function SeatMap() {
                             label: seatLabel(s),
                             zone_id: activeZone.zone_id,
                             zone_name: activeZone.name,
-                            price: activeZone.price
+                            price: activeZone.price,
+                          };
+
+                          const seatState = selected.has(seatId)
+                            ? 'selected'
+                            : bookedSeats.has(seatId)
+                              ? 'unavailable'
+                              : 'available';
+
+                          const handleClick = () => {
+                            if (!seatId) return;
+                            toggleSelectedSeatId(seatId);
+                            toggleSeat(seatForSelect);
                           };
 
                           return (
-                            <Seat
-                              key={s.seat_id}
-                              seat={seatForSelect}
-                              selected={isSelected(s.seat_id)}
-                              onClick={toggleSeat}
-                            />
+                            <div
+                              key={seatId}
+                              className={cn(
+                                'absolute rounded-md flex items-center justify-center',
+                                seatState === 'unavailable' ? 'opacity-70' : 'hover:bg-primary/5'
+                              )}
+                              style={{
+                                left: coord.x,
+                                top: coord.y,
+                                transform: 'translate(-50%, -50%)',
+                                width: 22,
+                                height: 24,
+                              }}
+                            >
+                              <SeatIcon
+                                state={seatState}
+                                rotation={coord.rotation}
+                                color={activeZoneColor}
+                                seatLabel={seatForSelect.label}
+                                onClick={seatState === 'unavailable' ? undefined : handleClick}
+                              />
+                            </div>
                           );
                         })}
                       </div>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                ) : (
+                  <div className="flex min-w-full justify-center">
+                    <div className="min-w-max space-y-4 px-4">
+                      {zoneRows.map((row) => (
+                        <div key={row.rowLabel} className="flex items-center gap-6">
+                          <div className="w-8 h-8 flex items-center justify-center rounded-full bg-muted/50 text-[10px] font-black text-muted-foreground border border-border/50">
+                            {row.rowLabel}
+                          </div>
+                          <div
+                            className="grid gap-2.5"
+                            style={{ gridTemplateColumns: `repeat(${row.cols}, minmax(0, 1fr))` }}
+                          >
+                            {row.cells.map((s, idx) => {
+                              if (!s) {
+                                return <div key={`${row.rowLabel}-empty-${idx}`} className="h-8 w-8 rounded-md bg-muted/10" />;
+                              }
+
+                              const lockedByMe = s.status === 'LOCKED' && s.locked_by_user_id && user?.user_id && s.locked_by_user_id === user.user_id;
+                              const seatId = s.seat_id || s.seatId;
+                              const seatForSelect = {
+                                ...s,
+                                lockedByMe,
+                                seat_id: s.seat_id,
+                                label: seatLabel(s),
+                                zone_id: activeZone.zone_id,
+                                zone_name: activeZone.name,
+                                price: activeZone.price
+                              };
+
+                              const seatState = selected.has(seatId)
+                                ? 'selected'
+                                : bookedSeats.has(seatId)
+                                  ? 'unavailable'
+                                  : 'available';
+
+                              const handleClick = () => {
+                                if (!seatId) return;
+                                toggleSelectedSeatId(seatId);
+                                toggleSeat(seatForSelect);
+                              };
+
+                              return (
+                                <div
+                                  key={seatId}
+                                  className={cn(
+                                    'h-8 w-8 rounded-md flex items-center justify-center',
+                                    seatState === 'unavailable' ? 'opacity-70' : 'hover:bg-primary/5'
+                                  )}
+                                >
+                                  <SeatIcon
+                                    state={seatState}
+                                    rotation={0}
+                                    color={activeZoneColor}
+                                    seatLabel={seatForSelect.label}
+                                    onClick={seatState === 'unavailable' ? undefined : handleClick}
+                                  />
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="mt-8 flex flex-wrap justify-center gap-8 border-t border-border/50 pt-8">

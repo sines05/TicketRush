@@ -19,6 +19,7 @@ const Checkout = lazy(() => import('../pages/Booking/Checkout.jsx'));
 // Admin Pages
 const Dashboard = lazy(() => import('../pages/Admin/Dashboard.jsx'));
 const EventForm = lazy(() => import('../pages/Admin/EventForm.jsx'));
+const ZoneMapBuilder = lazy(() => import('../pages/Admin/ZoneMapBuilder.jsx'));
 const AdminCheckIn = lazy(() => import('../pages/Admin/CheckIn.jsx'));
 const AdminComplaints = lazy(() => import('../pages/Admin/Complaints.jsx'));
 const UserManagement = lazy(() => import('../pages/Admin/UserManagement.jsx'));
@@ -74,6 +75,7 @@ export default function AppRoutes() {
           <Route path="/admin/complaints" element={<AdminComplaints />} />
           <Route path="/admin/events/new" element={<EventForm />} />
           <Route path="/admin/events/:eventId/edit" element={<EventForm />} />
+          <Route path="/admin/events/zone-map" element={<ZoneMapBuilder />} />
           <Route path="/admin/users" element={<UserManagement />} />
         </Route>
 
