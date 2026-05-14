@@ -48,7 +48,12 @@ func TestSeatLockConcurrency(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			_, err := orderSvc.LockSeats(context.Background(), user.ID, event.ID, []uuid.UUID{seat.ID}, "")
+			// Create a new user for each request to test true concurrency between different users
+			newUser := models.User{Email: uuid.New().String() + "@ticketrush.com", PasswordHash: "hash", FullName: "Test User"}
+			db.Create(&newUser)
+			defer db.Unscoped().Delete(&newUser)
+
+			_, err := orderSvc.LockSeats(context.Background(), newUser.ID, event.ID, []uuid.UUID{seat.ID}, "")
 			mu.Lock()
 			if err == nil {
 				successCount++
@@ -65,6 +70,8 @@ func TestSeatLockConcurrency(t *testing.T) {
 	assert.Equal(t, numRequests-1, failCount, "All other users should fail to lock the seat")
 
 	// Cleanup
+	db.Exec("DELETE FROM order_items")
+	db.Exec("DELETE FROM orders")
 	db.Unscoped().Delete(&seat)
 	db.Unscoped().Delete(&zone)
 	db.Unscoped().Delete(&event)
