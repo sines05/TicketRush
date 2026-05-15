@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"ticketrush/internal/config"
 	"ticketrush/internal/handler"
@@ -20,12 +21,16 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
+	"github.com/go-playground/validator/v10"
+	"reflect"
 )
 
 func main() {
 	// 1. Load Configuration
 	cfg := config.LoadConfig()
 	configureGin()
+	configureValidator()
 
 	// 2. Initialize Database
 	db := repository.NewPostgresDB(cfg)
@@ -104,15 +109,16 @@ func main() {
 		// Auth Routes
 		auth := v1.Group("/auth")
 		{
-			auth.POST("/register", authHandler.Register)
-			auth.POST("/login", authHandler.Login)
+			auth.POST("/register", middleware.RateLimitMiddleware(rdb, 5, 15*time.Minute), authHandler.Register)
+			auth.POST("/login", middleware.RateLimitMiddleware(rdb, 5, 15*time.Minute), authHandler.Login)
 			auth.POST("/verify-2fa", authHandler.Verify2FALogin)
 			auth.GET("/google/login", authHandler.GoogleLogin)
 			auth.GET("/google/callback", authHandler.GoogleCallback)
 			auth.GET("/facebook/login", authHandler.FacebookLogin)
 			auth.GET("/facebook/callback", authHandler.FacebookCallback)
-			auth.POST("/forgot-password", authHandler.ForgotPassword)
+			auth.POST("/forgot-password", middleware.RateLimitMiddleware(rdb, 5, 15*time.Minute), authHandler.ForgotPassword)
 			auth.POST("/reset-password", authHandler.ResetPassword)
+			auth.POST("/logout", authHandler.Logout)
 		}
 
 		// Public Routes
@@ -216,6 +222,18 @@ func main() {
 func configureGin() {
 	if os.Getenv(gin.EnvGinMode) == "" {
 		gin.SetMode(gin.ReleaseMode)
+	}
+}
+
+func configureValidator() {
+	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
+		v.RegisterTagNameFunc(func(fld reflect.StructField) string {
+			name := strings.SplitN(fld.Tag.Get("json"), ",", 2)[0]
+			if name == "-" {
+				return ""
+			}
+			return name
+		})
 	}
 }
 

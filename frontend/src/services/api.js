@@ -5,15 +5,11 @@ import axios from 'axios';
 
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1',
-  timeout: 15000
+  timeout: 15000,
+  withCredentials: true
 });
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('tr_access_token') || localStorage.getItem('tr_token');
-  if (token) {
-    config.headers = config.headers || {};
-    config.headers.Authorization = `Bearer ${token}`;
-  }
   return config;
 });
 
@@ -28,15 +24,6 @@ api.interceptors.response.use(
     return { success: true, data: payload, message: '', errorCode: '' };
   },
   (error) => {
-    if (error?.response?.status === 401) {
-      localStorage.removeItem('tr_access_token');
-      localStorage.removeItem('tr_token');
-      // Redirect to login if not already there to prevent redirect loops
-      if (!window.location.pathname.startsWith('/auth/login')) {
-        window.location.href = '/auth/login';
-      }
-    }
-
     const payload = error?.response?.data;
     if (payload && typeof payload === 'object' && 'success' in payload) {
       return Promise.reject(payload);

@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useMemo, useState, useEffect } from 'react';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { LockKeyhole, ShieldCheck, Sparkles, Ticket } from 'lucide-react';
 import Button from '../../components/common/Button.jsx';
 import { useAuth } from '../../hooks/useAuth.js';
@@ -10,11 +10,15 @@ import logoPng from '../../assets/Logo1.png';
 const fieldClass = 'h-12 w-full rounded-2xl border border-cyan-700/15 bg-white/70 px-4 text-base font-semibold text-slate-950 shadow-inner shadow-cyan-900/5 outline-none transition placeholder:text-slate-400 focus:border-amber-400/70 focus:bg-white focus:ring-4 focus:ring-amber-300/20 dark:border-white/10 dark:bg-white/10 dark:text-white dark:placeholder:text-white/35 dark:focus:border-cyan-300/70 dark:focus:bg-white/[0.14] dark:focus:ring-cyan-300/15';
 const labelClass = 'mb-1.5 block text-xs font-black uppercase tracking-[0.18em] text-slate-600 dark:text-cyan-100/75';
 
-function AuthField({ label, ...props }) {
+function AuthField({ label, error, ...props }) {
   return (
     <label className="block">
       <span className={labelClass}>{label}</span>
-      <input className={fieldClass} {...props} />
+      <input
+        className={`${fieldClass} ${error ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500/20 dark:border-rose-500/50' : ''}`}
+        {...props}
+      />
+      {error && <p className="mt-1 text-[10px] font-black uppercase tracking-wider text-rose-500 dark:text-rose-400">{error}</p>}
     </label>
   );
 }
@@ -60,11 +64,13 @@ function BrandPanel() {
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { login, verify2FA } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
   const [requires2FA, setRequires2FA] = useState(() => {
@@ -75,23 +81,58 @@ export default function Login() {
     return window.sessionStorage.getItem('2fa_user_id') || '';
   });
 
+  useEffect(() => {
+    const urlUserId = searchParams.get('user_id');
+    if (urlUserId) {
+      setRequires2FA(true);
+      setUserId(urlUserId);
+      window.sessionStorage.setItem('2fa_user_id', urlUserId);
+    }
+  }, [searchParams]);
+
   const from = useMemo(() => location.state?.from || '/', [location.state]);
+
+  const validate = () => {
+    const newErrors = {};
+    if (!email.trim()) {
+      newErrors.email = 'Email là bắt buộc';
+    } else if (!/\S+@\S+\.\S+/.test(email)) {
+      newErrors.email = 'Email không hợp lệ';
+    }
+    if (!password) {
+      newErrors.password = 'Mật khẩu là bắt buộc';
+    }
+    setFieldErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
+    setFieldErrors({});
+
+    if (!validate()) return;
+
     setLoading(true);
 
     try {
       const result = await login({ email, password });
       handleLoginSuccess(result);
     } catch (err) {
-      if (err?.requires_2fa) {
+      if (err?.errorCode === '2FA_REQUIRED') {
+        const uid = err.data?.user_id;
+        setRequires2FA(true);
+        setUserId(uid);
+        window.sessionStorage.setItem('2fa_user_id', uid);
+      } else if (err?.requires_2fa) {
         setRequires2FA(true);
         setUserId(err.user_id);
         window.sessionStorage.setItem('2fa_user_id', err.user_id);
       } else {
-      setError(err?.message || 'Đăng nhập thất bại');
+        if (err?.details) {
+          setFieldErrors(err.details);
+        }
+        setError(err?.message || 'Đăng nhập thất bại');
       }
     } finally {
       setLoading(false);
@@ -101,6 +142,13 @@ export default function Login() {
   async function handle2FASubmit(e) {
     e.preventDefault();
     setError('');
+    setFieldErrors({});
+
+    if (!twoFACode) {
+      setFieldErrors({ code: 'Vui lòng nhập mã xác thực' });
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -108,6 +156,9 @@ export default function Login() {
       window.sessionStorage.removeItem('2fa_user_id');
       handleLoginSuccess(result);
     } catch (err) {
+      if (err?.details) {
+        setFieldErrors(err.details);
+      }
       setError(err?.message || 'Mã xác thực không chính xác');
     } finally {
       setLoading(false);
@@ -175,6 +226,7 @@ export default function Login() {
                 onChange={(e) => setTwoFACode(e.target.value)}
                 placeholder="123456"
                 autoFocus
+                error={fieldErrors.code}
               />
               <Button className="h-12 w-full rounded-2xl bg-gradient-to-r from-cyan-600 via-teal-600 to-amber-500 font-black shadow-lg shadow-cyan-700/20 hover:brightness-110" type="submit" disabled={loading}>
                 {loading ? 'Đang xác thực...' : 'Xác nhận'}
@@ -190,7 +242,14 @@ export default function Login() {
           ) : (
             <>
               <form className="space-y-4" onSubmit={handleSubmit}>
-                <AuthField label="Email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" />
+                <AuthField
+                  label="Email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  autoComplete="email"
+                  error={fieldErrors.email}
+                />
                 <AuthField
                   label="Mật khẩu"
                   type="password"
@@ -198,6 +257,7 @@ export default function Login() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="********"
                   autoComplete="current-password"
+                  error={fieldErrors.password}
                 />
 
                 <Button className="h-12 w-full rounded-2xl bg-gradient-to-r from-cyan-600 via-teal-600 to-amber-500 font-black shadow-lg shadow-cyan-700/20 hover:brightness-110" type="submit" disabled={loading}>

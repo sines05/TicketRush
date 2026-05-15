@@ -12,21 +12,32 @@ import (
 
 func AuthMiddleware(authService service.AuthService) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		authHeader := c.GetHeader("Authorization")
-		if authHeader == "" {
-			utils.SendError(c, http.StatusUnauthorized, "Authorization header required", "AUTH_REQUIRED")
+		var token string
+
+		// 1. Try to get token from cookie
+		cookieToken, err := c.Cookie("tr_access_token")
+		if err == nil {
+			token = cookieToken
+		}
+
+		// 2. Fallback to Authorization header
+		if token == "" {
+			authHeader := c.GetHeader("Authorization")
+			if authHeader != "" {
+				parts := strings.Split(authHeader, " ")
+				if len(parts) == 2 && parts[0] == "Bearer" {
+					token = parts[1]
+				}
+			}
+		}
+
+		if token == "" {
+			utils.SendError(c, http.StatusUnauthorized, "Authorization required", "AUTH_REQUIRED")
 			c.Abort()
 			return
 		}
 
-		parts := strings.Split(authHeader, " ")
-		if len(parts) != 2 || parts[0] != "Bearer" {
-			utils.SendError(c, http.StatusUnauthorized, "Invalid authorization format", "INVALID_AUTH")
-			c.Abort()
-			return
-		}
-
-		user, err := authService.ValidateToken(parts[1])
+		user, err := authService.ValidateToken(token)
 		if err != nil {
 			utils.SendError(c, http.StatusUnauthorized, err.Error(), "INVALID_TOKEN")
 			c.Abort()

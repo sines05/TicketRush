@@ -187,8 +187,8 @@ func TestChangePassword_Success(t *testing.T) {
 	authServ := service.NewAuthService(mockRepo, mockNotif, cfg)
 
 	userID := uuid.New()
-	oldPassword := "oldpassword"
-	newPassword := "newpassword"
+	oldPassword := "oldPassword1"
+	newPassword := "newPassword1"
 	hashedOldPassword, _ := bcrypt.GenerateFromPassword([]byte(oldPassword), bcrypt.DefaultCost)
 
 	existingUser := &models.User{
@@ -212,9 +212,9 @@ func TestChangePassword_IncorrectOldPassword(t *testing.T) {
 	authServ := service.NewAuthService(mockRepo, mockNotif, cfg)
 
 	userID := uuid.New()
-	oldPassword := "oldpassword"
-	wrongPassword := "wrongpassword"
-	newPassword := "newpassword"
+	oldPassword := "oldPassword1"
+	wrongPassword := "wrongPassword1"
+	newPassword := "newPassword1"
 	hashedOldPassword, _ := bcrypt.GenerateFromPassword([]byte(oldPassword), bcrypt.DefaultCost)
 
 	existingUser := &models.User{
@@ -247,7 +247,7 @@ func TestChangePassword_OAuthAccount(t *testing.T) {
 
 	mockRepo.On("FindByID", userID).Return(existingUser, nil)
 
-	err := authServ.ChangePassword(userID, "any", "new")
+	err := authServ.ChangePassword(userID, "anyPassword1", "newPassword1")
 
 	assert.Error(t, err)
 	assert.Equal(t, "cannot change password for OAuth account without password", err.Error())

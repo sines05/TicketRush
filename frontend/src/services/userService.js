@@ -22,17 +22,6 @@ async function getMe() {
     await sleep(200);
     const user = safeJsonParse(localStorage.getItem(STORAGE_USER));
     if (!user) {
-      // Fallback for demo mode: if token exists, return a default user
-      const token = localStorage.getItem('tr_access_token') || localStorage.getItem('tr_token');
-      if (token) {
-        return {
-          id: 'uuid-customer-01',
-          email: 'customer@demo.com',
-          full_name: 'Customer Demo',
-          role: 'CUSTOMER',
-          membership_tier: 'BRONZE'
-        };
-      }
       throw { success: false, message: 'Bạn chưa đăng nhập' };
     }
     return user;

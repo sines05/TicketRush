@@ -9,11 +9,15 @@ import logoPng from '../../assets/Logo1.png';
 const fieldClass = 'h-12 w-full rounded-2xl border border-cyan-700/15 bg-white/70 px-4 text-base font-semibold text-slate-950 shadow-inner shadow-cyan-900/5 outline-none transition placeholder:text-slate-400 focus:border-amber-400/70 focus:bg-white focus:ring-4 focus:ring-amber-300/20 dark:border-white/10 dark:bg-white/10 dark:text-white dark:placeholder:text-white/35 dark:focus:border-cyan-300/70 dark:focus:bg-white/[0.14] dark:focus:ring-cyan-300/15';
 const labelClass = 'mb-1.5 block text-xs font-black uppercase tracking-[0.18em] text-slate-600 dark:text-cyan-100/75';
 
-function AuthField({ label, ...props }) {
+function AuthField({ label, error, ...props }) {
   return (
     <label className="block">
       <span className={labelClass}>{label}</span>
-      <input className={fieldClass} {...props} />
+      <input
+        className={`${fieldClass} ${error ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500/20 dark:border-rose-500/50' : ''}`}
+        {...props}
+      />
+      {error && <p className="mt-1 text-[10px] font-black uppercase tracking-wider text-rose-500 dark:text-rose-400">{error}</p>}
     </label>
   );
 }
@@ -70,11 +74,37 @@ export default function Register() {
   const [gender, setGender] = useState(GENDER.MALE);
   const [dateOfBirth, setDateOfBirth] = useState('2000-12-25');
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
   const [loading, setLoading] = useState(false);
+
+  const validate = () => {
+    const newErrors = {};
+    if (!fullName.trim()) newErrors.full_name = 'Họ và tên là bắt buộc';
+    if (!email.trim()) {
+      newErrors.email = 'Email là bắt buộc';
+    } else if (!/\S+@\S+\.\S+/.test(email)) {
+      newErrors.email = 'Email không hợp lệ';
+    }
+    if (!password) {
+      newErrors.password = 'Mật khẩu là bắt buộc';
+    } else if (password.length < 8) {
+      newErrors.password = 'Mật khẩu phải có ít nhất 8 ký tự';
+    } else if (!/(?=.*[a-zA-Z])(?=.*[0-9])/.test(password)) {
+      newErrors.password = 'Mật khẩu phải chứa cả chữ và số';
+    }
+    if (!dateOfBirth) newErrors.date_of_birth = 'Ngày sinh là bắt buộc';
+
+    setFieldErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
+    setFieldErrors({});
+
+    if (!validate()) return;
+
     setLoading(true);
 
     try {
@@ -87,6 +117,9 @@ export default function Register() {
       });
       navigate('/', { replace: true });
     } catch (err) {
+      if (err?.details) {
+        setFieldErrors(err.details);
+      }
       setError(err?.message || 'Đăng ký thất bại');
     } finally {
       setLoading(false);
@@ -130,8 +163,16 @@ export default function Register() {
               onChange={(e) => setFullName(e.target.value)}
               placeholder="Nguyễn Văn A"
               autoComplete="name"
+              error={fieldErrors.full_name}
             />
-            <AuthField label="Email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" />
+            <AuthField
+              label="Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              autoComplete="email"
+              error={fieldErrors.email}
+            />
             <AuthField
               label="Mật khẩu"
               type="password"
@@ -139,6 +180,7 @@ export default function Register() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="********"
               autoComplete="new-password"
+              error={fieldErrors.password}
             />
 
             <label className="block">
@@ -146,12 +188,13 @@ export default function Register() {
               <select
                 value={gender}
                 onChange={(e) => setGender(e.target.value)}
-                className={fieldClass}
+                className={`${fieldClass} ${fieldErrors.gender ? 'border-rose-500' : ''}`}
               >
                 <option value={GENDER.MALE}>MALE</option>
                 <option value={GENDER.FEMALE}>FEMALE</option>
                 <option value={GENDER.OTHER}>OTHER</option>
               </select>
+              {fieldErrors.gender && <p className="mt-1 text-[10px] font-black uppercase tracking-wider text-rose-500">{fieldErrors.gender}</p>}
             </label>
 
             <AuthField
@@ -160,6 +203,7 @@ export default function Register() {
               value={dateOfBirth}
               onChange={(e) => setDateOfBirth(e.target.value)}
               autoComplete="bday"
+              error={fieldErrors.date_of_birth}
             />
 
             <Button className="h-12 w-full rounded-2xl bg-gradient-to-r from-cyan-600 via-teal-600 to-amber-500 font-black shadow-lg shadow-cyan-700/20 hover:brightness-110" type="submit" disabled={loading}>

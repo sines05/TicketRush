@@ -24,61 +24,71 @@ func NewAuthHandler(authService service.AuthService, cfg *config.Config) *AuthHa
 
 type loginRequest struct {
 	Email    string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required"`
+	Password string `json:"password" binding:"required,min=8"`
 }
 
 func (h *AuthHandler) Register(c *gin.Context) {
 	var req service.RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.SendError(c, http.StatusBadRequest, err.Error(), "INVALID_INPUT")
+		details := utils.TranslateValidatorError(err)
+		utils.SendErrorWithDetails(c, http.StatusBadRequest, "Dữ liệu không hợp lệ", "INVALID_INPUT", details)
 		return
 	}
 
-	_, err := h.authService.Register(req)
+	user, err := h.authService.Register(req)
 	if err != nil {
 		if err.Error() == "email already exists" {
 			utils.SendError(c, http.StatusConflict, "Email already exists", "EMAIL_EXISTS")
+			return
+		}
+		if err == service.ErrPasswordTooShort || err == service.ErrPasswordWeak {
+			utils.SendError(c, http.StatusBadRequest, err.Error(), "WEAK_PASSWORD")
 			return
 		}
 		utils.SendError(c, http.StatusInternalServerError, "Could not create user", "REGISTER_FAILED")
 		return
 	}
 
-	utils.SendSuccess(c, http.StatusCreated, nil, "Đăng ký thành công")
+	utils.SendSuccess(c, http.StatusCreated, dto.ToUserResponse(*user), "Đăng ký thành công")
 }
 
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req loginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.SendError(c, http.StatusBadRequest, err.Error(), "INVALID_INPUT")
+		details := utils.TranslateValidatorError(err)
+		utils.SendErrorWithDetails(c, http.StatusBadRequest, "Dữ liệu không hợp lệ", "INVALID_INPUT", details)
 		return
 	}
 
 	token, user, requires2FA, err := h.authService.Login(req.Email, req.Password)
 	if err != nil {
-		utils.SendError(c, http.StatusUnauthorized, err.Error(), "LOGIN_FAILED")
+		utils.SendError(c, http.StatusUnauthorized, "Email hoặc mật khẩu không chính xác", "LOGIN_FAILED")
 		return
 	}
 
 	if requires2FA {
-		utils.SendSuccess(c, http.StatusOK, gin.H{
+		utils.SendResponse(c, http.StatusUnauthorized, false, gin.H{
 			"requires_2fa": true,
 			"user_id":      user.ID,
-		}, "Vui lòng nhập mã xác thực 2 lớp")
+		}, "Vui lòng nhập mã xác thực 2 lớp", "2FA_REQUIRED", nil)
 		return
 	}
 
-	utils.SendSuccess(c, http.StatusOK, gin.H{
-		"user_id":      user.ID,
-		"full_name":     user.FullName,
-		"role":         user.Role,
-		"access_token": token,
-	}, "Đăng nhập thành công")
+	// Set JWT in HttpOnly cookie
+	c.SetSameSite(http.SameSiteLaxMode)
+	c.SetCookie("tr_access_token", token, 86400, "/", "", h.cfg.CookieSecure, true)
+
+	utils.SendSuccess(c, http.StatusOK, dto.ToUserResponse(*user), "Đăng nhập thành công")
+}
+
+func (h *AuthHandler) Logout(c *gin.Context) {
+	c.SetCookie("tr_access_token", "", -1, "/", "", h.cfg.CookieSecure, true)
+	utils.SendSuccess(c, http.StatusOK, nil, "Đăng xuất thành công")
 }
 
 func (h *AuthHandler) GoogleLogin(c *gin.Context) {
 	state := uuid.New().String()
-	c.SetCookie("oauth_state", state, 3600, "/", "", false, true)
+	c.SetCookie("oauth_state", state, 3600, "/", "", h.cfg.CookieSecure, true)
 	url := h.authService.GoogleLoginURL(state)
 	c.Redirect(http.StatusTemporaryRedirect, url)
 }
@@ -91,7 +101,7 @@ func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 		return
 	}
 	// Clear the cookie
-	c.SetCookie("oauth_state", "", -1, "/", "", false, true)
+	c.SetCookie("oauth_state", "", -1, "/", "", h.cfg.CookieSecure, true)
 
 	code := c.Query("code")
 	if code == "" {
@@ -106,11 +116,15 @@ func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 	}
 
 	if token == "" && user != nil {
-		c.Redirect(http.StatusTemporaryRedirect, fmt.Sprintf("%s/auth/2fa?user_id=%s", h.cfg.FrontendURL, user.ID.String()))
+		c.Redirect(http.StatusTemporaryRedirect, fmt.Sprintf("%s/auth/login?user_id=%s", h.cfg.FrontendURL, user.ID.String()))
 		return
 	}
 
-	c.Redirect(http.StatusTemporaryRedirect, fmt.Sprintf("%s/auth/callback?token=%s", h.cfg.FrontendURL, token))
+	// Set JWT in HttpOnly cookie
+	c.SetSameSite(http.SameSiteLaxMode)
+	c.SetCookie("tr_access_token", token, 86400, "/", "", h.cfg.CookieSecure, true)
+
+	c.Redirect(http.StatusTemporaryRedirect, fmt.Sprintf("%s/auth/callback", h.cfg.FrontendURL))
 }
 
 type forgotPasswordRequest struct {
@@ -120,34 +134,36 @@ type forgotPasswordRequest struct {
 func (h *AuthHandler) ForgotPassword(c *gin.Context) {
 	var req forgotPasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.SendError(c, http.StatusBadRequest, err.Error(), "INVALID_INPUT")
+		details := utils.TranslateValidatorError(err)
+		utils.SendErrorWithDetails(c, http.StatusBadRequest, "Dữ liệu không hợp lệ", "INVALID_INPUT", details)
 		return
 	}
 
-	err := h.authService.ForgotPassword(req.Email)
-	if err != nil {
-		// Even if user not found, don't reveal to prevent email enumeration, but for this project we can
-		utils.SendError(c, http.StatusBadRequest, err.Error(), "FORGOT_PASSWORD_FAILED")
-		return
-	}
+	// Always return success to prevent email enumeration
+	_ = h.authService.ForgotPassword(req.Email)
 
 	utils.SendSuccess(c, http.StatusOK, nil, "Yêu cầu khôi phục mật khẩu đã được gửi")
 }
 
 type resetPasswordRequest struct {
 	Token       string `json:"token" binding:"required"`
-	NewPassword string `json:"new_password" binding:"required,min=6"`
+	NewPassword string `json:"new_password" binding:"required,min=8"`
 }
 
 func (h *AuthHandler) ResetPassword(c *gin.Context) {
 	var req resetPasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.SendError(c, http.StatusBadRequest, err.Error(), "INVALID_INPUT")
+		details := utils.TranslateValidatorError(err)
+		utils.SendErrorWithDetails(c, http.StatusBadRequest, "Dữ liệu không hợp lệ", "INVALID_INPUT", details)
 		return
 	}
 
 	err := h.authService.ResetPassword(req.Token, req.NewPassword)
 	if err != nil {
+		if err == service.ErrPasswordTooShort || err == service.ErrPasswordWeak {
+			utils.SendError(c, http.StatusBadRequest, err.Error(), "WEAK_PASSWORD")
+			return
+		}
 		utils.SendError(c, http.StatusBadRequest, err.Error(), "RESET_PASSWORD_FAILED")
 		return
 	}
@@ -157,7 +173,7 @@ func (h *AuthHandler) ResetPassword(c *gin.Context) {
 
 func (h *AuthHandler) FacebookLogin(c *gin.Context) {
 	state := uuid.New().String()
-	c.SetCookie("oauth_state", state, 3600, "/", "", false, true)
+	c.SetCookie("oauth_state", state, 3600, "/", "", h.cfg.CookieSecure, true)
 	url := h.authService.FacebookLoginURL(state)
 	c.Redirect(http.StatusTemporaryRedirect, url)
 }
@@ -170,7 +186,7 @@ func (h *AuthHandler) FacebookCallback(c *gin.Context) {
 		return
 	}
 	// Clear the cookie
-	c.SetCookie("oauth_state", "", -1, "/", "", false, true)
+	c.SetCookie("oauth_state", "", -1, "/", "", h.cfg.CookieSecure, true)
 
 	code := c.Query("code")
 	if code == "" {
@@ -185,13 +201,15 @@ func (h *AuthHandler) FacebookCallback(c *gin.Context) {
 	}
 
 	if token == "" && user != nil {
-		// Handle 2FA redirect if needed, but for now let's stick to the token redirect
-		// If 2FA is required, we might need a different frontend route
-		c.Redirect(http.StatusTemporaryRedirect, fmt.Sprintf("%s/auth/2fa?user_id=%s", h.cfg.FrontendURL, user.ID.String()))
+		c.Redirect(http.StatusTemporaryRedirect, fmt.Sprintf("%s/auth/login?user_id=%s", h.cfg.FrontendURL, user.ID.String()))
 		return
 	}
 
-	c.Redirect(http.StatusTemporaryRedirect, fmt.Sprintf("%s/auth/callback?token=%s", h.cfg.FrontendURL, token))
+	// Set JWT in HttpOnly cookie
+	c.SetSameSite(http.SameSiteLaxMode)
+	c.SetCookie("tr_access_token", token, 86400, "/", "", h.cfg.CookieSecure, true)
+
+	c.Redirect(http.StatusTemporaryRedirect, fmt.Sprintf("%s/auth/callback", h.cfg.FrontendURL))
 }
 
 func (h *AuthHandler) Setup2FA(c *gin.Context) {
@@ -225,7 +243,8 @@ func (h *AuthHandler) Enable2FA(c *gin.Context) {
 
 	var req verify2FARequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.SendError(c, http.StatusBadRequest, err.Error(), "INVALID_INPUT")
+		details := utils.TranslateValidatorError(err)
+		utils.SendErrorWithDetails(c, http.StatusBadRequest, "Dữ liệu không hợp lệ", "INVALID_INPUT", details)
 		return
 	}
 
@@ -246,7 +265,8 @@ func (h *AuthHandler) Disable2FA(c *gin.Context) {
 		Code string `json:"code" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.SendError(c, http.StatusBadRequest, err.Error(), "INVALID_INPUT")
+		details := utils.TranslateValidatorError(err)
+		utils.SendErrorWithDetails(c, http.StatusBadRequest, "Dữ liệu không hợp lệ", "INVALID_INPUT", details)
 		return
 	}
 
@@ -267,7 +287,8 @@ type login2FARequest struct {
 func (h *AuthHandler) Verify2FALogin(c *gin.Context) {
 	var req login2FARequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.SendError(c, http.StatusBadRequest, err.Error(), "INVALID_INPUT")
+		details := utils.TranslateValidatorError(err)
+		utils.SendErrorWithDetails(c, http.StatusBadRequest, "Dữ liệu không hợp lệ", "INVALID_INPUT", details)
 		return
 	}
 
@@ -279,18 +300,17 @@ func (h *AuthHandler) Verify2FALogin(c *gin.Context) {
 
 	token, err := h.authService.Verify2FA(userID, req.Code)
 	if err != nil {
-		utils.SendError(c, http.StatusUnauthorized, err.Error(), "INVALID_CODE")
+		utils.SendError(c, http.StatusUnauthorized, "Mã xác thực không chính xác hoặc đã hết hạn", "INVALID_CODE")
 		return
 	}
 
 	user, _ := h.authService.ValidateToken(token)
 
-	utils.SendSuccess(c, http.StatusOK, gin.H{
-		"user_id":      user.ID,
-		"full_name":     user.FullName,
-		"role":         user.Role,
-		"access_token": token,
-	}, "Xác thực thành công")
+	// Set JWT in HttpOnly cookie
+	c.SetSameSite(http.SameSiteLaxMode)
+	c.SetCookie("tr_access_token", token, 86400, "/", "", h.cfg.CookieSecure, true)
+
+	utils.SendSuccess(c, http.StatusOK, dto.ToUserResponse(*user), "Xác thực thành công")
 }
 
 func (h *AuthHandler) UpdateNotificationToken(c *gin.Context) {
@@ -301,7 +321,8 @@ func (h *AuthHandler) UpdateNotificationToken(c *gin.Context) {
 		Token string `json:"token" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.SendError(c, http.StatusBadRequest, err.Error(), "INVALID_INPUT")
+		details := utils.TranslateValidatorError(err)
+		utils.SendErrorWithDetails(c, http.StatusBadRequest, "Dữ liệu không hợp lệ", "INVALID_INPUT", details)
 		return
 	}
 
@@ -342,7 +363,8 @@ func (h *AuthHandler) UpdateMe(c *gin.Context) {
 
 	var req updateMeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.SendError(c, http.StatusBadRequest, err.Error(), "INVALID_INPUT")
+		details := utils.TranslateValidatorError(err)
+		utils.SendErrorWithDetails(c, http.StatusBadRequest, "Dữ liệu không hợp lệ", "INVALID_INPUT", details)
 		return
 	}
 
@@ -357,7 +379,7 @@ func (h *AuthHandler) UpdateMe(c *gin.Context) {
 
 type changePasswordRequest struct {
 	OldPassword string `json:"old_password" binding:"required"`
-	NewPassword string `json:"new_password" binding:"required,min=6"`
+	NewPassword string `json:"new_password" binding:"required,min=8"`
 }
 
 func (h *AuthHandler) ChangePassword(c *gin.Context) {
@@ -370,12 +392,17 @@ func (h *AuthHandler) ChangePassword(c *gin.Context) {
 
 	var req changePasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.SendError(c, http.StatusBadRequest, err.Error(), "INVALID_INPUT")
+		details := utils.TranslateValidatorError(err)
+		utils.SendErrorWithDetails(c, http.StatusBadRequest, "Dữ liệu không hợp lệ", "INVALID_INPUT", details)
 		return
 	}
 
 	err := h.authService.ChangePassword(u.ID, req.OldPassword, req.NewPassword)
 	if err != nil {
+		if err == service.ErrPasswordTooShort || err == service.ErrPasswordWeak {
+			utils.SendError(c, http.StatusBadRequest, err.Error(), "WEAK_PASSWORD")
+			return
+		}
 		utils.SendError(c, http.StatusBadRequest, err.Error(), "CHANGE_PASSWORD_FAILED")
 		return
 	}

@@ -33,6 +33,8 @@ type Config struct {
 	EnableConfigWarnings bool
 	AIAgentURL           string
 	InternalSecret       string
+	EncryptionMasterKey  string
+	CookieSecure         bool
 }
 
 func LoadConfig() *Config {
@@ -67,6 +69,8 @@ func LoadConfig() *Config {
 		EnableConfigWarnings: isEnabled(getEnv("ENABLE_CONFIG_WARNINGS", "false")),
 		AIAgentURL:           getEnv("AI_AGENT_URL", "http://localhost:8001"),
 		InternalSecret:       getEnv("X_INTERNAL_SECRET", ""),
+		EncryptionMasterKey:  getEnv("ENCRYPTION_MASTER_KEY", ""),
+		CookieSecure:         isEnabled(getEnv("COOKIE_SECURE", "false")),
 	}
 
 	if cfg.EnableConfigWarnings && (cfg.GoogleClientID == "" || cfg.GoogleClientSecret == "") {
@@ -74,6 +78,9 @@ func LoadConfig() *Config {
 	}
 	if cfg.EnableConfigWarnings && cfg.InternalSecret == "" {
 		log.Println("WARNING: X_INTERNAL_SECRET is not set!")
+	}
+	if cfg.EnableConfigWarnings && cfg.EncryptionMasterKey == "" {
+		log.Println("WARNING: ENCRYPTION_MASTER_KEY is not set! 2FA will not work.")
 	}
 	if cfg.EnableConfigWarnings && cfg.FacebookClientID == "" {
 		log.Printf("WARNING: OAuth credentials missing for %s", "Facebook")

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -16,16 +17,17 @@ import (
 	"ticketrush/internal/config"
 	"ticketrush/internal/models"
 	"ticketrush/internal/repository"
+	"ticketrush/internal/utils/encryption"
 
 	"github.com/pquerna/otp/totp"
 )
 
 type RegisterRequest struct {
-	Email       string            `json:"email"`
-	Password    string            `json:"password"`
-	FullName    string            `json:"full_name"`
-	Gender      models.GenderType `json:"gender"`
-	DateOfBirth string            `json:"date_of_birth"`
+	Email       string            `json:"email" binding:"required,email"`
+	Password    string            `json:"password" binding:"required,min=8"`
+	FullName    string            `json:"full_name" binding:"required"`
+	Gender      models.GenderType `json:"gender" binding:"required"`
+	DateOfBirth string            `json:"date_of_birth" binding:"required"`
 }
 
 type AuthService interface {
@@ -53,6 +55,37 @@ type authService struct {
 	jwtSecret        string
 	googleCfg        *oauth2.Config
 	facebookCfg      *oauth2.Config
+	encryptionKey    []byte
+}
+
+var (
+	ErrPasswordTooShort = errors.New("password must be at least 8 characters long")
+	ErrPasswordWeak     = errors.New("password must contain at least one letter and one number")
+)
+
+func validatePassword(password string) error {
+	if len(password) < 8 {
+		return ErrPasswordTooShort
+	}
+	// Check for at least one letter and one number
+	hasLetter := regexp.MustCompile(`[a-zA-Z]`).MatchString(password)
+	hasNumber := regexp.MustCompile(`[0-9]`).MatchString(password)
+	if !hasLetter || !hasNumber {
+		return ErrPasswordWeak
+	}
+	return nil
+}
+
+func (s *authService) decrypt2FASecret(encryptedSecret string) (string, error) {
+	if encryptedSecret == "" {
+		return "", nil
+	}
+	decrypted, err := encryption.DecryptAES(encryptedSecret, s.encryptionKey)
+	if err != nil {
+		// Fallback to plaintext if decryption fails (legacy secrets)
+		return encryptedSecret, nil
+	}
+	return decrypted, nil
 }
 
 func NewAuthService(userRepo repository.UserRepository, notificationServ NotificationService, cfg *config.Config) AuthService {
@@ -81,6 +114,7 @@ func NewAuthService(userRepo repository.UserRepository, notificationServ Notific
 		jwtSecret:        cfg.JWTSecret,
 		googleCfg:        googleCfg,
 		facebookCfg:      facebookCfg,
+		encryptionKey:    []byte(cfg.EncryptionMasterKey),
 	}
 }
 
@@ -89,6 +123,10 @@ func (s *authService) Register(req RegisterRequest) (*models.User, error) {
 	_, err := s.userRepo.FindByEmail(req.Email)
 	if err == nil {
 		return nil, errors.New("email already exists")
+	}
+
+	if err := validatePassword(req.Password); err != nil {
+		return nil, err
 	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
@@ -295,6 +333,10 @@ func (s *authService) ResetPassword(token, newPassword string) error {
 		return errors.New("token has expired")
 	}
 
+	if err := validatePassword(newPassword); err != nil {
+		return err
+	}
+
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
 	if err != nil {
 		return err
@@ -387,8 +429,13 @@ func (s *authService) Generate2FA(userID uuid.UUID) (string, string, error) {
 		return "", "", err
 	}
 
+	encryptedSecret, err := encryption.EncryptAES(key.Secret(), s.encryptionKey)
+	if err != nil {
+		return "", "", err
+	}
+
 	// Store secret temporarily but not enabled yet
-	if err := s.userRepo.Update2FA(userID, false, key.Secret()); err != nil {
+	if err := s.userRepo.Update2FA(userID, false, encryptedSecret); err != nil {
 		return "", "", err
 	}
 
@@ -401,7 +448,12 @@ func (s *authService) Enable2FA(userID uuid.UUID, code string) error {
 		return err
 	}
 
-	valid := totp.Validate(code, user.TwoFactorSecret)
+	secret, err := s.decrypt2FASecret(user.TwoFactorSecret)
+	if err != nil {
+		return err
+	}
+
+	valid := totp.Validate(code, secret)
 	if !valid {
 		return errors.New("invalid verification code")
 	}
@@ -415,7 +467,12 @@ func (s *authService) Verify2FA(userID uuid.UUID, code string) (string, error) {
 		return "", err
 	}
 
-	valid := totp.Validate(code, user.TwoFactorSecret)
+	secret, err := s.decrypt2FASecret(user.TwoFactorSecret)
+	if err != nil {
+		return "", err
+	}
+
+	valid := totp.Validate(code, secret)
 	if !valid {
 		return "", errors.New("invalid verification code")
 	}
@@ -474,6 +531,10 @@ func (s *authService) ChangePassword(userID uuid.UUID, oldPassword string, newPa
 		return errors.New("invalid old password")
 	}
 
+	if err := validatePassword(newPassword); err != nil {
+		return err
+	}
+
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
 	if err != nil {
 		return err
@@ -492,7 +553,12 @@ func (s *authService) Disable2FA(userID uuid.UUID, code string) error {
 		return errors.New("2FA is not enabled")
 	}
 
-	valid := totp.Validate(code, user.TwoFactorSecret)
+	secret, err := s.decrypt2FASecret(user.TwoFactorSecret)
+	if err != nil {
+		return err
+	}
+
+	valid := totp.Validate(code, secret)
 	if !valid {
 		return errors.New("invalid verification code")
 	}

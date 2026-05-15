@@ -1,9 +1,8 @@
 import React, { useEffect, useRef } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth.js';
 
 export default function OAuthCallback() {
-  const [searchParams] = useSearchParams();
   const { loginWithToken } = useAuth();
   const navigate = useNavigate();
   const processed = useRef(false);
@@ -12,21 +11,15 @@ export default function OAuthCallback() {
     if (processed.current) return;
     processed.current = true;
 
-    const token = searchParams.get('token');
-
-    if (token) {
-      loginWithToken(token)
-        .then(() => {
-          navigate('/', { replace: true });
-        })
-        .catch((err) => {
-          console.error('OAuth login failed:', err);
-          navigate('/auth/login?error=oauth_failed', { replace: true });
-        });
-    } else {
-      navigate('/auth/login', { replace: true });
-    }
-  }, [searchParams, loginWithToken, navigate]);
+    loginWithToken()
+      .then(() => {
+        navigate('/', { replace: true });
+      })
+      .catch((err) => {
+        console.error('OAuth login failed:', err);
+        navigate('/auth/login?error=oauth_failed', { replace: true });
+      });
+  }, [loginWithToken, navigate]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
