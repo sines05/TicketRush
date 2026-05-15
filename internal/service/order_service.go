@@ -64,6 +64,21 @@ func (s *orderService) LockSeats(ctx context.Context, userID uuid.UUID, eventID 
 		}
 	}
 
+	// PROACTIVE CLEANUP: Check if user already has a pending order for this event
+	existingOrder, err := s.orderRepo.FindPendingOrderByUserAndEvent(ctx, userID, eventID)
+	if err == nil && existingOrder != nil {
+		// Cancel the old order to release seats before creating a new one
+		// We use orderRepo.CancelOrder directly to avoid removing the user from the queue's active set
+		seatIDs, err := s.orderRepo.CancelOrder(ctx, existingOrder.ID, userID)
+		if err == nil {
+			channelName := "event:" + eventID.String()
+			s.broadcaster.Broadcast(channelName, map[string]interface{}{
+				"type":     "SEATS_RELEASED",
+				"seat_ids": seatIDs,
+			})
+		}
+	}
+
 	order, err := s.orderRepo.LockSeats(ctx, userID, eventID, seatIDs)
 	if err == nil {
 		channelName := "event:" + eventID.String()
@@ -90,6 +105,12 @@ func (s *orderService) Checkout(ctx context.Context, userID uuid.UUID, orderID u
 		})
 		// Remove user from Redis active set after successful checkout to free queue slot
 		_ = s.queueRepo.RemoveFromActive(ctx, order.EventID, userID)
+
+		// CLEANUP: Delete session after successful checkout
+		session, err := s.queueRepo.GetSessionByEventAndUser(ctx, order.EventID, userID)
+		if err == nil && session != nil {
+			_ = s.queueRepo.DeleteSession(ctx, session.Token, order.EventID, userID)
+		}
 
 		// Async Notification
 		user, _ := s.userRepo.FindByID(userID)

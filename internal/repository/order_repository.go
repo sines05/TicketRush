@@ -26,6 +26,7 @@ type OrderRepository interface {
 	GetTicketsByOrderID(orderID uuid.UUID) ([]models.Ticket, error)
 	CheckInTicket(ctx context.Context, qrCodeToken string) (*models.Ticket, error)
 	GetRevenueStats(ctx context.Context, eventID *uuid.UUID) (float64, int64, error)
+	FindPendingOrderByUserAndEvent(ctx context.Context, userID uuid.UUID, eventID uuid.UUID) (*models.Order, error)
 }
 
 type orderRepo struct {
@@ -404,4 +405,20 @@ func (r *orderRepo) GetTicketsByOrderID(orderID uuid.UUID) ([]models.Ticket, err
 		return nil, err
 	}
 	return tickets, nil
+}
+
+func (r *orderRepo) FindPendingOrderByUserAndEvent(ctx context.Context, userID uuid.UUID, eventID uuid.UUID) (*models.Order, error) {
+	var order models.Order
+	err := r.db.Preload("OrderItems").
+		Where("user_id = ? AND event_id = ? AND status = ?", userID, eventID, models.OrderPending).
+		First(&order).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &order, nil
 }

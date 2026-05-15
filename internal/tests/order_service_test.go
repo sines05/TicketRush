@@ -6,12 +6,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
 	"ticketrush/internal/models"
 	"ticketrush/internal/queue"
 	"ticketrush/internal/repository"
 	"ticketrush/internal/service"
 	"ticketrush/internal/utils"
+
+	"github.com/google/uuid"
 )
 
 type mockOrderRepo struct {
@@ -65,6 +66,9 @@ func (m *mockOrderRepo) GetTicketsByOrderID(orderID uuid.UUID) ([]models.Ticket,
 }
 func (m *mockOrderRepo) GetRevenueStats(ctx context.Context, eventID *uuid.UUID) (float64, int64, error) {
 	return 0, 0, nil
+}
+func (m *mockOrderRepo) FindPendingOrderByUserAndEvent(ctx context.Context, userID uuid.UUID, eventID uuid.UUID) (*models.Order, error) {
+	return nil, nil
 }
 
 // mockQueueRepo always returns "allowed" so LockSeats can proceed
