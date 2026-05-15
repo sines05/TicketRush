@@ -12,6 +12,7 @@ type MembershipRepository interface {
 	GetTierByID(ctx context.Context, id uuid.UUID) (*models.MembershipTier, error)
 	GetTierByName(ctx context.Context, name string) (*models.MembershipTier, error)
 	UpdateUserTier(ctx context.Context, userID uuid.UUID, tierID uuid.UUID) error
+	RefreshUserTierByPoints(ctx context.Context, userID uuid.UUID) error
 }
 
 type membershipRepo struct {
@@ -48,4 +49,19 @@ func (r *membershipRepo) GetTierByName(ctx context.Context, name string) (*model
 
 func (r *membershipRepo) UpdateUserTier(ctx context.Context, userID uuid.UUID, tierID uuid.UUID) error {
 	return r.db.Model(&models.User{}).Where("id = ?", userID).Update("membership_tier_id", tierID).Error
+}
+
+func (r *membershipRepo) RefreshUserTierByPoints(ctx context.Context, userID uuid.UUID) error {
+	return r.db.WithContext(ctx).Exec(`
+		UPDATE users
+		SET membership_tier_id = (
+			SELECT mt.id
+			FROM membership_tiers mt
+			WHERE mt.deleted_at IS NULL
+				AND mt.required_points <= users.membership_points
+			ORDER BY mt.required_points DESC, mt.priority_level DESC
+			LIMIT 1
+		)
+		WHERE users.id = ?
+	`, userID).Error
 }

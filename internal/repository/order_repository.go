@@ -12,6 +12,8 @@ import (
 	"ticketrush/internal/utils"
 )
 
+const membershipPointsPerTicket = 100
+
 type OrderRepository interface {
 	LockSeats(ctx context.Context, userID uuid.UUID, eventID uuid.UUID, seatIDs []uuid.UUID) (*models.Order, error)
 	CompleteOrder(ctx context.Context, orderID uuid.UUID) (*models.Order, error)
@@ -100,9 +102,9 @@ func (r *orderRepo) LockSeats(ctx context.Context, userID uuid.UUID, eventID uui
 		if err := tx.Model(&models.Seat{}).
 			Where("id IN ?", seatIDs).
 			Updates(map[string]interface{}{
-				"status":             models.SeatLocked,
+				"status":            models.SeatLocked,
 				"locked_by_user_id": userID,
-				"locked_at":          &now,
+				"locked_at":         &now,
 			}).Error; err != nil {
 			return err
 		}
@@ -171,6 +173,11 @@ func (r *orderRepo) CompleteOrder(ctx context.Context, orderID uuid.UUID) (*mode
 			}
 		}
 
+		earnedPoints := len(order.OrderItems) * membershipPointsPerTicket
+		if err := awardMembershipPoints(tx, order.UserID, earnedPoints); err != nil {
+			return err
+		}
+
 		return nil
 	})
 
@@ -179,6 +186,27 @@ func (r *orderRepo) CompleteOrder(ctx context.Context, orderID uuid.UUID) (*mode
 	}
 
 	return &order, nil
+}
+
+func awardMembershipPoints(tx *gorm.DB, userID uuid.UUID, points int) error {
+	if err := tx.Model(&models.User{}).
+		Where("id = ?", userID).
+		UpdateColumn("membership_points", gorm.Expr("membership_points + ?", points)).Error; err != nil {
+		return err
+	}
+
+	return tx.Exec(`
+		UPDATE users
+		SET membership_tier_id = (
+			SELECT mt.id
+			FROM membership_tiers mt
+			WHERE mt.deleted_at IS NULL
+				AND mt.required_points <= users.membership_points
+			ORDER BY mt.required_points DESC, mt.priority_level DESC
+			LIMIT 1
+		)
+		WHERE users.id = ?
+	`, userID).Error
 }
 
 func (r *orderRepo) CancelOrder(ctx context.Context, orderID uuid.UUID, userID uuid.UUID) ([]uuid.UUID, error) {
@@ -224,9 +252,9 @@ func (r *orderRepo) CancelOrder(ctx context.Context, orderID uuid.UUID, userID u
 		return tx.Model(&models.Seat{}).
 			Where("id IN ?", seatIDs).
 			Updates(map[string]interface{}{
-				"status":             models.SeatAvailable,
+				"status":            models.SeatAvailable,
 				"locked_by_user_id": nil,
-				"locked_at":          nil,
+				"locked_at":         nil,
 			}).Error
 	})
 
@@ -284,9 +312,9 @@ func (r *orderRepo) ReleaseOrder(ctx context.Context, orderID uuid.UUID) ([]uuid
 		return tx.Model(&models.Seat{}).
 			Where("id IN ?", seatIDs).
 			Updates(map[string]interface{}{
-				"status":             models.SeatAvailable,
+				"status":            models.SeatAvailable,
 				"locked_by_user_id": nil,
-				"locked_at":          nil,
+				"locked_at":         nil,
 			}).Error
 	})
 	return seatIDs, err

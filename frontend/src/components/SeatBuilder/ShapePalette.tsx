@@ -162,7 +162,7 @@ export function readAddZoneActionFromDrop(e: React.DragEvent): AddZoneAction | n
 
 export function ShapePalette() {
   return (
-    <aside className="w-72 shrink-0 border-r bg-background p-3">
+    <aside className="w-full min-w-0 bg-transparent">
       <div className="mb-3 text-sm font-semibold">Shapes</div>
       <div className="space-y-2">
         {ITEMS.map((item) => {
@@ -180,10 +180,10 @@ export function ShapePalette() {
                 e.dataTransfer.setData(ZONE_DND_MIME, JSON.stringify(action));
                 e.dataTransfer.setData("text/plain", item.id);
               }}
-              className="flex cursor-grab select-none items-center gap-3 rounded-lg border bg-card p-3 hover:bg-accent"
+              className="flex min-w-0 cursor-grab select-none items-center gap-3 rounded-lg border bg-card p-3 hover:bg-accent"
               title="Drag onto canvas"
             >
-              <div className="flex h-12 w-12 items-center justify-center rounded-md border bg-background">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md border bg-background">
                 <item.Icon />
               </div>
               <div className="min-w-0">

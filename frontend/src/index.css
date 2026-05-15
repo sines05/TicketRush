@@ -39,6 +39,13 @@
     --tr-card-shadow: 0 18px 60px -40px rgb(0 150 165 / 0.12);
     --tr-card-shadow-hover: 0 26px 70px -42px rgb(0 150 165 / 0.18);
 
+    --tr-chart-1: 183 64% 42%;
+    --tr-chart-2: 158 54% 48%;
+    --tr-chart-3: 38 89% 58%;
+    --tr-chart-4: 330 72% 63%;
+    --tr-chart-5: 214 76% 59%;
+    --tr-chart-grid: 190 24% 72%;
+
     /* Glassmorphism Variables */
     --tr-glass-bg: 0 0% 100% / 0.4;
     --tr-glass-border: 214.3 31.8% 91.4% / 0.3;
@@ -78,6 +85,13 @@
     --tr-card-shadow: 0 0 #0000;
     --tr-card-shadow-hover: 0 0 #0000;
 
+    --tr-chart-1: 166 58% 64%;
+    --tr-chart-2: 194 70% 62%;
+    --tr-chart-3: 38 91% 66%;
+    --tr-chart-4: 342 83% 72%;
+    --tr-chart-5: 253 74% 76%;
+    --tr-chart-grid: 263 24% 34%;
+
     /* Glassmorphism Variables */
     --tr-glass-bg: 263 30% 10% / 0.4;
     --tr-glass-border: 263 30% 20% / 0.3;
@@ -92,10 +106,12 @@
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
     background:
-      radial-gradient(1200px circle at 50% -10%, hsl(var(--tr-accent) / 0.12), transparent 70%),
-      radial-gradient(1000px circle at 10% 20%, hsl(var(--tr-secondary) / 0.15), transparent 60%),
-      radial-gradient(1000px circle at 90% 80%, hsl(var(--tr-primary) / 0.12), transparent 60%),
+      radial-gradient(900px circle at 8% 8%, hsl(var(--tr-accent) / 0.26), transparent 62%),
+      radial-gradient(760px circle at 88% 10%, hsl(var(--tr-secondary) / 0.15), transparent 58%),
+      radial-gradient(980px circle at 56% 62%, hsl(var(--tr-primary) / 0.10), transparent 66%),
+      linear-gradient(180deg, hsl(174 58% 97%) 0%, hsl(var(--tr-background)) 42%, hsl(var(--tr-background)) 100%),
       hsl(var(--tr-background));
+    background-attachment: fixed;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -149,6 +165,22 @@ body {
     background-clip: padding-box;
   }
 
+  .tr-dashboard-card {
+    background:
+      linear-gradient(135deg, hsl(var(--tr-card) / 0.94), hsl(var(--tr-card) / 0.72)),
+      radial-gradient(420px circle at 12% 0%, hsl(var(--tr-chart-1) / 0.14), transparent 65%);
+    border-color: hsl(var(--tr-border) / 0.78);
+    box-shadow: 0 20px 60px -42px hsl(var(--tr-chart-1) / 0.45);
+    backdrop-filter: blur(14px);
+  }
+
+  .dark .tr-dashboard-card {
+    background:
+      linear-gradient(135deg, hsl(var(--tr-card) / 0.92), hsl(var(--tr-card) / 0.72)),
+      radial-gradient(420px circle at 12% 0%, hsl(var(--tr-chart-2) / 0.16), transparent 65%);
+    box-shadow: 0 20px 60px -44px hsl(var(--tr-chart-2) / 0.34);
+  }
+
   .tr-hero-slider .swiper-pagination-bullet {
     width: 0.75rem;
     height: 0.75rem;
@@ -161,6 +193,39 @@ body {
   .tr-hero-slider .swiper-pagination-bullet-active {
     width: 2rem;
     background: linear-gradient(90deg, hsl(var(--tr-primary)), hsl(var(--tr-accent)));
+  }
+
+  .tr-report-rail {
+    mask-image: linear-gradient(90deg, transparent, #000 9%, #000 91%, transparent);
+  }
+
+  .tr-report-track {
+    animation: tr-report-marquee-ltr 20s linear infinite !important;
+    animation-play-state: running !important;
+    will-change: transform;
+  }
+
+  .tr-report-card {
+    background:
+      linear-gradient(145deg, hsl(var(--tr-card) / 0.78), hsl(var(--tr-card) / 0.52)),
+      radial-gradient(220px circle at 12% 8%, hsl(var(--tr-chart-3) / 0.18), transparent 64%),
+      radial-gradient(260px circle at 92% 100%, hsl(var(--tr-chart-1) / 0.16), transparent 62%);
+  }
+
+  .dark .tr-report-card {
+    background:
+      linear-gradient(145deg, hsl(var(--tr-card) / 0.86), hsl(var(--tr-card) / 0.48)),
+      radial-gradient(220px circle at 12% 8%, hsl(var(--tr-chart-3) / 0.13), transparent 64%),
+      radial-gradient(260px circle at 92% 100%, hsl(var(--tr-chart-2) / 0.12), transparent 62%);
+  }
+
+  @keyframes tr-report-marquee-ltr {
+    from {
+      transform: translate3d(-50%, 0, 0);
+    }
+    to {
+      transform: translate3d(0, 0, 0);
+    }
   }
 }
 

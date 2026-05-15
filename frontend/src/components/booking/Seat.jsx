@@ -11,11 +11,11 @@ function getSeatClasses({ status, selected, lockedByMe }) {
     case SEAT_STATUS.AVAILABLE:
       return 'bg-emerald-500/90 text-white hover:bg-emerald-500 hover:scale-110 hover:shadow-lg hover:z-20';
     case SEAT_STATUS.SOLD:
-      return 'bg-muted/30 text-muted-foreground/30 cursor-not-allowed border-none';
+      return 'bg-red-500 text-white cursor-not-allowed opacity-90 border-none';
     case SEAT_STATUS.LOCKED:
-      return 'bg-slate-300 text-slate-500 cursor-not-allowed opacity-60';
+      return 'bg-pink-500 text-white cursor-not-allowed opacity-90';
     default:
-      return 'bg-slate-300 text-slate-500 cursor-not-allowed opacity-60';
+      return 'bg-pink-500 text-white cursor-not-allowed opacity-90';
   }
 }
 

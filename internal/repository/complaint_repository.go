@@ -11,6 +11,7 @@ type ComplaintRepository interface {
 	CreateComplaint(ctx context.Context, complaint *models.Complaint) error
 	GetComplaintsByUserID(ctx context.Context, userID uuid.UUID) ([]models.Complaint, error)
 	GetAllComplaints(ctx context.Context) ([]models.Complaint, error)
+	GetComplaintsByMinimumRating(ctx context.Context, minRating int, limit int) ([]models.Complaint, error)
 	UpdateComplaintStatus(ctx context.Context, id uuid.UUID, status models.ComplaintStatus) error
 }
 
@@ -35,6 +36,17 @@ func (r *complaintRepo) GetComplaintsByUserID(ctx context.Context, userID uuid.U
 func (r *complaintRepo) GetAllComplaints(ctx context.Context) ([]models.Complaint, error) {
 	var complaints []models.Complaint
 	err := r.db.Preload("User").Order("created_at DESC").Find(&complaints).Error
+	return complaints, err
+}
+
+func (r *complaintRepo) GetComplaintsByMinimumRating(ctx context.Context, minRating int, limit int) ([]models.Complaint, error) {
+	var complaints []models.Complaint
+	err := r.db.WithContext(ctx).
+		Preload("User").
+		Where("rating >= ?", minRating).
+		Order("rating DESC, created_at DESC").
+		Limit(limit).
+		Find(&complaints).Error
 	return complaints, err
 }
 

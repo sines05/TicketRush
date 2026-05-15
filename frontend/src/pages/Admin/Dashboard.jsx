@@ -3,6 +3,7 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  Legend,
   Pie,
   PieChart,
   ResponsiveContainer,
@@ -37,15 +38,22 @@ import {
   Users2, 
   Calendar,
   Edit,
+  MessageSquareWarning,
   Trash2,
   ExternalLink
 } from 'lucide-react';
 
 const GENDER_COLORS = {
-  MALE: 'hsl(var(--primary))',
-  FEMALE: 'hsl(var(--chart-2))',
-  OTHER: 'hsl(var(--chart-3))'
+  MALE: 'hsl(var(--tr-chart-1))',
+  FEMALE: 'hsl(var(--tr-chart-4))',
+  OTHER: 'hsl(var(--tr-chart-3))'
 };
+
+const AGE_COLORS = [
+  'hsl(var(--tr-chart-1))',
+  'hsl(var(--tr-chart-2))',
+  'hsl(var(--tr-chart-3))'
+];
 
 const AGE_GROUP_ORDER = ['18-24', '25-34', '35+'];
 
@@ -103,6 +111,9 @@ export default function Dashboard() {
         </div>
         <div className="flex flex-wrap gap-3">
           <Button variant="outline" asChild>
+            <Link to="/admin/complaints"><MessageSquareWarning className="mr-2 h-4 w-4" /> Các đơn khiếu nại</Link>
+          </Button>
+          <Button variant="outline" asChild>
             <Link to="/admin/users"><Users className="mr-2 h-4 w-4" /> Quản lý User</Link>
           </Button>
           <Button variant="outline" asChild>
@@ -116,40 +127,48 @@ export default function Dashboard() {
 
       {/* KPI Section */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
+        <Card className="tr-dashboard-card overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Tổng doanh thu</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <div className="rounded-xl bg-[hsl(var(--tr-chart-1)/0.14)] p-2 text-[hsl(var(--tr-chart-1))]">
+              <TrendingUp className="h-4 w-4" />
+            </div>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{statsLoading ? '...' : formatVND(stats?.total_revenue || 0)}</div>
             <p className="text-xs text-muted-foreground">+20.1% so với tháng trước</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="tr-dashboard-card overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Vé đã bán</CardTitle>
-            <TicketCheck className="h-4 w-4 text-muted-foreground" />
+            <div className="rounded-xl bg-[hsl(var(--tr-chart-2)/0.14)] p-2 text-[hsl(var(--tr-chart-2))]">
+              <TicketCheck className="h-4 w-4" />
+            </div>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{statsLoading ? '...' : stats?.total_sold || 0}</div>
             <p className="text-xs text-muted-foreground">+180.1% so với tháng trước</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="tr-dashboard-card overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Tỉ lệ lấp đầy</CardTitle>
-            <Users2 className="h-4 w-4 text-muted-foreground" />
+            <div className="rounded-xl bg-[hsl(var(--tr-chart-3)/0.16)] p-2 text-[hsl(var(--tr-chart-3))]">
+              <Users2 className="h-4 w-4" />
+            </div>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{statsLoading ? '...' : `${((stats?.occupancy_rate || 0) * 100).toFixed(1)}%`}</div>
             <p className="text-xs text-muted-foreground">+19% so với tháng trước</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="tr-dashboard-card overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Sự kiện đang diễn ra</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <div className="rounded-xl bg-[hsl(var(--tr-chart-5)/0.14)] p-2 text-[hsl(var(--tr-chart-5))]">
+              <Calendar className="h-4 w-4" />
+            </div>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{events?.filter(e => e.is_published).length || 0}</div>
@@ -160,7 +179,7 @@ export default function Dashboard() {
 
       {/* Filter & Charts */}
       <div className="grid gap-6 lg:grid-cols-7">
-        <Card className="lg:col-span-4">
+        <Card className="tr-dashboard-card lg:col-span-4">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle>Phân tích sự kiện</CardTitle>
@@ -186,15 +205,32 @@ export default function Dashboard() {
                 </div>
               ) : ageData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={ageData}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.1} />
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12 }} />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12 }} />
+                  <BarChart data={ageData} margin={{ top: 12, right: 12, left: -12, bottom: 0 }}>
+                    <defs>
+                      {AGE_COLORS.map((color, index) => (
+                        <linearGradient key={color} id={`ageGradient-${index}`} x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor={color} stopOpacity={0.95} />
+                          <stop offset="100%" stopColor={color} stopOpacity={0.58} />
+                        </linearGradient>
+                      ))}
+                    </defs>
+                    <CartesianGrid stroke="hsl(var(--tr-chart-grid) / 0.28)" strokeDasharray="4 6" vertical={false} />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'hsl(var(--tr-muted-foreground))' }} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'hsl(var(--tr-muted-foreground))' }} />
                     <Tooltip 
-                      cursor={{ fill: 'hsl(var(--muted))', opacity: 0.1 }}
-                      contentStyle={{ borderRadius: '8px', border: '1px solid hsl(var(--border))' }}
+                      cursor={{ fill: 'hsl(var(--tr-chart-1) / 0.08)' }}
+                      contentStyle={{
+                        borderRadius: '12px',
+                        border: '1px solid hsl(var(--tr-border))',
+                        background: 'hsl(var(--tr-card) / 0.96)',
+                        boxShadow: '0 18px 44px -28px hsl(var(--tr-chart-1) / 0.55)'
+                      }}
                     />
-                    <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} barSize={40} />
+                    <Bar dataKey="value" radius={[10, 10, 4, 4]} barSize={42}>
+                      {ageData.map((entry, index) => (
+                        <Cell key={entry.name} fill={`url(#ageGradient-${index % AGE_COLORS.length})`} />
+                      ))}
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
@@ -204,7 +240,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-3">
+        <Card className="tr-dashboard-card lg:col-span-3">
           <CardHeader>
             <CardTitle>Phân bố Giới tính</CardTitle>
             <CardDescription>Thành phần khán giả tham gia.</CardDescription>
@@ -218,13 +254,37 @@ export default function Dashboard() {
               ) : genderData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie data={genderData} dataKey="value" nameKey="name" innerRadius={60} outerRadius={80} paddingAngle={5}>
+                    <Pie
+                      data={genderData}
+                      dataKey="value"
+                      nameKey="name"
+                      innerRadius={62}
+                      outerRadius={92}
+                      paddingAngle={4}
+                      cornerRadius={8}
+                    >
                       {genderData.map((entry) => (
-                        <Cell key={entry.name} fill={GENDER_COLORS[entry.name] ?? 'hsl(var(--muted))'} stroke="none" />
+                        <Cell
+                          key={entry.name}
+                          fill={GENDER_COLORS[entry.name] ?? 'hsl(var(--tr-chart-5))'}
+                          stroke="hsl(var(--tr-card))"
+                          strokeWidth={4}
+                        />
                       ))}
                     </Pie>
+                    <Legend
+                      iconType="circle"
+                      verticalAlign="bottom"
+                      height={32}
+                      formatter={(value) => <span className="text-xs text-muted-foreground">{value}</span>}
+                    />
                     <Tooltip 
-                      contentStyle={{ borderRadius: '8px', border: '1px solid hsl(var(--border))' }}
+                      contentStyle={{
+                        borderRadius: '12px',
+                        border: '1px solid hsl(var(--tr-border))',
+                        background: 'hsl(var(--tr-card) / 0.96)',
+                        boxShadow: '0 18px 44px -28px hsl(var(--tr-chart-4) / 0.5)'
+                      }}
                     />
                   </PieChart>
                 </ResponsiveContainer>

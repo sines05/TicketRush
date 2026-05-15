@@ -46,10 +46,10 @@ const SEAT_MARGIN = 5;
 const ZONE_GAP = 100;
 const ZONE_LABEL_HEIGHT = 60;
 const SEAT_COLORS = {
-  AVAILABLE: '#60a5fa', // Blue (default seat color)
-  LOCKED: '#F59E0B',    // Amber-500
-  SOLD: '#EF4444',      // Red-500
-  SELECTED: '#22c55e',  // Green for selected
+  AVAILABLE: '#22c55e',
+  LOCKED: '#ec4899',
+  SOLD: '#ef4444',
+  SELECTED: '#f59e0b',
 };
 
 export const CanvasSeatmap: React.FC<CanvasSeatmapProps> = ({
@@ -259,7 +259,7 @@ export const CanvasSeatmap: React.FC<CanvasSeatmapProps> = ({
           // Draw shadow for available seats to make them pop
           if (status === 'AVAILABLE') {
             ctx.shadowBlur = 4;
-            ctx.shadowColor = 'rgba(16, 185, 129, 0.2)';
+            ctx.shadowColor = 'rgba(34, 197, 94, 0.24)';
           }
 
           ctx.beginPath();
@@ -598,19 +598,19 @@ export const CanvasSeatmap: React.FC<CanvasSeatmapProps> = ({
       <div className="absolute bottom-4 left-4 flex gap-4 bg-slate-800/80 backdrop-blur-md p-3 rounded-lg border border-slate-600 pointer-events-none">
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 rounded" style={{ backgroundColor: SEAT_COLORS.AVAILABLE }} />
-          <span className="text-xs text-white">Available</span>
+          <span className="text-xs text-white">Trống</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 rounded" style={{ backgroundColor: SEAT_COLORS.LOCKED }} />
-          <span className="text-xs text-white">Locked</span>
+          <span className="text-xs text-white">Đang giữ</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 rounded" style={{ backgroundColor: SEAT_COLORS.SOLD }} />
-          <span className="text-xs text-white">Sold</span>
+          <span className="text-xs text-white">Đã bán</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 rounded" style={{ backgroundColor: SEAT_COLORS.SELECTED }} />
-          <span className="text-xs text-white">Selected</span>
+          <span className="text-xs text-white">Đang chọn</span>
         </div>
       </div>
 

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { CheckCircle2, Grid3X3, Layers3, MousePointer2, Palette, Save, Sparkles, Ticket, X } from 'lucide-react';
 import Button from '../../components/common/Button.jsx';
 import Input from '../../components/common/Input.jsx';
 import { ShapePalette, readAddZoneActionFromDrop } from '../../components/SeatBuilder/ShapePalette.tsx';
@@ -245,9 +246,9 @@ function ZoneDetailPreview({ zone }) {
 
   if (detail.shapeType === 'standing_block') {
     return (
-      <div className="flex h-[280px] items-center justify-center rounded-2xl border border-dashed border-text/10 bg-bg/20">
+      <div className="flex h-[280px] items-center justify-center rounded-[28px] border border-dashed border-teal-500/25 bg-white/45 shadow-inner dark:border-cyan-300/20 dark:bg-white/[0.05]">
         <div
-          className="flex h-40 w-72 items-center justify-center rounded-2xl border-2 text-center text-lg font-semibold"
+          className="flex h-40 w-72 items-center justify-center rounded-3xl border-2 text-center text-lg font-black shadow-[0_18px_50px_rgba(15,118,110,0.16)]"
           style={{
             borderColor: zone.color || '#60a5fa',
             backgroundColor: `${zone.color || '#60a5fa'}22`,
@@ -267,7 +268,7 @@ function ZoneDetailPreview({ zone }) {
   const showLabels = detail.seats.length <= 60;
 
   return (
-    <div className="overflow-auto rounded-2xl border border-text/10 bg-bg/20 p-4">
+    <div className="overflow-auto rounded-[28px] border border-teal-500/20 bg-white/55 p-4 shadow-inner dark:border-cyan-300/15 dark:bg-white/[0.05]">
       <svg viewBox={`0 0 ${width} ${height}`} className="mx-auto h-[340px] max-w-full">
         {detail.tables?.map((table, index) => (
           <circle
@@ -455,40 +456,62 @@ export default function ZoneMapBuilder() {
   }
 
   return (
-    <div className="mx-auto max-w-[1600px] space-y-6 p-6">
-      <section className="rounded-2xl border border-text/10 bg-surface p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <div className="text-xl font-semibold">Zone map builder</div>
-            <div className="text-sm text-muted">Drag shapes into the canvas, then click a zone to edit and inspect its seat detail below.</div>
+    <div className="min-h-[100dvh] bg-[radial-gradient(circle_at_10%_8%,rgba(251,191,36,0.18),transparent_28%),radial-gradient(circle_at_92%_12%,rgba(20,184,166,0.18),transparent_32%),linear-gradient(135deg,#f8fafc,#ecfeff_46%,#fff7ed)] px-4 py-6 dark:bg-[radial-gradient(circle_at_10%_8%,rgba(245,158,11,0.16),transparent_28%),radial-gradient(circle_at_92%_12%,rgba(34,211,238,0.14),transparent_32%),linear-gradient(135deg,#020617,#0f172a_48%,#111827)] sm:px-6">
+      <div className="mx-auto max-w-[1600px] space-y-6">
+        <section className="relative overflow-hidden rounded-[32px] border border-teal-500/20 bg-white/72 p-5 shadow-[0_30px_100px_rgba(15,118,110,0.16)] backdrop-blur dark:border-cyan-300/15 dark:bg-white/[0.07]">
+          <div className="pointer-events-none absolute inset-0 opacity-[0.16] dark:opacity-[0.12]" style={{ backgroundImage: 'linear-gradient(rgba(15,118,110,.35) 1px, transparent 1px), linear-gradient(90deg, rgba(15,118,110,.35) 1px, transparent 1px)', backgroundSize: '34px 34px' }} />
+          <div className="relative flex flex-wrap items-center justify-between gap-4">
+            <div className="max-w-3xl">
+              <div className="inline-flex items-center gap-2 rounded-full border border-amber-400/40 bg-amber-100/75 px-3 py-1 text-[11px] font-black uppercase tracking-[0.22em] text-amber-800 dark:border-amber-300/25 dark:bg-amber-300/10 dark:text-amber-100">
+                <Sparkles className="h-3.5 w-3.5" />
+                Seating studio
+              </div>
+              <div className="mt-4 text-3xl font-black leading-none text-slate-950 sm:text-4xl dark:text-white">Zone map builder</div>
+              <div className="mt-3 text-sm font-medium leading-6 text-slate-600 dark:text-slate-300">Drag shapes into the canvas, then click a zone to edit and inspect its seat detail below.</div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {saveState ? (
+                <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-100/70 px-3 py-2 text-sm font-bold text-emerald-800 dark:border-emerald-300/20 dark:bg-emerald-300/10 dark:text-emerald-100">
+                  <CheckCircle2 className="h-4 w-4" />
+                  {saveState}
+                </div>
+              ) : null}
+              <Button variant="secondary" onClick={() => window.close()}>
+                <X className="mr-2 h-4 w-4" />
+                Close
+              </Button>
+              <Button onClick={handleSave}>
+                <Save className="mr-2 h-4 w-4" />
+                Save
+              </Button>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            {saveState ? <div className="text-sm text-muted">{saveState}</div> : null}
-            <Button variant="secondary" onClick={() => window.close()}>
-              Close
-            </Button>
-            <Button onClick={handleSave}>
-              Save
-            </Button>
-          </div>
-        </div>
-      </section>
+        </section>
 
-      <div className="flex gap-4">
-        <div className="w-72 shrink-0 rounded-2xl border border-text/10 bg-surface p-4">
-          <div className="mb-3 text-sm font-semibold">Shape palette</div>
+        <div className="grid gap-4 xl:grid-cols-[288px_minmax(0,1fr)_384px]">
+          <div className="min-w-0 rounded-[28px] border border-teal-500/20 bg-white/70 p-4 shadow-[0_18px_60px_rgba(15,118,110,0.12)] backdrop-blur dark:border-cyan-300/15 dark:bg-white/[0.07]">
+            <div className="mb-4 flex items-center gap-2 text-sm font-black uppercase tracking-[0.18em] text-teal-800 dark:text-cyan-100">
+              <Palette className="h-4 w-4 text-amber-500" />
+              Shape palette
+            </div>
           <ShapePalette />
         </div>
 
-        <div className="min-w-0 flex-1 rounded-2xl border border-text/10 bg-surface p-4">
-          <div className="mb-3 flex items-center justify-between">
-            <div className="text-sm font-semibold">Canvas</div>
-            <div className="text-xs text-muted">Shapes stay inside the frame and cannot overlap.</div>
-          </div>
-          <div className="overflow-hidden rounded-xl border border-text/10 bg-bg/40">
+          <div className="min-w-0 rounded-[28px] border border-teal-500/20 bg-white/72 p-4 shadow-[0_18px_60px_rgba(15,118,110,0.12)] backdrop-blur dark:border-cyan-300/15 dark:bg-white/[0.07]">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-sm font-black uppercase tracking-[0.18em] text-teal-800 dark:text-cyan-100">
+                <Grid3X3 className="h-4 w-4 text-amber-500" />
+                Canvas
+              </div>
+              <div className="inline-flex items-center gap-2 rounded-full border border-teal-500/20 bg-teal-50/80 px-3 py-1.5 text-xs font-bold text-teal-800 dark:border-cyan-300/15 dark:bg-cyan-300/10 dark:text-cyan-100">
+                <MousePointer2 className="h-3.5 w-3.5" />
+                Shapes stay inside the frame and cannot overlap.
+              </div>
+            </div>
+            <div className="overflow-hidden rounded-[26px] border border-teal-500/20 bg-[radial-gradient(circle_at_50%_12%,rgba(251,191,36,0.14),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.78),rgba(240,253,250,0.72))] shadow-inner dark:border-cyan-300/15 dark:bg-[radial-gradient(circle_at_50%_12%,rgba(245,158,11,0.10),transparent_30%),linear-gradient(180deg,rgba(15,23,42,0.82),rgba(2,6,23,0.86))]">
             <div
               ref={placementRef}
-              className="relative h-[68vh] min-h-[560px]"
+              className="relative h-[68vh] min-h-[560px] bg-[linear-gradient(rgba(15,118,110,0.10)_1px,transparent_1px),linear-gradient(90deg,rgba(15,118,110,0.10)_1px,transparent_1px)] bg-[length:28px_28px]"
               onDragOver={(e) => {
                 e.preventDefault();
                 e.dataTransfer.dropEffect = 'copy';
@@ -502,7 +525,7 @@ export default function ZoneMapBuilder() {
               }}
             >
               <div className="absolute left-4 right-4 top-4 flex items-center justify-center">
-                <div className="h-2 w-3/5 rounded-full bg-brand-600/35" aria-hidden="true" />
+                <div className="h-2 w-3/5 rounded-full bg-gradient-to-r from-amber-300 via-teal-300 to-cyan-300 shadow-[0_0_24px_rgba(20,184,166,0.35)]" aria-hidden="true" />
               </div>
 
               {zones.map((zone, index) => {
@@ -538,8 +561,8 @@ export default function ZoneMapBuilder() {
                     }}
                     className={
                       index === activeZoneIndex
-                        ? 'border-brand-600/70 bg-brand-600/10 cursor-grab active:cursor-grabbing'
-                        : 'border-text/10 bg-surface cursor-grab active:cursor-grabbing'
+                        ? 'cursor-grab rounded-3xl border-2 border-amber-300/80 bg-amber-200/10 drop-shadow-[0_18px_32px_rgba(245,158,11,0.22)] active:cursor-grabbing'
+                        : 'cursor-grab rounded-3xl border border-white/20 bg-white/10 drop-shadow-[0_14px_28px_rgba(15,118,110,0.16)] active:cursor-grabbing'
                     }
                     style={{ left, top, transform: 'translate(-50%, -50%)' }}
                   />
@@ -549,8 +572,11 @@ export default function ZoneMapBuilder() {
           </div>
         </div>
 
-        <div className="w-96 shrink-0 rounded-2xl border border-text/10 bg-surface p-4">
-          <div className="text-sm font-semibold">Zones</div>
+          <div className="min-w-0 rounded-[28px] border border-teal-500/20 bg-white/70 p-4 shadow-[0_18px_60px_rgba(15,118,110,0.12)] backdrop-blur dark:border-cyan-300/15 dark:bg-white/[0.07] [&_input]:rounded-2xl [&_input]:border-teal-700/15 [&_input]:bg-white/80 [&_input]:px-4 [&_input]:py-3 [&_input]:text-[16px] [&_input]:font-semibold [&_input]:text-slate-950 [&_input]:shadow-sm [&_input]:outline-none [&_input]:transition [&_input]:focus:border-teal-500/70 [&_input]:focus:ring-4 [&_input]:focus:ring-teal-500/15 dark:[&_input]:border-white/10 dark:[&_input]:bg-white/[0.08] dark:[&_input]:text-white dark:[&_input]:focus:border-cyan-300/50 dark:[&_input]:focus:ring-cyan-300/15">
+            <div className="flex items-center gap-2 text-sm font-black uppercase tracking-[0.18em] text-teal-800 dark:text-cyan-100">
+              <Layers3 className="h-4 w-4 text-amber-500" />
+              Zones
+            </div>
           <div className="mt-3 max-h-56 space-y-2 overflow-auto pr-1">
             {zones.map((zone, index) => {
               const total = buildShapeRowSeatCounts(zone).reduce((sum, value) => sum + value, 0);
@@ -559,10 +585,10 @@ export default function ZoneMapBuilder() {
                   key={zone.key}
                   type="button"
                   onClick={() => setActiveZoneIndex(index)}
-                  className={`w-full rounded-lg border p-3 text-left text-sm transition ${
+                  className={`w-full rounded-2xl border p-3 text-left text-sm shadow-sm transition hover:-translate-y-0.5 ${
                     index === activeZoneIndex
-                      ? 'border-brand-600/60 bg-brand-600/15 text-text'
-                      : 'border-text/10 bg-bg/30 text-muted hover:bg-text/5 hover:text-text'
+                      ? 'border-amber-400/50 bg-amber-100/70 text-amber-950 dark:border-amber-300/25 dark:bg-amber-300/10 dark:text-amber-100'
+                      : 'border-teal-700/10 bg-white/55 text-slate-600 hover:bg-teal-50 hover:text-slate-950 dark:border-white/10 dark:bg-white/[0.05] dark:text-slate-300 dark:hover:bg-white/[0.08] dark:hover:text-white'
                   }`}
                 >
                   <div className="font-semibold truncate">{zone.name || `Zone ${index + 1}`}</div>
@@ -577,7 +603,7 @@ export default function ZoneMapBuilder() {
 
           {activeZone ? (
             <div className="mt-4 space-y-4">
-              <div className="text-sm font-semibold">Zone configuration</div>
+              <div className="text-sm font-black text-slate-900 dark:text-white">Zone configuration</div>
               <Input label="Zone name" value={activeZone.name} onChange={(e) => setZoneField(activeZoneIndex, { name: e.target.value })} />
               <Input
                 label="Price (VND)"
@@ -587,22 +613,22 @@ export default function ZoneMapBuilder() {
               />
 
               <label className="block">
-                <div className="mb-1 text-sm text-muted">Zone color</div>
+                <div className="mb-2 text-[11px] font-black uppercase tracking-[0.18em] text-teal-800/80 dark:text-cyan-100/80">Zone color</div>
                 <input
                   type="color"
                   value={activeZone.color || '#60a5fa'}
                   onChange={(e) => setZoneField(activeZoneIndex, { color: e.target.value })}
-                  className="h-10 w-full rounded-md border border-text/10 bg-surface"
+                  className="h-12 w-full"
                 />
               </label>
 
-              <div className="rounded-xl border border-text/10 bg-bg/30 p-3">
-                <div className="text-[11px] font-semibold uppercase tracking-wide text-muted">Shape</div>
-                <div className="mt-1 text-sm font-semibold">{SHAPE_LABELS[getShapeType(activeZone)]}</div>
-                <div className="mt-1 text-xs text-muted">{getShapeSummary(activeZone)}</div>
+              <div className="rounded-2xl border border-teal-700/10 bg-teal-50/70 p-3 dark:border-cyan-300/15 dark:bg-cyan-300/10">
+                <div className="text-[11px] font-black uppercase tracking-[0.18em] text-teal-800/70 dark:text-cyan-100/70">Shape</div>
+                <div className="mt-1 text-sm font-black text-slate-950 dark:text-white">{SHAPE_LABELS[getShapeType(activeZone)]}</div>
+                <div className="mt-1 text-xs font-medium text-slate-600 dark:text-slate-300">{getShapeSummary(activeZone)}</div>
               </div>
 
-              <div className="grid gap-3 rounded-xl border border-text/10 bg-bg/20 p-3">
+              <div className="grid gap-3 rounded-2xl border border-teal-700/10 bg-white/45 p-3 dark:border-white/10 dark:bg-white/[0.04]">
                 {getShapeType(activeZone) === 'theatre' ? (
                   <>
                     <Input
@@ -676,9 +702,9 @@ export default function ZoneMapBuilder() {
                 ) : null}
               </div>
 
-              <div className="flex items-center justify-between border-t border-text/10 pt-4">
-                <div className="text-xs text-muted">
-                  <span className="font-semibold">
+              <div className="flex items-center justify-between border-t border-teal-700/10 pt-4 dark:border-white/10">
+                <div className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                  <span className="font-black text-teal-800 dark:text-cyan-100">
                     {buildShapeRowSeatCounts(activeZone).reduce((sum, value) => sum + value, 0)}
                   </span>{' '}
                   seats
@@ -693,17 +719,21 @@ export default function ZoneMapBuilder() {
       </div>
 
       {activeZone ? (
-        <section className="rounded-2xl border border-text/10 bg-surface p-5">
-          <div className="mb-3 flex items-center justify-between gap-3">
+        <section className="overflow-hidden rounded-[28px] border border-teal-500/20 bg-white/72 p-5 shadow-[0_18px_60px_rgba(15,118,110,0.12)] backdrop-blur dark:border-cyan-300/15 dark:bg-white/[0.07]">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div>
-              <div className="text-sm font-semibold">Selected zone detail</div>
-              <div className="text-xs text-muted">Detailed seats appear only for the selected zone.</div>
+              <div className="flex items-center gap-2 text-sm font-black uppercase tracking-[0.18em] text-teal-800 dark:text-cyan-100">
+                <Ticket className="h-4 w-4 text-amber-500" />
+                Selected zone detail
+              </div>
+              <div className="mt-2 text-xs font-medium text-slate-600 dark:text-slate-300">Detailed seats appear only for the selected zone.</div>
             </div>
-            <div className="text-sm text-muted">{activeZone.name}</div>
+            <div className="rounded-full border border-teal-500/20 bg-teal-50/80 px-3 py-1.5 text-sm font-black text-teal-800 dark:border-cyan-300/15 dark:bg-cyan-300/10 dark:text-cyan-100">{activeZone.name}</div>
           </div>
           <ZoneDetailPreview zone={activeZone} />
         </section>
       ) : null}
+      </div>
     </div>
   );
 }

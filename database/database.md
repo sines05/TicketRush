@@ -119,3 +119,18 @@ Table tickets {
   created_at timestamp [default: `CURRENT_TIMESTAMP`]
   updated_at timestamp [default: `CURRENT_TIMESTAMP`]
 }
+
+Table complaints {
+  id uuid [pk, default: `gen_random_uuid()`]
+  user_id uuid [not null, ref: > users.id]
+  title varchar(255) [not null]
+  content text [not null]
+  rating int [not null, default: 5, note: "1-5 sao"]
+  status varchar(20) [default: "PENDING", note: "PENDING, RESOLVED, REJECTED"]
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    (user_id) [name: "idx_complaints_user_id"]
+  }
+}

@@ -42,7 +42,17 @@ func (h *MembershipHandler) UpgradeTier(c *gin.Context) {
 		return
 	}
 
-	err := h.membershipRepo.UpdateUserTier(c.Request.Context(), userID, input.TierID)
+	tier, err := h.membershipRepo.GetTierByID(c.Request.Context(), input.TierID)
+	if err != nil {
+		utils.SendError(c, http.StatusNotFound, "Membership tier not found", "TIER_NOT_FOUND")
+		return
+	}
+	if user.MembershipPoints < tier.RequiredPoints {
+		utils.SendError(c, http.StatusBadRequest, "Not enough membership points", "INSUFFICIENT_POINTS")
+		return
+	}
+
+	err = h.membershipRepo.UpdateUserTier(c.Request.Context(), userID, input.TierID)
 	if err != nil {
 		utils.SendError(c, http.StatusInternalServerError, "Failed to upgrade membership", "INTERNAL_ERROR")
 		return
@@ -63,17 +73,53 @@ func (h *MembershipHandler) GetMyMembership(c *gin.Context) {
 	}
 
 	tierName := "BRONZE"
+	currentRequiredPoints := 0
 	if user.MembershipTier != nil {
 		tierName = user.MembershipTier.Name
+		currentRequiredPoints = user.MembershipTier.RequiredPoints
+	} else {
+		_ = h.membershipRepo.RefreshUserTierByPoints(c.Request.Context(), userID)
+		if refreshed, err := h.userRepo.FindByID(userID); err == nil && refreshed != nil && refreshed.MembershipTier != nil {
+			user = refreshed
+			tierName = refreshed.MembershipTier.Name
+			currentRequiredPoints = refreshed.MembershipTier.RequiredPoints
+		}
+	}
+
+	tiers, err := h.membershipRepo.GetTiers(c.Request.Context())
+	if err != nil {
+		utils.SendError(c, http.StatusInternalServerError, "Failed to fetch membership tiers", "INTERNAL_ERROR")
+		return
+	}
+
+	nextTierName := ""
+	nextTierPoints := user.MembershipPoints
+	for _, tier := range tiers {
+		if tier.RequiredPoints > user.MembershipPoints {
+			nextTierName = tier.Name
+			nextTierPoints = tier.RequiredPoints
+			break
+		}
+	}
+	if nextTierName == "" && nextTierPoints < currentRequiredPoints {
+		nextTierPoints = currentRequiredPoints
 	}
 
 	res := map[string]interface{}{
 		"tier":             tierName,
-		"points":           0,    // Points system not implemented in DB yet
-		"next_tier_points": 1000,
+		"points":           user.MembershipPoints,
+		"next_tier":        nextTierName,
+		"next_tier_points": nextTierPoints,
+		"points_to_next":   maxInt(0, nextTierPoints-user.MembershipPoints),
 		"joined_at":        user.CreatedAt,
 	}
 
 	utils.SendSuccess(c, http.StatusOK, res, "Lấy thông tin hạng thành viên thành công")
 }
 
+func maxInt(a int, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}

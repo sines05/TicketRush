@@ -37,11 +37,11 @@ interface ZoneDetailMapProps {
 const SEAT_SIZE = 30;
 const SEAT_MARGIN = 8;
 
-// Seat color palette (available seats use default blue)
 const SEAT_COLORS = {
-  AVAILABLE: '#60a5fa', // blue
-  LOCKED: '#F59E0B',    // amber-500
-  SOLD: '#EF4444',      // red-500
+  AVAILABLE: '#22c55e',
+  LOCKED: '#ec4899',
+  SOLD: '#ef4444',
+  SELECTED: '#f59e0b',
 };
 
 export const ZoneDetailMap: React.FC<ZoneDetailMapProps> = ({
@@ -223,15 +223,19 @@ export const ZoneDetailMap: React.FC<ZoneDetailMapProps> = ({
         <div className="flex items-center gap-4 text-sm">
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 rounded" style={{ backgroundColor: SEAT_COLORS.AVAILABLE }} />
-            <span className="text-slate-300">Available</span>
+            <span className="text-slate-300">Trống</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 rounded" style={{ backgroundColor: SEAT_COLORS.LOCKED }} />
-            <span className="text-slate-300">Locked</span>
+            <span className="text-slate-300">Đang giữ</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 rounded" style={{ backgroundColor: SEAT_COLORS.SOLD }} />
-            <span className="text-slate-300">Sold</span>
+            <span className="text-slate-300">Đã bán</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 rounded" style={{ backgroundColor: SEAT_COLORS.SELECTED }} />
+            <span className="text-slate-300">Đang chọn</span>
           </div>
         </div>
         <div className="text-xs text-slate-400">
@@ -283,7 +287,7 @@ export const ZoneDetailMap: React.FC<ZoneDetailMapProps> = ({
             const isHovered = hoveredSeatId === seatCoord.seat_id;
             const selected = isSelected(seatCoord.seat_id);
             const disabled = isDisabled(seatCoord.status);
-            const statusColor = getStatusColor(seatCoord.status);
+            const statusColor = selected ? SEAT_COLORS.SELECTED : getStatusColor(seatCoord.status);
 
             return (
               <g key={seatCoord.seat_id}>
@@ -307,7 +311,7 @@ export const ZoneDetailMap: React.FC<ZoneDetailMapProps> = ({
                     rx="4"
                     fill={statusColor}
                     opacity={selected ? 0.9 : disabled ? 0.6 : 0.8}
-                    stroke={selected ? '#3B82F6' : isHovered && !disabled ? '#60A5FA' : 'none'}
+                    stroke={selected ? '#b45309' : isHovered && !disabled ? '#16a34a' : 'none'}
                     strokeWidth={selected || isHovered ? 2 : 0}
                     className={disabled ? 'opacity-50' : 'transition-all duration-100'}
                   />
@@ -332,7 +336,7 @@ export const ZoneDetailMap: React.FC<ZoneDetailMapProps> = ({
                       cy={SEAT_SIZE / 2}
                       r={SEAT_SIZE / 2 + 3}
                       fill="none"
-                      stroke="#3B82F6"
+                      stroke="#b45309"
                       strokeWidth="2"
                       className="pointer-events-none"
                     />
@@ -389,7 +393,7 @@ export const ZoneDetailMap: React.FC<ZoneDetailMapProps> = ({
           <span>
             {selectedSeatIds.length > 0 && (
               <>
-                <span className="text-blue-400">{selectedSeatIds.length} selected</span>
+                <span className="text-amber-400">{selectedSeatIds.length} selected</span>
               </>
             )}
           </span>

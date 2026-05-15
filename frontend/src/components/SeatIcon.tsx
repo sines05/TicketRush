@@ -2,7 +2,7 @@ import React from 'react';
 
 export interface SeatIconProps {
   size?: number;
-  state: 'available' | 'selected' | 'unavailable' | 'hovered';
+  state: 'available' | 'selected' | 'locked' | 'sold' | 'unavailable' | 'hovered';
   rotation?: number;
   color?: string;
   seatLabel?: string;
@@ -54,11 +54,13 @@ function lightenHexColor(hexColor: string, amount: number) {
 }
 
 function getFillColor(state: SeatIconProps['state'], color?: string) {
-  // Seats keep a consistent default blue color. Zone color only applies to zone shapes.
-  const baseSeatColor = '#60a5fa';
+  void color;
+  const baseSeatColor = '#22c55e';
 
-  if (state === 'selected') return '#22c55e';
-  if (state === 'unavailable') return '#94a3b8';
+  if (state === 'selected') return '#f59e0b';
+  if (state === 'locked') return '#ec4899';
+  if (state === 'sold') return '#ef4444';
+  if (state === 'unavailable') return '#ec4899';
   if (state === 'hovered') return lightenHexColor(baseSeatColor, 0.15);
   return baseSeatColor;
 }

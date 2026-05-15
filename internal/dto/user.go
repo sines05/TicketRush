@@ -16,6 +16,7 @@ type UserResponse struct {
 	Role             models.UserRole         `json:"role"`
 	Gender           models.GenderType       `json:"gender"`
 	DateOfBirth      time.Time               `json:"date_of_birth"`
+	MembershipPoints int                     `json:"membership_points"`
 	MembershipTierID *uuid.UUID              `json:"membership_tier_id,omitempty"`
 	MembershipTier   *MembershipTierResponse `json:"membership_tier,omitempty"`
 	TwoFactorEnabled bool                    `json:"two_factor_enabled"`
@@ -25,20 +26,22 @@ type UserResponse struct {
 }
 
 type MembershipTierResponse struct {
-	ID            uuid.UUID `json:"id"`
-	Name          string    `json:"name"`
-	PriorityLevel int       `json:"priority_level"`
-	Description   string    `json:"description"`
+	ID             uuid.UUID `json:"id"`
+	Name           string    `json:"name"`
+	PriorityLevel  int       `json:"priority_level"`
+	RequiredPoints int       `json:"required_points"`
+	Description    string    `json:"description"`
 }
 
 func ToUserResponse(user models.User) UserResponse {
 	var membershipTier *MembershipTierResponse
 	if user.MembershipTier != nil {
 		membershipTier = &MembershipTierResponse{
-			ID:            user.MembershipTier.ID,
-			Name:          user.MembershipTier.Name,
-			PriorityLevel: user.MembershipTier.PriorityLevel,
-			Description:   user.MembershipTier.Description,
+			ID:             user.MembershipTier.ID,
+			Name:           user.MembershipTier.Name,
+			PriorityLevel:  user.MembershipTier.PriorityLevel,
+			RequiredPoints: user.MembershipTier.RequiredPoints,
+			Description:    user.MembershipTier.Description,
 		}
 	}
 
@@ -51,6 +54,7 @@ func ToUserResponse(user models.User) UserResponse {
 		Role:             user.Role,
 		Gender:           user.Gender,
 		DateOfBirth:      user.DateOfBirth,
+		MembershipPoints: user.MembershipPoints,
 		MembershipTierID: user.MembershipTierID,
 		MembershipTier:   membershipTier,
 		TwoFactorEnabled: user.TwoFactorEnabled,

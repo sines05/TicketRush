@@ -30,6 +30,7 @@ func main() {
 	// 2. Initialize Database
 	db := repository.NewPostgresDB(cfg)
 	log.Println("Successfully connected to PostgreSQL")
+	repository.RunMigrations(cfg)
 
 	// 3. Initialize Redis
 	rdb := repository.NewRedisClient(cfg)
@@ -124,6 +125,7 @@ func main() {
 		v1.GET("/events/:id/similar", eventHandler.GetSimilarEvents)
 		v1.GET("/events/:id/seat-map", eventHandler.GetSeatMap)
 		v1.GET("/events/:id/reviews", reviewHandler.GetEventReviews)
+		v1.GET("/complaints/featured", complaintHandler.GetFeaturedComplaints)
 		v1.GET("/membership/tiers", membershipHandler.GetTiers)
 
 		// Protected Routes

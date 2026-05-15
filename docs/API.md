@@ -78,6 +78,11 @@ Protected routes require a JWT token in the header:
 `GET /events/:id/seat-map`
 - **Success Data**: `Array<{ "zone_id": "...", "zone_name": "...", "price": 500, "seats": [[{ "id": "...", "status": "AVAILABLE|LOCKED|SOLD" }, ...], ...] }>`
 
+### Featured Public Reports
+`GET /complaints/featured?limit=12`
+- **Success Data**: `Array<{ "id": "...", "user_name": "...", "title": "...", "content": "...", "rating": 4, "status": "PENDING|RESOLVED|REJECTED", "created_at": "..." }>`
+- Returns complaint reports rated 4-5 stars for the home page carousel. This public endpoint does not expose `user_id` or `user_email`.
+
 ---
 
 ## 3. Customer Endpoints (Protected)
@@ -103,6 +108,15 @@ Protected routes require a JWT token in the header:
 ### My Tickets
 `GET /tickets/my-tickets`
 - **Success Data**: `Array<{ "ticket_id": "...", "event_title": "...", "zone_name": "...", "seat_label": "A-1", "qr_code_token": "...", "is_checked_in": false }>`
+
+### Submit Complaint
+`POST /complaints`
+- **Body**: `{ "title": "...", "content": "...", "rating": 1-5 }`
+- **Success Data**: `null`
+
+### My Complaints
+`GET /complaints/my`
+- **Success Data**: `Array<{ "id": "...", "title": "...", "content": "...", "rating": 5, "status": "PENDING|RESOLVED|REJECTED", "created_at": "..." }>`
 
 ---
 
@@ -135,6 +149,14 @@ Protected routes require a JWT token in the header:
 `POST /admin/tickets/check-in`
 - **Body**: `{ "qr_code_token": "..." }`
 - **Success Data**: `{ "ticket_id": "...", "event_title": "...", "zone_name": "...", "seat_label": "A-1", "qr_code_token": "...", "is_checked_in": true }`
+
+### Admin Complaints
+`GET /admin/complaints`
+- **Success Data**: `Array<{ "id": "...", "user_id": "...", "user_name": "...", "user_email": "...", "title": "...", "content": "...", "rating": 5, "status": "PENDING|RESOLVED|REJECTED", "created_at": "..." }>`
+
+`PATCH /admin/complaints/:id`
+- **Body**: `{ "status": "PENDING|RESOLVED|REJECTED" }`
+- **Success Data**: `null`
 
 ---
 

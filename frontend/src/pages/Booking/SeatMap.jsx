@@ -41,6 +41,13 @@ function seatCoordKey(rowLabel, seatNumber) {
   return `${row}${Math.max(1, Math.floor(n))}`;
 }
 
+const SEAT_UI_COLORS = Object.freeze({
+  available: '#22c55e',
+  locked: '#ec4899',
+  sold: '#ef4444',
+  selected: '#f59e0b',
+});
+
 function getZoneShapeMeta(zone) {
   const meta = zone?.layout_meta || {};
   const rawType = meta?.shape_type || meta?.shapeType || zone?.shape_type || zone?.shapeType;
@@ -217,23 +224,6 @@ export default function SeatMap() {
   const activeZone = useMemo(() => {
     return zones.find((z) => z.zone_id === activeZoneId) || zones[0] || null;
   }, [zones, activeZoneId]);
-
-  const bookedSeats = useMemo(() => {
-    const out = new Set();
-    const list = activeZone?.seats ?? [];
-    for (const s of list) {
-      const id = s?.seat_id || s?.seatId;
-      if (!id) continue;
-      const lockedByMe =
-        s.status === 'LOCKED' &&
-        s.locked_by_user_id &&
-        user?.user_id &&
-        s.locked_by_user_id === user.user_id;
-      const isUnavailable = s.status !== 'AVAILABLE' && !lockedByMe;
-      if (isUnavailable) out.add(id);
-    }
-    return out;
-  }, [activeZone, user]);
 
   const toggleSelectedSeatId = useCallback((seatId) => {
     if (!seatId) return;
@@ -648,9 +638,11 @@ export default function SeatMap() {
 
                           const seatState = selected.has(seatId)
                             ? 'selected'
-                            : bookedSeats.has(seatId)
-                              ? 'unavailable'
-                              : 'available';
+                            : s.status === 'SOLD'
+                              ? 'sold'
+                              : s.status === 'LOCKED'
+                                ? 'locked'
+                                : 'available';
 
                           const handleClick = () => {
                             if (!seatId) return;
@@ -663,7 +655,7 @@ export default function SeatMap() {
                               key={seatId}
                               className={cn(
                                 'absolute rounded-md flex items-center justify-center',
-                                seatState === 'unavailable' ? 'opacity-70' : 'hover:bg-primary/5'
+                                seatState === 'sold' || seatState === 'locked' ? 'opacity-85' : 'hover:bg-primary/5'
                               )}
                               style={{
                                 left: coord.x,
@@ -678,7 +670,7 @@ export default function SeatMap() {
                                 rotation={coord.rotation}
                                 color={activeZoneColor}
                                 seatLabel={seatForSelect.label}
-                                onClick={seatState === 'unavailable' ? undefined : handleClick}
+                                onClick={seatState === 'sold' || seatState === 'locked' ? undefined : handleClick}
                               />
                             </div>
                           );
@@ -717,9 +709,11 @@ export default function SeatMap() {
 
                               const seatState = selected.has(seatId)
                                 ? 'selected'
-                                : bookedSeats.has(seatId)
-                                  ? 'unavailable'
-                                  : 'available';
+                                : s.status === 'SOLD'
+                                  ? 'sold'
+                                  : s.status === 'LOCKED'
+                                    ? 'locked'
+                                    : 'available';
 
                               const handleClick = () => {
                                 if (!seatId) return;
@@ -732,7 +726,7 @@ export default function SeatMap() {
                                   key={seatId}
                                   className={cn(
                                     'h-8 w-8 rounded-md flex items-center justify-center',
-                                    seatState === 'unavailable' ? 'opacity-70' : 'hover:bg-primary/5'
+                                    seatState === 'sold' || seatState === 'locked' ? 'opacity-85' : 'hover:bg-primary/5'
                                   )}
                                 >
                                   <SeatIcon
@@ -740,7 +734,7 @@ export default function SeatMap() {
                                     rotation={0}
                                     color={activeZoneColor}
                                     seatLabel={seatForSelect.label}
-                                    onClick={seatState === 'unavailable' ? undefined : handleClick}
+                                    onClick={seatState === 'sold' || seatState === 'locked' ? undefined : handleClick}
                                   />
                                 </div>
                               );
@@ -857,9 +851,23 @@ export default function SeatMap() {
 }
 
 function LegendItem({ label, colorClass }) {
+  const color =
+    colorClass === 'bg-emerald-500'
+      ? SEAT_UI_COLORS.available
+      : colorClass === 'bg-slate-300'
+        ? SEAT_UI_COLORS.locked
+        : colorClass === 'bg-muted/30'
+          ? SEAT_UI_COLORS.sold
+          : colorClass === 'bg-amber-500'
+            ? SEAT_UI_COLORS.selected
+            : undefined;
+
   return (
     <div className="flex items-center gap-2.5">
-      <span className={cn("h-4 w-4 rounded-md shadow-sm border border-black/5", colorClass)} />
+      <span
+        className={cn("h-4 w-4 rounded-md shadow-sm border border-black/5", color ? null : colorClass)}
+        style={color ? { backgroundColor: color } : undefined}
+      />
       <span className="text-xs font-bold text-muted-foreground uppercase tracking-tight">{label}</span>
     </div>
   );

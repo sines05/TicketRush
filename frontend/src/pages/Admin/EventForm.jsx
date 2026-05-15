@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { CalendarClock, Copy, ImagePlus, Layers3, MapPin, Rocket, Save, Sparkles, Ticket, Trash2 } from 'lucide-react';
 import Button from '../../components/common/Button.jsx';
 import Input from '../../components/common/Input.jsx';
 import { formatVND } from '../../utils/formatters.js';
@@ -229,6 +230,7 @@ export default function EventForm() {
   const [loading, setLoading] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [location, setLocation] = useState('');
   const [existingBannerUrl, setExistingBannerUrl] = useState('');
   const [bannerFile, setBannerFile] = useState(null);
   const [startsAt, setStartsAt] = useState('2026-06-01T18:00');
@@ -423,6 +425,7 @@ export default function EventForm() {
 
         setTitle(evt?.title || '');
         setDescription(evt?.description || '');
+        setLocation(evt?.location || '');
         setExistingBannerUrl(evt?.banner_url || '');
         setIsPublished(Boolean(evt?.is_published));
         setIsFeatured(Boolean(evt?.is_featured));
@@ -553,6 +556,7 @@ export default function EventForm() {
     return {
       title,
       description,
+      location,
       banner_url: null,
       category,
       start_time: startsAt ? new Date(startsAt).toISOString() : '',
@@ -561,7 +565,7 @@ export default function EventForm() {
       is_featured: Boolean(isFeatured),
       zones: zonesPayload
     };
-  }, [title, description, category, startsAt, endsAt, isPublished, isFeatured, zones]);
+  }, [title, description, location, category, startsAt, endsAt, isPublished, isFeatured, zones]);
 
   function setZoneField(index, patch) {
     setZones((prev) => prev.map((z, i) => (i === index ? { ...z, ...patch } : z)));
@@ -736,30 +740,66 @@ export default function EventForm() {
 
   if (loading) {
     return (
-      <div className="rounded-2xl border border-text/10 bg-surface p-5">
-        <div className="text-sm text-muted">Đang tải dữ liệu sự kiện...</div>
+      <div className="overflow-hidden rounded-[28px] border border-teal-500/20 bg-gradient-to-br from-white via-cyan-50/80 to-amber-50/70 p-6 shadow-[0_24px_80px_rgba(15,118,110,0.16)] dark:border-cyan-300/15 dark:from-slate-950 dark:via-teal-950/70 dark:to-zinc-950">
+        <div className="flex items-center gap-3 text-sm font-semibold text-teal-800 dark:text-cyan-100">
+          <Sparkles className="h-4 w-4 text-amber-500" />
+          Đang tải dữ liệu sự kiện...
+        </div>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <section className="rounded-2xl border border-text/10 bg-surface p-5">
-        <h1 className="text-lg font-semibold">{isEdit ? 'Sửa sự kiện' : 'Tạo sự kiện'}</h1>
-        <div className="mt-1 text-sm text-muted">Thiết lập seating plan theo zones + layout</div>
+      <section className="relative overflow-hidden rounded-[32px] border border-teal-500/20 bg-[radial-gradient(circle_at_12%_12%,rgba(251,191,36,0.22),transparent_28%),radial-gradient(circle_at_90%_5%,rgba(20,184,166,0.22),transparent_30%),linear-gradient(135deg,rgba(255,255,255,0.96),rgba(240,253,250,0.88)_48%,rgba(255,251,235,0.86))] shadow-[0_30px_100px_rgba(15,118,110,0.18)] dark:border-cyan-300/15 dark:bg-[radial-gradient(circle_at_12%_12%,rgba(245,158,11,0.18),transparent_28%),radial-gradient(circle_at_92%_8%,rgba(34,211,238,0.16),transparent_32%),linear-gradient(135deg,rgba(2,6,23,0.98),rgba(15,23,42,0.94)_48%,rgba(17,24,39,0.98))]">
+        <div className="pointer-events-none absolute inset-0 opacity-[0.18] dark:opacity-[0.12]" style={{ backgroundImage: 'linear-gradient(rgba(15,118,110,.35) 1px, transparent 1px), linear-gradient(90deg, rgba(15,118,110,.35) 1px, transparent 1px)', backgroundSize: '34px 34px' }} />
+        <div className="relative border-b border-teal-700/10 px-5 py-6 sm:px-8 dark:border-white/10">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="max-w-3xl">
+              <div className="inline-flex items-center gap-2 rounded-full border border-amber-400/40 bg-amber-100/70 px-3 py-1 text-[11px] font-black uppercase tracking-[0.22em] text-amber-800 shadow-sm dark:border-amber-300/25 dark:bg-amber-300/10 dark:text-amber-100">
+                <Sparkles className="h-3.5 w-3.5" />
+                Admin event studio
+              </div>
+              <h1 className="mt-4 text-3xl font-black leading-none text-slate-950 sm:text-4xl dark:text-white">
+                {isEdit ? 'Sửa sự kiện' : 'Tạo sự kiện'}
+              </h1>
+              <div className="mt-3 max-w-2xl text-sm font-medium leading-6 text-slate-600 dark:text-slate-300">
+                Thiết lập thông tin, banner và seating plan theo zones + layout trong một không gian gọn hơn.
+              </div>
+            </div>
+            <div className="grid min-w-[210px] grid-cols-2 gap-2 text-xs">
+              <div className="rounded-2xl border border-white/60 bg-white/65 p-3 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/[0.07]">
+                <div className="text-slate-500 dark:text-slate-400">Zones</div>
+                <div className="mt-1 text-2xl font-black text-teal-700 dark:text-cyan-200">{zones.length}</div>
+              </div>
+              <div className="rounded-2xl border border-white/60 bg-white/65 p-3 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/[0.07]">
+                <div className="text-slate-500 dark:text-slate-400">Seat preview</div>
+                <div className="mt-1 text-2xl font-black text-amber-700 dark:text-amber-200">{totalSeatsInActiveZone}</div>
+              </div>
+            </div>
+          </div>
+        </div>
 
         {error && (
-          <div className="mt-4 rounded-xl border border-danger/40 bg-danger/10 p-3 text-sm">{error}</div>
+          <div className="relative mx-5 mt-5 rounded-2xl border border-danger/40 bg-danger/10 p-4 text-sm font-semibold text-danger sm:mx-8">{error}</div>
         )}
 
-        <div className="mt-5 grid gap-4 md:grid-cols-2">
-          <Input label="Tên sự kiện" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="VD: Rock Night 2026" />
+        <div className="relative grid gap-x-5 gap-y-4 px-5 py-6 sm:px-8 md:grid-cols-2">
           <label className="block">
-            <div className="mb-1 text-sm text-muted">Thể loại</div>
+            <div className="mb-2 text-[11px] font-black uppercase tracking-[0.2em] text-teal-800/80 dark:text-cyan-100/80">Tên sự kiện</div>
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="VD: Rock Night 2026"
+              className="w-full rounded-2xl border border-teal-700/15 bg-white/78 px-4 py-3 text-[16px] font-semibold text-slate-950 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-teal-500/70 focus:ring-4 focus:ring-teal-500/15 dark:border-white/10 dark:bg-white/[0.08] dark:text-white dark:placeholder:text-slate-500 dark:focus:border-cyan-300/50 dark:focus:ring-cyan-300/15"
+            />
+          </label>
+          <label className="block">
+            <div className="mb-2 text-[11px] font-black uppercase tracking-[0.2em] text-teal-800/80 dark:text-cyan-100/80">Thể loại</div>
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className="w-full rounded-md border border-text/10 bg-surface px-3 py-2 text-sm text-text focus:border-brand-600/50 focus:outline-none focus:ring-2 focus:ring-brand-600/25"
+              className="w-full rounded-2xl border border-teal-700/15 bg-white/78 px-4 py-3 text-[16px] font-semibold text-slate-950 shadow-sm outline-none transition focus:border-teal-500/70 focus:ring-4 focus:ring-teal-500/15 dark:border-white/10 dark:bg-slate-900/80 dark:text-white dark:focus:border-cyan-300/50 dark:focus:ring-cyan-300/15"
             >
               <option value="">-- Chọn thể loại --</option>
               {CATEGORY_OPTIONS.map((c) => (
@@ -767,97 +807,134 @@ export default function EventForm() {
               ))}
             </select>
           </label>
-          <Input
-            label="Thời gian bắt đầu"
-            type="datetime-local"
-            value={startsAt}
-            onChange={(e) => setStartsAt(e.target.value)}
-          />
+          <label className="block">
+            <div className="mb-2 flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.2em] text-teal-800/80 dark:text-cyan-100/80">
+              <CalendarClock className="h-3.5 w-3.5 text-amber-600 dark:text-amber-300" />
+              Thời gian bắt đầu
+            </div>
+            <input
+              type="datetime-local"
+              value={startsAt}
+              onChange={(e) => setStartsAt(e.target.value)}
+              className="w-full rounded-2xl border border-teal-700/15 bg-white/78 px-4 py-3 text-[16px] font-semibold text-slate-950 shadow-sm outline-none transition focus:border-teal-500/70 focus:ring-4 focus:ring-teal-500/15 dark:border-white/10 dark:bg-white/[0.08] dark:text-white dark:focus:border-cyan-300/50 dark:focus:ring-cyan-300/15"
+            />
+          </label>
+          <label className="block">
+            <div className="mb-2 flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.2em] text-teal-800/80 dark:text-cyan-100/80">
+              <MapPin className="h-3.5 w-3.5 text-rose-500 dark:text-rose-300" />
+              Location
+            </div>
+            <input
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              placeholder="VD: My Dinh Stadium, Hanoi"
+              className="w-full rounded-2xl border border-teal-700/15 bg-white/78 px-4 py-3 text-[16px] font-semibold text-slate-950 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-teal-500/70 focus:ring-4 focus:ring-teal-500/15 dark:border-white/10 dark:bg-white/[0.08] dark:text-white dark:placeholder:text-slate-500 dark:focus:border-cyan-300/50 dark:focus:ring-cyan-300/15"
+            />
+          </label>
 
-          <Input
-            className="md:col-span-2"
-            label="Mô tả"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Mô tả ngắn về sự kiện"
-          />
+          <label className="block md:col-span-2">
+            <div className="mb-2 text-[11px] font-black uppercase tracking-[0.2em] text-teal-800/80 dark:text-cyan-100/80">Mô tả</div>
+            <input
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Mô tả ngắn về sự kiện"
+              className="w-full rounded-2xl border border-teal-700/15 bg-white/78 px-4 py-3 text-[16px] font-semibold text-slate-950 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-teal-500/70 focus:ring-4 focus:ring-teal-500/15 dark:border-white/10 dark:bg-white/[0.08] dark:text-white dark:placeholder:text-slate-500 dark:focus:border-cyan-300/50 dark:focus:ring-cyan-300/15"
+            />
+          </label>
 
           <label className="block">
-            <div className="mb-1 text-sm text-muted">Banner sự kiện (tuỳ chọn)</div>
+            <div className="mb-2 flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.2em] text-teal-800/80 dark:text-cyan-100/80">
+              <ImagePlus className="h-3.5 w-3.5 text-teal-600 dark:text-cyan-300" />
+              Banner sự kiện (tuỳ chọn)
+            </div>
             <input
               type="file"
               accept="image/png,image/jpeg,image/webp"
               onChange={(e) => setBannerFile(e.target.files?.[0] || null)}
-              className="w-full rounded-md border border-text/10 bg-surface px-3 py-2 text-sm text-text file:mr-3 file:rounded-md file:border-0 file:bg-bg/60 file:px-3 file:py-2 file:text-sm file:text-text hover:file:bg-bg/70 focus:border-brand-600/50 focus:outline-none focus:ring-2 focus:ring-brand-600/25"
+              className="w-full rounded-2xl border border-teal-700/15 bg-white/78 px-4 py-2.5 text-[16px] font-semibold text-slate-950 shadow-sm outline-none transition file:mr-3 file:rounded-xl file:border-0 file:bg-teal-700 file:px-3 file:py-2 file:text-sm file:font-bold file:text-white hover:file:bg-teal-800 focus:border-teal-500/70 focus:ring-4 focus:ring-teal-500/15 dark:border-white/10 dark:bg-white/[0.08] dark:text-white dark:file:bg-cyan-300 dark:file:text-slate-950 dark:hover:file:bg-cyan-200"
             />
             {(bannerPreview || existingBannerUrl) && (
-              <div className="mt-2 overflow-hidden rounded-xl border border-text/10 bg-bg/40">
+              <div className="mt-3 overflow-hidden rounded-2xl border border-white/60 bg-white/50 shadow-sm dark:border-white/10 dark:bg-white/[0.06]">
                 <img
                   src={bannerPreview || resolveMediaUrl(existingBannerUrl)}
                   alt="banner preview"
-                  className="h-32 w-full object-cover"
+                  className="h-36 w-full object-cover"
                 />
               </div>
             )}
           </label>
 
-          <Input
-            label="Thời gian kết thúc"
-            type="datetime-local"
-            value={endsAt}
-            onChange={(e) => setEndsAt(e.target.value)}
-          />
+          <label className="block">
+            <div className="mb-2 flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.2em] text-teal-800/80 dark:text-cyan-100/80">
+              <CalendarClock className="h-3.5 w-3.5 text-amber-600 dark:text-amber-300" />
+              Thời gian kết thúc
+            </div>
+            <input
+              type="datetime-local"
+              value={endsAt}
+              onChange={(e) => setEndsAt(e.target.value)}
+              className="w-full rounded-2xl border border-teal-700/15 bg-white/78 px-4 py-3 text-[16px] font-semibold text-slate-950 shadow-sm outline-none transition focus:border-teal-500/70 focus:ring-4 focus:ring-teal-500/15 dark:border-white/10 dark:bg-white/[0.08] dark:text-white dark:focus:border-cyan-300/50 dark:focus:ring-cyan-300/15"
+            />
+          </label>
 
-          <label className="flex items-center gap-2 text-sm text-muted">
+          <label className="flex items-center gap-3 rounded-2xl border border-teal-700/10 bg-white/55 px-4 py-3 text-sm font-bold text-slate-700 shadow-sm dark:border-white/10 dark:bg-white/[0.06] dark:text-slate-200">
             <input
               type="checkbox"
               checked={isPublished}
               onChange={(e) => setIsPublished(e.target.checked)}
-              className="h-4 w-4"
+              className="h-5 w-5 accent-teal-600"
             />
             Publish ngay (is_published)
           </label>
 
-          <label className="flex items-center gap-2 text-sm text-muted">
+          <label className="flex items-center gap-3 rounded-2xl border border-amber-500/20 bg-amber-100/45 px-4 py-3 text-sm font-bold text-amber-900 shadow-sm dark:border-amber-300/15 dark:bg-amber-300/10 dark:text-amber-100">
             <input
               type="checkbox"
               checked={isFeatured}
               onChange={(e) => setIsFeatured(e.target.checked)}
-              className="h-4 w-4"
+              className="h-5 w-5 accent-amber-500"
             />
             Đưa lên Banner Trang chủ
           </label>
         </div>
 
-        <div className="mt-6 rounded-2xl border border-text/10 bg-bg/40 p-4">
+        <div className="relative mx-5 mb-6 overflow-hidden rounded-[28px] border border-teal-500/20 bg-gradient-to-br from-teal-700 via-cyan-700 to-slate-900 p-5 text-white shadow-[0_24px_70px_rgba(15,118,110,0.25)] sm:mx-8 dark:border-cyan-200/15 dark:from-teal-950 dark:via-slate-900 dark:to-zinc-950">
+          <div className="pointer-events-none absolute -right-16 -top-20 h-44 w-44 rounded-full bg-amber-300/25 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-20 left-10 h-44 w-44 rounded-full bg-cyan-300/20 blur-3xl" />
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <div className="text-sm font-semibold">Zone map</div>
-              <div className="text-xs text-muted">Mo builder o tab moi de thiet ke zone map va luu lai zones.</div>
+              <div className="flex items-center gap-2 text-sm font-black uppercase tracking-[0.18em] text-cyan-100">
+                <Layers3 className="h-4 w-4 text-amber-300" />
+                Zone map
+              </div>
+              <div className="mt-2 text-sm text-cyan-50/80">Mo builder o tab moi de thiet ke zone map va luu lai zones.</div>
             </div>
-            <Button onClick={openZoneMapBuilder}>Mo zone map builder</Button>
+            <Button onClick={openZoneMapBuilder}>
+              <Ticket className="mr-2 h-4 w-4" />
+              Mo zone map builder
+            </Button>
           </div>
 
-          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <div className="relative mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {zones.map((z, idx) => {
               const counts = buildRowSeatCounts(z);
               const total = counts.reduce((sum, v) => sum + (Number(v) || 0), 0);
               return (
-                <div key={z.key} className="rounded-xl border border-text/10 bg-surface p-4">
+                <div key={z.key} className="rounded-2xl border border-white/15 bg-white/12 p-4 shadow-sm backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/16">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="truncate text-sm font-semibold">{z.name || `Zone ${idx + 1}`}</div>
-                      <div className="mt-1 text-xs text-muted">{SHAPE_LABELS[getShapeType(z)] || 'Zone'}</div>
+                      <div className="truncate text-sm font-black text-white">{z.name || `Zone ${idx + 1}`}</div>
+                      <div className="mt-1 text-xs font-semibold text-cyan-100/70">{SHAPE_LABELS[getShapeType(z)] || 'Zone'}</div>
                     </div>
                     <div
-                      className="h-4 w-4 shrink-0 rounded-full border border-black/10"
+                      className="h-4 w-4 shrink-0 rounded-full border border-white/40 shadow"
                       style={{ backgroundColor: z.color || '#60a5fa' }}
                       aria-hidden="true"
                     />
                   </div>
-                  <div className="mt-3 text-sm">{formatVND(Number(z.price) || 0)}</div>
-                  <div className="mt-1 text-xs text-muted">{getShapeSummary(z)}</div>
-                  <div className="mt-1 text-xs text-muted">{total} ghe</div>
+                  <div className="mt-3 text-sm font-black text-amber-200">{formatVND(Number(z.price) || 0)}</div>
+                  <div className="mt-1 text-xs text-cyan-50/70">{getShapeSummary(z)}</div>
+                  <div className="mt-1 text-xs font-bold text-white/80">{total} ghe</div>
                 </div>
               );
             })}
@@ -1312,27 +1389,38 @@ export default function EventForm() {
 
         )}
 
-        <div className="mt-6 flex items-center justify-between">
-          <div className="text-xs text-muted">{isEdit ? 'Lưu thay đổi hoặc xoá sự kiện.' : 'Tạo sự kiện trên backend (cần đăng nhập ADMIN).'} </div>
-          <div className="flex items-center gap-2">
+        <div className="relative mx-5 mb-6 flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-white/60 bg-white/70 p-4 shadow-sm backdrop-blur sm:mx-8 dark:border-white/10 dark:bg-white/[0.07]">
+          <div className="flex items-center gap-3 text-xs font-semibold text-slate-600 dark:text-slate-300">
+            <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-teal-100 text-teal-700 dark:bg-cyan-300/10 dark:text-cyan-200">
+              <Rocket className="h-4 w-4" />
+            </span>
+            {isEdit ? 'Lưu thay đổi hoặc xoá sự kiện.' : 'Tạo sự kiện trên backend (cần đăng nhập ADMIN).'} 
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
             <Button variant="secondary" onClick={() => navigator.clipboard?.writeText(JSON.stringify(payload, null, 2))}>
+              <Copy className="mr-2 h-4 w-4" />
               Copy Payload JSON
             </Button>
             {isEdit && (
               <Button variant="danger" onClick={handleDelete} disabled={submitting}>
+                <Trash2 className="mr-2 h-4 w-4" />
                 Xoá
               </Button>
             )}
             <Button onClick={handleSubmit} disabled={submitting}>
+              <Save className="mr-2 h-4 w-4" />
               {submitting ? (isEdit ? 'Đang lưu...' : 'Đang tạo...') : isEdit ? 'Lưu thay đổi' : 'Tạo trên backend'}
             </Button>
           </div>
         </div>
       </section>
 
-      <section className="rounded-2xl border border-text/10 bg-surface p-5">
-        <div className="text-sm font-semibold">Dữ liệu sinh ra</div>
-        <pre className="mt-3 overflow-auto rounded-xl border border-text/10 bg-bg/40 p-4 text-xs text-muted">
+      <section className="overflow-hidden rounded-[28px] border border-teal-500/15 bg-white/75 p-5 shadow-[0_18px_60px_rgba(15,118,110,0.10)] backdrop-blur dark:border-white/10 dark:bg-slate-950/75">
+        <div className="flex items-center gap-2 text-sm font-black uppercase tracking-[0.18em] text-teal-800 dark:text-cyan-100">
+          <Layers3 className="h-4 w-4 text-amber-500" />
+          Dữ liệu sinh ra
+        </div>
+        <pre className="mt-3 max-h-[360px] overflow-auto rounded-2xl border border-teal-700/10 bg-slate-950 p-4 text-xs text-cyan-50 shadow-inner dark:border-white/10">
           {JSON.stringify(
             {
               note: isEdit ? 'PUT /admin/events/:id' : 'POST /admin/events',

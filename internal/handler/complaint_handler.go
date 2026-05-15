@@ -3,6 +3,7 @@ package handler
 import (
 	"errors"
 	"net/http"
+	"strconv"
 	"ticketrush/internal/dto"
 	"ticketrush/internal/models"
 	"ticketrush/internal/repository"
@@ -33,6 +34,7 @@ func (h *ComplaintHandler) CreateComplaint(c *gin.Context) {
 	var input struct {
 		Title   string `json:"title" binding:"required"`
 		Content string `json:"content" binding:"required"`
+		Rating  int    `json:"rating" binding:"required,min=1,max=5"`
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -40,17 +42,21 @@ func (h *ComplaintHandler) CreateComplaint(c *gin.Context) {
 		return
 	}
 
-	if err := h.complaintRepo.CreateComplaint(c.Request.Context(), &models.Complaint{
+	complaint := &models.Complaint{
 		UserID:  userID,
 		Title:   input.Title,
 		Content: input.Content,
+		Rating:  input.Rating,
 		Status:  models.ComplaintPending,
-	}); err != nil {
+	}
+
+	if err := h.complaintRepo.CreateComplaint(c.Request.Context(), complaint); err != nil {
 		utils.SendError(c, http.StatusInternalServerError, "Failed to submit complaint", "INTERNAL_ERROR")
 		return
 	}
 
-	utils.SendSuccess(c, http.StatusCreated, nil, "Complaint submitted successfully")
+	complaint.User = *u
+	utils.SendSuccess(c, http.StatusCreated, dto.ToComplaintResponse(complaint), "Complaint submitted successfully")
 }
 
 func (h *ComplaintHandler) GetMyComplaints(c *gin.Context) {
@@ -69,6 +75,30 @@ func (h *ComplaintHandler) GetMyComplaints(c *gin.Context) {
 	}
 
 	utils.SendSuccess(c, http.StatusOK, dto.ToComplaintResponses(complaints), "Complaints fetched successfully")
+}
+
+func (h *ComplaintHandler) GetFeaturedComplaints(c *gin.Context) {
+	limit := 12
+	if limitParam := c.Query("limit"); limitParam != "" {
+		parsed, err := strconv.Atoi(limitParam)
+		if err != nil || parsed < 1 {
+			utils.SendError(c, http.StatusBadRequest, "Invalid limit", "INVALID_LIMIT")
+			return
+		}
+		if parsed > 24 {
+			limit = 24
+		} else {
+			limit = parsed
+		}
+	}
+
+	complaints, err := h.complaintRepo.GetComplaintsByMinimumRating(c.Request.Context(), 4, limit)
+	if err != nil {
+		utils.SendError(c, http.StatusInternalServerError, "Failed to fetch featured reports", "INTERNAL_ERROR")
+		return
+	}
+
+	utils.SendSuccess(c, http.StatusOK, dto.ToPublicComplaintResponses(complaints), "Featured reports fetched successfully")
 }
 
 func (h *ComplaintHandler) AdminGetAllComplaints(c *gin.Context) {

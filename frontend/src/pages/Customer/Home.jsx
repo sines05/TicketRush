@@ -5,6 +5,7 @@ import HeroCarousel from '@/components/home/HeroCarousel';
 import SpecialEvents from '@/components/home/SpecialEvents';
 import TrendingEvents from '@/components/home/TrendingEvents';
 import LocationCards from '@/components/home/LocationCards';
+import SystemReportCarousel from '@/components/home/SystemReportCarousel';
 import EventListWithTabs from '@/components/home/EventListWithTabs';
 import { CATEGORY_OPTIONS } from '@/constants/categories';
 import eventService from '@/services/eventService';
@@ -22,8 +23,8 @@ export default function Home() {
       try {
         const data = await eventService.getHeroEvents(5);
         setHeroEvents(data);
-      } catch (err) {
-        console.error('Failed to fetch hero events:', err);
+      } catch {
+        setHeroEvents([]);
       } finally {
         setLoading(false);
       }
@@ -52,7 +53,10 @@ export default function Home() {
       {/* 3. Location Cards - Points of Interest */}
       <LocationCards />
 
-      {/* 4. Categorized Lists - with Weekend/Month tabs */}
+      {/* 4. Featured system reports from complaints */}
+      <SystemReportCarousel />
+
+      {/* 5. Categorized Lists - with Weekend/Month tabs */}
       <div className="space-y-20">
         {CATEGORY_OPTIONS.map((cat) => (
           <EventListWithTabs 

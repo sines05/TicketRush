@@ -26,6 +26,7 @@ type Complaint struct {
 	UserID  uuid.UUID       `gorm:"type:uuid;not null;index:idx_complaints_user_id" json:"user_id"`
 	Title   string          `gorm:"type:varchar(255);not null" json:"title"`
 	Content string          `gorm:"type:text;not null" json:"content"`
+	Rating  int             `gorm:"not null;default:5;check:rating >= 1 AND rating <= 5" json:"rating"`
 	Status  ComplaintStatus `gorm:"type:varchar(20);default:'PENDING'" json:"status"`
 	User    User            `gorm:"foreignKey:UserID" json:"user,omitempty"`
 }

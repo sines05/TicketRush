@@ -103,11 +103,13 @@ export default function App() {
   }, [eventSearch, location.pathname, location.search, navigate]);
 
   const isAuthPage = location.pathname.startsWith('/auth');
+  const isZoneMapBuilderPage = location.pathname === '/admin/events/zone-map';
+  const isStandalonePage = isAuthPage || isZoneMapBuilderPage;
 
   return (
-    <div className="min-h-screen flex flex-col bg-background text-foreground">
+    <div className={`min-h-screen flex flex-col text-foreground ${isZoneMapBuilderPage ? 'bg-transparent' : 'bg-background'}`}>
       <SearchOverlay isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
-      {!isAuthPage && (
+      {!isStandalonePage && (
         <header className="sticky top-0 z-50 w-full glass-surface glass-border border-b-0 shadow-lg shadow-black/5 backdrop-blur-xl">
           <div className="mx-auto flex h-20 max-w-[1440px] items-center justify-between px-6 md:px-10 lg:px-14">
             <div className="flex items-center gap-4 md:gap-10">
@@ -328,14 +330,14 @@ export default function App() {
       )}
 
       <div className="flex-1">
-        <main className="mx-auto w-full max-w-[1440px] px-4 md:px-8 lg:px-12 py-12">
+        <main className={isStandalonePage ? 'w-full min-h-screen' : 'mx-auto w-full max-w-[1440px] px-4 md:px-8 lg:px-12 py-12'}>
           <ErrorBoundary>
             <AppRoutes />
           </ErrorBoundary>
         </main>
       </div>
 
-      {!isAuthPage && (
+      {!isStandalonePage && (
         <footer className="border-t bg-muted/30">
           <div className="mx-auto w-full max-w-[1440px] px-4 md:px-8 lg:px-12 py-12">
             <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
@@ -377,7 +379,7 @@ export default function App() {
           </div>
         </footer>
       )}
-      <ChatWidget />
+      {!isStandalonePage && <ChatWidget />}
     </div>
   );
 }

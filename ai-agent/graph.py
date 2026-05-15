@@ -2,6 +2,7 @@ import os
 import json
 from typing import TypedDict, Annotated, List, Union, Optional
 from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage, ToolMessage
 from langgraph.graph import StateGraph, END
 from langgraph.prebuilt import ToolNode
@@ -22,10 +23,24 @@ class AgentState(TypedDict):
     ui_components: List[dict]
     user_id: Optional[str]
 
-# Initialize the LLM
-api_key = os.environ.get("OPENAI_API_KEY")
-llm = ChatOpenAI(model="gpt-4o-mini", api_key=api_key)
-llm_with_tools = llm.bind_tools(tools)
+# Initialize the LLM. Prefer Google Gemini when a Google API key is provided.
+google_api_key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")
+openai_api_key = os.environ.get("OPENAI_API_KEY")
+
+if google_api_key:
+    llm = ChatGoogleGenerativeAI(
+        model=os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"),
+        google_api_key=google_api_key,
+    )
+elif openai_api_key:
+    llm = ChatOpenAI(
+        model=os.environ.get("OPENAI_MODEL", "gpt-4o-mini"),
+        api_key=openai_api_key,
+    )
+else:
+    llm = None
+
+llm_with_tools = llm.bind_tools(tools) if llm else None
 
 # Define nodes
 def safety_node(state: AgentState):
@@ -39,6 +54,16 @@ def intent_node(state: AgentState):
     return {"intent": "undetermined"}
 
 def call_model(state: AgentState):
+    if llm_with_tools is None:
+        return {
+            "messages": [
+                AIMessage(
+                    content="Trợ lý ảo chưa được cấu hình API key. Vui lòng đặt GOOGLE_API_KEY, GEMINI_API_KEY hoặc OPENAI_API_KEY trên server."
+                )
+            ],
+            "ui_components": [],
+        }
+
     # Ensure system message is present but doesn't break tool sequence
     messages = state["messages"]
     if not any(isinstance(m, SystemMessage) for m in messages):
