@@ -911,7 +911,7 @@ export default function EventForm() {
             </div>
             <Button onClick={openZoneMapBuilder}>
               <Ticket className="mr-2 h-4 w-4" />
-              Mo zone map builder
+              Thiết lập Zone chi tiết
             </Button>
           </div>
 
