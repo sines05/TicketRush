@@ -75,6 +75,7 @@ func (s *orderService) LockSeats(ctx context.Context, userID uuid.UUID, eventID 
 			s.broadcaster.Broadcast(channelName, map[string]interface{}{
 				"type":     "SEATS_RELEASED",
 				"seat_ids": seatIDs,
+				"user_id":  userID,
 			})
 		}
 	}
@@ -85,6 +86,7 @@ func (s *orderService) LockSeats(ctx context.Context, userID uuid.UUID, eventID 
 		s.broadcaster.Broadcast(channelName, map[string]interface{}{
 			"type":     "SEATS_LOCKED",
 			"seat_ids": seatIDs,
+			"user_id":  userID,
 		})
 	}
 	return order, err
@@ -102,6 +104,7 @@ func (s *orderService) Checkout(ctx context.Context, userID uuid.UUID, orderID u
 		s.broadcaster.Broadcast(channelName, map[string]interface{}{
 			"type":     "SEATS_SOLD",
 			"seat_ids": seatIDs,
+			"user_id":  userID,
 		})
 		// Remove user from Redis active set after successful checkout to free queue slot
 		_ = s.queueRepo.RemoveFromActive(ctx, order.EventID, userID)
@@ -134,6 +137,7 @@ func (s *orderService) CancelOrder(ctx context.Context, userID uuid.UUID, orderI
 		s.broadcaster.Broadcast(channelName, map[string]interface{}{
 			"type":     "SEATS_RELEASED",
 			"seat_ids": seatIDs,
+			"user_id":  userID,
 		})
 	}
 	return err

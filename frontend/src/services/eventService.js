@@ -1,262 +1,69 @@
-import bannerUrl from '../assets/banner-sample.svg';
-import seatMap from './mock/seatMap.json';
 import { API_ROUTES } from '../constants/apiRoutes.js';
 import { api, unwrap } from './api.js';
 
-function sleep(ms) {
-  return new Promise((r) => setTimeout(r, ms));
-}
-
-const USE_MOCK = import.meta.env.VITE_USE_MOCK !== 'false';
-
-let EVENTS = [
-  {
-    id: 'uuid-event-1',
-    title: 'Sơn Tùng M-TP - Sky Tour 2026',
-    banner_url: bannerUrl,
-    category: 'music_festival',
-    start_time: '2026-05-20T20:00:00Z',
-    end_time: '2026-05-20T23:30:00Z',
-    description: 'Đêm nhạc bùng nổ nhất năm 2026 với sân khấu hoành tráng...',
-    is_featured: true
-  },
-  {
-    id: 'uuid-event-2',
-    title: 'E-Sports Finals',
-    banner_url: bannerUrl,
-    category: 'experience_entertainment',
-    start_time: '2026-06-02T16:00:00Z',
-    end_time: '2026-06-02T20:30:00Z',
-    description: 'Chung kết giải đấu e-sports, vào cổng theo QR Code, hỗ trợ hàng chờ ảo.',
-    is_featured: true
-  },
-  {
-    id: 'uuid-event-3',
-    title: 'Summer Festival',
-    banner_url: bannerUrl,
-    category: 'music_festival',
-    start_time: '2026-07-18T15:00:00Z',
-    end_time: '2026-07-18T21:30:00Z',
-    description: 'Festival ngoài trời, nhiều khu vực vé; demo seat map có nhiều zones.',
-    is_featured: false
-  }
-];
-
 async function getEvents(params = {}) {
-  if (!USE_MOCK) {
-    const res = await api.get(API_ROUTES.EVENTS, { params });
-    return unwrap(res);
-  }
-
-  await sleep(400);
-  let filtered = EVENTS;
-  if (params.q) {
-    const q = params.q.toLowerCase();
-    filtered = filtered.filter((e) => 
-      e.title.toLowerCase().includes(q) || 
-      e.category.toLowerCase().includes(q) ||
-      e.description.toLowerCase().includes(q)
-    );
-  }
-  if (params.category) {
-    filtered = filtered.filter((e) => e.category === params.category || params.category.includes(e.category));
-  }
-  if (params.location) {
-    const loc = params.location.toLowerCase();
-    filtered = filtered.filter((e) => e.location?.toLowerCase().includes(loc));
-  }
-  // Mock simple date filtering
-  if (params.date_from) {
-    const from = new Date(params.date_from);
-    filtered = filtered.filter((e) => new Date(e.start_time) >= from);
-  }
-  if (params.date_to) {
-    const to = new Date(params.date_to);
-    filtered = filtered.filter((e) => new Date(e.start_time) <= to);
-  }
-
-  return filtered;
+  const res = await api.get(API_ROUTES.EVENTS, { params });
+  return unwrap(res);
 }
 
 async function getFeaturedEvents(limit = 5) {
-  if (!USE_MOCK) {
-    const res = await api.get(API_ROUTES.FEATURED_EVENTS + `?limit=${limit}`);
-    return unwrap(res);
-  }
-
-  await sleep(300);
-  return EVENTS.filter((e) => Boolean(e.is_featured)).slice().sort((a, b) => {
-    const left = new Date(b.start_time).getTime();
-    const right = new Date(a.start_time).getTime();
-    return left - right;
-  }).slice(0, limit);
+  const res = await api.get(API_ROUTES.FEATURED_EVENTS + `?limit=${limit}`);
+  return unwrap(res);
 }
 
 async function getTrendingEvents(limit = 5) {
   const safeLimit = Math.max(1, Math.min(Number(limit) || 5, 20));
-
-  if (!USE_MOCK) {
-    const res = await api.get(`${API_ROUTES.TRENDING_EVENTS}?limit=${safeLimit}`);
-    return unwrap(res);
-  }
-
-  await sleep(250);
-  // Mock: prioritize featured first, then by nearest start_time.
-  const sorted = EVENTS.slice().sort((a, b) => {
-    const af = a.is_featured ? 1 : 0;
-    const bf = b.is_featured ? 1 : 0;
-    if (af !== bf) return bf - af;
-    return new Date(a.start_time).getTime() - new Date(b.start_time).getTime();
-  });
-
-  return sorted.slice(0, safeLimit).map((e, idx) => ({
-    ...e,
-    rank: idx + 1,
-    sold_7d: 0,
-    views_7d: 0,
-    score: 0
-  }));
+  const res = await api.get(`${API_ROUTES.TRENDING_EVENTS}?limit=${safeLimit}`);
+  return unwrap(res);
 }
 
 async function getEventDetail(eventId) {
-  if (!USE_MOCK) {
-    const res = await api.get(API_ROUTES.EVENT_DETAIL(eventId));
-    return unwrap(res);
-  }
-
-  await sleep(350);
-  const evt = EVENTS.find((e) => e.id === eventId);
-  if (!evt) throw { success: false, message: 'Không tìm thấy sự kiện' };
-  return evt;
+  const res = await api.get(API_ROUTES.EVENT_DETAIL(eventId));
+  return unwrap(res);
 }
 
 async function getSeatMap(eventId) {
-  if (!USE_MOCK) {
-    const res = await api.get(API_ROUTES.SEAT_MAP(eventId));
-    return unwrap(res);
-  }
-
-  await sleep(450);
-  return { ...seatMap, event_id: eventId };
+  const res = await api.get(API_ROUTES.SEAT_MAP(eventId));
+  return unwrap(res);
 }
 
 async function createEvent(payload) {
-  if (!USE_MOCK) {
-    const res = await api.post(API_ROUTES.ADMIN_CREATE_EVENT, payload);
-    return unwrap(res);
-  }
-
-  await sleep(450);
-  const newId = `mock-event-${Math.random().toString(16).slice(2)}`;
-  EVENTS.push({
-    id: newId,
-    title: payload.title,
-    banner_url: payload.banner_url || bannerUrl,
-    start_time: payload.start_time,
-    end_time: payload.end_time,
-    description: payload.description,
-    category: payload.category || 'other',
-    is_featured: Boolean(payload.is_featured)
-  });
-  return { event_id: newId };
+  const res = await api.post(API_ROUTES.ADMIN_CREATE_EVENT, payload);
+  return unwrap(res);
 }
 
 async function getAdminEvents() {
-  if (!USE_MOCK) {
-    const res = await api.get(API_ROUTES.ADMIN_EVENTS);
-    return unwrap(res);
-  }
-
-  await sleep(250);
-  return EVENTS.slice().map((e) => ({
-    ...e,
-    is_published: Boolean(e.is_published ?? true)
-  }));
+  const res = await api.get(API_ROUTES.ADMIN_EVENTS);
+  return unwrap(res);
 }
 
 async function updateEvent(eventId, payload) {
   if (!eventId) throw { success: false, message: 'Thiếu eventId' };
-
-  if (!USE_MOCK) {
-    const res = await api.put(API_ROUTES.ADMIN_EVENT(eventId), payload);
-    return unwrap(res);
-  }
-
-  await sleep(300);
-  EVENTS = EVENTS.map((e) => (
-    e.id === eventId
-      ? {
-          ...e,
-          ...payload,
-          category: payload.category ?? e.category,
-          is_featured: Boolean(payload.is_featured ?? e.is_featured)
-        }
-      : e
-  ));
-  return { event_id: eventId };
+  const res = await api.put(API_ROUTES.ADMIN_EVENT(eventId), payload);
+  return unwrap(res);
 }
 
 async function deleteEvent(eventId) {
   if (!eventId) throw { success: false, message: 'Thiếu eventId' };
-
-  if (!USE_MOCK) {
-    const res = await api.delete(API_ROUTES.ADMIN_EVENT(eventId));
-    return unwrap(res);
-  }
-
-  await sleep(250);
-  EVENTS = EVENTS.filter((e) => e.id !== eventId);
-  return { event_id: eventId };
+  const res = await api.delete(API_ROUTES.ADMIN_EVENT(eventId));
+  return unwrap(res);
 }
 
 async function getDashboardStats(eventId) {
-  if (!USE_MOCK) {
-    const url = eventId ? `${API_ROUTES.ADMIN_STATS}?event_id=${eventId}` : API_ROUTES.ADMIN_STATS;
-    const res = await api.get(url);
-    return unwrap(res);
-  }
-
-  await sleep(300);
-  const mockStats = {
-    total_revenue: 50000,
-    total_sold: 1000,
-    occupancy_rate: 0.85,
-    gender_dist: [
-      { gender: 'MALE', count: 600 },
-      { gender: 'FEMALE', count: 350 },
-      { gender: 'OTHER', count: 50 }
-    ],
-    age_dist: {
-      '18-24': 250,
-      '25-34': 450,
-      '35+': 300
-    }
-  };
-  return mockStats;
+  const url = eventId ? `${API_ROUTES.ADMIN_STATS}?event_id=${eventId}` : API_ROUTES.ADMIN_STATS;
+  const res = await api.get(url);
+  return unwrap(res);
 }
 
 async function getHeroEvents(limit = 10) {
-  if (!USE_MOCK) {
-    const res = await api.get(`${API_ROUTES.HERO_EVENTS}?limit=${limit}`);
-    return unwrap(res);
-  }
-
-  await sleep(300);
-  // Fallback to featured events if in mock mode
-  return EVENTS.filter((e) => Boolean(e.is_featured)).slice(0, limit);
+  const res = await api.get(`${API_ROUTES.HERO_EVENTS}?limit=${limit}`);
+  return unwrap(res);
 }
 
 async function getSimilarEvents(eventId, limit = 4) {
-  if (!USE_MOCK && eventId) {
-    const res = await api.get(API_ROUTES.SIMILAR_EVENTS(eventId), { params: { limit } });
-    return unwrap(res);
-  }
-
-  await sleep(300);
-  // Mock: just return some events from the same category
-  const evt = EVENTS.find(e => e.id === eventId);
-  const category = evt?.category || 'other';
-  return EVENTS.filter((e) => e.category === category && e.id !== eventId).slice(0, limit);
+  if (!eventId) throw { success: false, message: 'Thiếu eventId' };
+  const res = await api.get(API_ROUTES.SIMILAR_EVENTS(eventId), { params: { limit } });
+  return unwrap(res);
 }
 
 export default { getEvents, getHeroEvents, getFeaturedEvents, getTrendingEvents, getEventDetail, getSeatMap, createEvent, getAdminEvents, updateEvent, deleteEvent, getDashboardStats, getSimilarEvents };

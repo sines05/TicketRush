@@ -16,9 +16,11 @@ import (
 )
 
 type mockOrderRepo struct {
-	lockSeatsFunc     func(ctx context.Context, userID uuid.UUID, eventID uuid.UUID, seatIDs []uuid.UUID) (*models.Order, error)
-	completeOrderFunc func(ctx context.Context, orderID uuid.UUID) (*models.Order, error)
-	cancelOrderFunc   func(ctx context.Context, orderID uuid.UUID, userID uuid.UUID) ([]uuid.UUID, error)
+	lockSeatsFunc                     func(ctx context.Context, userID uuid.UUID, eventID uuid.UUID, seatIDs []uuid.UUID) (*models.Order, error)
+	completeOrderFunc                 func(ctx context.Context, orderID uuid.UUID) (*models.Order, error)
+	cancelOrderFunc                   func(ctx context.Context, orderID uuid.UUID, userID uuid.UUID) ([]uuid.UUID, error)
+	findPendingOrderByUserAndEventFunc func(ctx context.Context, userID uuid.UUID, eventID uuid.UUID) (*models.Order, error)
+	getOrderByIDFunc                  func(id uuid.UUID) (*models.Order, error)
 }
 
 func (m *mockOrderRepo) LockSeats(ctx context.Context, userID uuid.UUID, eventID uuid.UUID, seatIDs []uuid.UUID) (*models.Order, error) {
@@ -36,6 +38,9 @@ func (m *mockOrderRepo) CompleteOrder(ctx context.Context, orderID uuid.UUID) (*
 }
 
 func (m *mockOrderRepo) GetOrderByID(id uuid.UUID) (*models.Order, error) {
+	if m.getOrderByIDFunc != nil {
+		return m.getOrderByIDFunc(id)
+	}
 	return &models.Order{
 		BaseModel: models.BaseModel{ID: id},
 		EventID:   uuid.New(),
@@ -68,6 +73,9 @@ func (m *mockOrderRepo) GetRevenueStats(ctx context.Context, eventID *uuid.UUID)
 	return 0, 0, nil
 }
 func (m *mockOrderRepo) FindPendingOrderByUserAndEvent(ctx context.Context, userID uuid.UUID, eventID uuid.UUID) (*models.Order, error) {
+	if m.findPendingOrderByUserAndEventFunc != nil {
+		return m.findPendingOrderByUserAndEventFunc(ctx, userID, eventID)
+	}
 	return nil, nil
 }
 
@@ -89,11 +97,23 @@ func (m *mockQueueRepo) AllowUser(ctx context.Context, eventID uuid.UUID, userID
 func (m *mockQueueRepo) PopFromQueue(ctx context.Context, eventID uuid.UUID, count int) ([]uuid.UUID, error) {
 	return nil, nil
 }
+func (m *mockQueueRepo) PopFromQueueAndIncrementProcessedIndex(ctx context.Context, eventID uuid.UUID, count int) ([]uuid.UUID, int64, error) {
+	return nil, 0, nil
+}
 func (m *mockQueueRepo) GetCurrentActiveCount(ctx context.Context, eventID uuid.UUID) (int64, error) {
 	return 0, nil
 }
 func (m *mockQueueRepo) RemoveFromActive(ctx context.Context, eventID uuid.UUID, userID uuid.UUID) error {
 	return nil
+}
+func (m *mockQueueRepo) GetNextJoinIndex(ctx context.Context, eventID uuid.UUID) (int64, error) {
+	return 0, nil
+}
+func (m *mockQueueRepo) GetProcessedIndex(ctx context.Context, eventID uuid.UUID) (int64, error) {
+	return 0, nil
+}
+func (m *mockQueueRepo) IncrementProcessedIndex(ctx context.Context, eventID uuid.UUID, count int) (int64, error) {
+	return 0, nil
 }
 func (m *mockQueueRepo) SaveSession(ctx context.Context, session *queue.QueueSession, expiration time.Duration) error {
 	return nil
@@ -107,8 +127,17 @@ func (m *mockQueueRepo) GetSessionByEventAndUser(ctx context.Context, eventID uu
 func (m *mockQueueRepo) ListSessions(ctx context.Context) ([]*queue.QueueSession, error) {
 	return nil, nil
 }
+func (m *mockQueueRepo) GetExpiredSessions(ctx context.Context, limit int) ([]string, error) {
+	return nil, nil
+}
 func (m *mockQueueRepo) DeleteSession(ctx context.Context, token string, eventID uuid.UUID, userID uuid.UUID) error {
 	return nil
+}
+func (m *mockQueueRepo) GetAllQueueUsers(ctx context.Context, eventID uuid.UUID) ([]uuid.UUID, error) {
+	return nil, nil
+}
+func (m *mockQueueRepo) GetOrCreateSessionAtomic(ctx context.Context, session *queue.QueueSession, expiration time.Duration, incrementJoinIndex bool) (*queue.QueueSession, bool, error) {
+	return session, true, nil
 }
 
 type mockEventRepo struct{}
@@ -169,19 +198,27 @@ func (m *mockUserRepo) Delete(userID uuid.UUID) error                           
 
 // MockBroadcaster
 type mockBroadcaster struct {
-	broadcasts []interface{}
+	broadcasts []struct {
+		channel string
+		data    interface{}
+	}
 }
 
 func (m *mockBroadcaster) Broadcast(channel string, data interface{}) {
-	m.broadcasts = append(m.broadcasts, data)
+	m.broadcasts = append(m.broadcasts, struct {
+		channel string
+		data    interface{}
+	}{channel, data})
 }
 
 func TestOrderService_LockSeats_Broadcast(t *testing.T) {
+	eventID := uuid.New()
 	mockRepo := &mockOrderRepo{
-		lockSeatsFunc: func(ctx context.Context, userID uuid.UUID, eventID uuid.UUID, seatIDs []uuid.UUID) (*models.Order, error) {
+		lockSeatsFunc: func(ctx context.Context, userID uuid.UUID, eid uuid.UUID, seatIDs []uuid.UUID) (*models.Order, error) {
 			// Mock successful lock
 			return &models.Order{
 				BaseModel: models.BaseModel{ID: uuid.New()},
+				EventID:   eid,
 				OrderItems: []models.OrderItem{
 					{SeatID: seatIDs[0]},
 				},
@@ -193,7 +230,8 @@ func TestOrderService_LockSeats_Broadcast(t *testing.T) {
 	orderService := service.NewOrderService(mockRepo, &mockEventRepo{}, &mockQueueRepo{}, mockBroadcaster, &mockNotifier{}, &mockUserRepo{})
 
 	seatID := uuid.New()
-	_, err := orderService.LockSeats(context.Background(), uuid.New(), uuid.New(), []uuid.UUID{seatID}, "")
+	userID := uuid.New()
+	_, err := orderService.LockSeats(context.Background(), userID, eventID, []uuid.UUID{seatID}, "")
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -202,7 +240,11 @@ func TestOrderService_LockSeats_Broadcast(t *testing.T) {
 		t.Fatalf("expected 1 broadcast, got %d", len(mockBroadcaster.broadcasts))
 	}
 
-	msg, ok := mockBroadcaster.broadcasts[0].(map[string]interface{})
+	if mockBroadcaster.broadcasts[0].channel != "event:"+eventID.String() {
+		t.Errorf("expected channel event:%s, got %s", eventID.String(), mockBroadcaster.broadcasts[0].channel)
+	}
+
+	msg, ok := mockBroadcaster.broadcasts[0].data.(map[string]interface{})
 	if !ok {
 		t.Fatalf("expected map[string]interface{} broadcast data")
 	}
@@ -211,15 +253,87 @@ func TestOrderService_LockSeats_Broadcast(t *testing.T) {
 		t.Errorf("expected type SEATS_LOCKED, got %v", msg["type"])
 	}
 
+	if msg["user_id"] != userID {
+		t.Errorf("expected user_id %v, got %v", userID, msg["user_id"])
+	}
+
 	seatIDs, ok := msg["seat_ids"].([]uuid.UUID)
 	if !ok || len(seatIDs) != 1 || seatIDs[0] != seatID {
 		t.Errorf("expected seat_ids [%v], got %v", seatID, msg["seat_ids"])
 	}
 }
 
+func TestOrderService_LockSeats_ProactiveCleanup_Broadcast(t *testing.T) {
+	eventID := uuid.New()
+	userID := uuid.New()
+	oldOrderID := uuid.New()
+	oldSeatIDs := []uuid.UUID{uuid.New()}
+	newSeatID := uuid.New()
+
+	mockRepo := &mockOrderRepo{
+		findPendingOrderByUserAndEventFunc: func(ctx context.Context, uid uuid.UUID, eid uuid.UUID) (*models.Order, error) {
+			return &models.Order{
+				BaseModel: models.BaseModel{ID: oldOrderID},
+				EventID:   eid,
+				UserID:    uid,
+			}, nil
+		},
+		cancelOrderFunc: func(ctx context.Context, orderID uuid.UUID, uid uuid.UUID) ([]uuid.UUID, error) {
+			if orderID != oldOrderID {
+				t.Errorf("expected oldOrderID %v, got %v", oldOrderID, orderID)
+			}
+			return oldSeatIDs, nil
+		},
+		lockSeatsFunc: func(ctx context.Context, uid uuid.UUID, eid uuid.UUID, seatIDs []uuid.UUID) (*models.Order, error) {
+			return &models.Order{
+				BaseModel: models.BaseModel{ID: uuid.New()},
+				EventID:   eid,
+				OrderItems: []models.OrderItem{
+					{SeatID: seatIDs[0]},
+				},
+			}, nil
+		},
+	}
+	mockBroadcaster := &mockBroadcaster{}
+
+	orderService := service.NewOrderService(mockRepo, &mockEventRepo{}, &mockQueueRepo{}, mockBroadcaster, &mockNotifier{}, &mockUserRepo{})
+
+	_, err := orderService.LockSeats(context.Background(), userID, eventID, []uuid.UUID{newSeatID}, "")
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	// Should have 2 broadcasts: SEATS_RELEASED (cleanup) and SEATS_LOCKED (new)
+	if len(mockBroadcaster.broadcasts) != 2 {
+		t.Fatalf("expected 2 broadcasts, got %d", len(mockBroadcaster.broadcasts))
+	}
+
+	// 1. SEATS_RELEASED
+	msg1 := mockBroadcaster.broadcasts[0].data.(map[string]interface{})
+	if msg1["type"] != "SEATS_RELEASED" {
+		t.Errorf("expected type SEATS_RELEASED, got %v", msg1["type"])
+	}
+	if msg1["user_id"] != userID {
+		t.Errorf("expected user_id %v, got %v", userID, msg1["user_id"])
+	}
+	if mockBroadcaster.broadcasts[0].channel != "event:"+eventID.String() {
+		t.Errorf("expected channel event:%s, got %s", eventID.String(), mockBroadcaster.broadcasts[0].channel)
+	}
+
+	// 2. SEATS_LOCKED
+	msg2 := mockBroadcaster.broadcasts[1].data.(map[string]interface{})
+	if msg2["type"] != "SEATS_LOCKED" {
+		t.Errorf("expected type SEATS_LOCKED, got %v", msg2["type"])
+	}
+	if msg2["user_id"] != userID {
+		t.Errorf("expected user_id %v, got %v", userID, msg2["user_id"])
+	}
+}
+
 func TestOrderService_Checkout_Broadcast(t *testing.T) {
 	seatID := uuid.New()
 	eventID := uuid.New()
+	userID := uuid.New()
 	mockRepo := &mockOrderRepo{
 		completeOrderFunc: func(ctx context.Context, orderID uuid.UUID) (*models.Order, error) {
 			// Mock successful checkout
@@ -236,7 +350,7 @@ func TestOrderService_Checkout_Broadcast(t *testing.T) {
 
 	orderService := service.NewOrderService(mockRepo, &mockEventRepo{}, &mockQueueRepo{}, mockBroadcaster, &mockNotifier{}, &mockUserRepo{})
 
-	_, err := orderService.Checkout(context.Background(), uuid.New(), uuid.New())
+	_, err := orderService.Checkout(context.Background(), userID, uuid.New())
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -245,13 +359,21 @@ func TestOrderService_Checkout_Broadcast(t *testing.T) {
 		t.Fatalf("expected 1 broadcast, got %d", len(mockBroadcaster.broadcasts))
 	}
 
-	msg, ok := mockBroadcaster.broadcasts[0].(map[string]interface{})
+	if mockBroadcaster.broadcasts[0].channel != "event:"+eventID.String() {
+		t.Errorf("expected channel event:%s, got %s", eventID.String(), mockBroadcaster.broadcasts[0].channel)
+	}
+
+	msg, ok := mockBroadcaster.broadcasts[0].data.(map[string]interface{})
 	if !ok {
 		t.Fatalf("expected map[string]interface{} broadcast data")
 	}
 
 	if msg["type"] != "SEATS_SOLD" {
 		t.Errorf("expected type SEATS_SOLD, got %v", msg["type"])
+	}
+
+	if msg["user_id"] != userID {
+		t.Errorf("expected user_id %v, got %v", userID, msg["user_id"])
 	}
 
 	seatIDs, ok := msg["seat_ids"].([]uuid.UUID)
@@ -266,9 +388,17 @@ func TestOrderService_Checkout_Broadcast(t *testing.T) {
 
 func TestOrderService_CancelOrder_Success(t *testing.T) {
 	userID := uuid.New()
+	eventID := uuid.New()
+	orderID := uuid.New()
 	seatIDs := []uuid.UUID{uuid.New(), uuid.New()}
 	mockRepo := &mockOrderRepo{
-		cancelOrderFunc: func(ctx context.Context, orderID uuid.UUID, uid uuid.UUID) ([]uuid.UUID, error) {
+		getOrderByIDFunc: func(id uuid.UUID) (*models.Order, error) {
+			return &models.Order{
+				BaseModel: models.BaseModel{ID: orderID},
+				EventID:   eventID,
+			}, nil
+		},
+		cancelOrderFunc: func(ctx context.Context, oid uuid.UUID, uid uuid.UUID) ([]uuid.UUID, error) {
 			if uid != userID {
 				t.Errorf("expected userID %v, got %v", userID, uid)
 			}
@@ -279,7 +409,7 @@ func TestOrderService_CancelOrder_Success(t *testing.T) {
 
 	orderService := service.NewOrderService(mockRepo, &mockEventRepo{}, &mockQueueRepo{}, mockBroadcaster, &mockNotifier{}, &mockUserRepo{})
 
-	err := orderService.CancelOrder(context.Background(), userID, uuid.New())
+	err := orderService.CancelOrder(context.Background(), userID, orderID)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -288,12 +418,20 @@ func TestOrderService_CancelOrder_Success(t *testing.T) {
 		t.Fatalf("expected 1 broadcast, got %d", len(mockBroadcaster.broadcasts))
 	}
 
-	msg, ok := mockBroadcaster.broadcasts[0].(map[string]interface{})
+	if mockBroadcaster.broadcasts[0].channel != "event:"+eventID.String() {
+		t.Errorf("expected channel event:%s, got %s", eventID.String(), mockBroadcaster.broadcasts[0].channel)
+	}
+
+	msg, ok := mockBroadcaster.broadcasts[0].data.(map[string]interface{})
 	if !ok {
 		t.Fatalf("expected map[string]interface{} broadcast data")
 	}
 	if msg["type"] != "SEATS_RELEASED" {
 		t.Errorf("expected type SEATS_RELEASED, got %v", msg["type"])
+	}
+
+	if msg["user_id"] != userID {
+		t.Errorf("expected user_id %v, got %v", userID, msg["user_id"])
 	}
 
 	returnedSeatIDs, ok := msg["seat_ids"].([]uuid.UUID)

@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Rnd } from 'react-rnd';
+import { useWebSocket } from '../../hooks/useWebSocket.js';
 
 interface Seat {
   id: string;
@@ -68,21 +69,24 @@ export const CanvasSeatmap: React.FC<CanvasSeatmapProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [lastMousePos, setLastMousePos] = useState({ x: 0, y: 0 });
 
+  const [seatStatusOverrides, setSeatStatusOverrides] = useState<Record<string, 'AVAILABLE' | 'LOCKED' | 'SOLD'>>({});
+  const [recentlyUpdatedSeats, setRecentlyUpdatedSeats] = useState<Record<string, number>>({});
+
   // Handle WebSocket updates
+  const { status: wsStatus, setOnMessage, send: wsSend } = useWebSocket('/ws', {
+    enabled: !!eventId
+  });
+
   useEffect(() => {
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${wsProtocol}//${window.location.host}/ws`;
-    const socket = new WebSocket(wsUrl);
+    if (wsStatus === 'CONNECTED' && eventId) {
+      wsSend({ action: 'subscribe', channel: `event:${eventId}` });
+    }
+  }, [wsStatus, eventId, wsSend]);
 
-    socket.onopen = () => {
-      if (eventId) {
-        socket.send(JSON.stringify({ action: 'subscribe', channel: `event:${eventId}` }));
-      }
-    };
-
-    socket.onmessage = (event) => {
+  useEffect(() => {
+    setOnMessage((data: string) => {
       try {
-        const message = JSON.parse(event.data);
+        const message = JSON.parse(data);
         const type = message.type;
         const targetIds = message.seat_ids || (message.seat_id ? [message.seat_id] : []);
         
@@ -106,12 +110,9 @@ export const CanvasSeatmap: React.FC<CanvasSeatmapProps> = ({
       } catch {
         // Ignore malformed realtime payloads.
       }
-    };
+    });
+  }, [setOnMessage]);
 
-    return () => socket.close();
-  }, [eventId]);
-
-  const [seatStatusOverrides, setSeatStatusOverrides] = useState<Record<string, 'AVAILABLE' | 'LOCKED' | 'SOLD'>>({});
   const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
 
   // Auto-select first level if not set
@@ -135,7 +136,6 @@ export const CanvasSeatmap: React.FC<CanvasSeatmapProps> = ({
   }, [zones]);
 
   const [pulseScale, setPulseScale] = useState(1);
-  const [recentlyUpdatedSeats, setRecentlyUpdatedSeats] = useState<Record<string, number>>({});
 
   // Pulse animation for recently updated seats
   useEffect(() => {

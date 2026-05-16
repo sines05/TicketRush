@@ -20,5 +20,15 @@
 - [x] Cập nhật hệ thống dữ liệu mẫu (Mock) đồng bộ với quy định mật khẩu tối thiểu 8 ký tự.
 - [x] Sửa lỗi crash khi ứng dụng tự động kiểm tra trạng thái đăng nhập lúc khởi tạo.
 
+## 🌐 Realtime & Hàng chờ
+- [x] Sửa lỗi WebSocket bị từ chối (401 Unauthorized) bằng cách điều chỉnh hook `useWebSocket` kết nối trực tiếp tới host backend, cho phép trình duyệt gửi kèm HttpOnly Cookie.
+- [x] Triển khai cơ chế Heartbeat (Ping/Pong) định kỳ 30s để giữ kết nối WebSocket ổn định qua các lớp Proxy và Load Balancer.
+- [x] Chuyển đổi toàn bộ cơ chế thông báo hàng chờ từ Polling (gọi API liên tục) sang Event-driven (WebSocket), giúp giảm tải server và cập nhật vị trí realtime.
+- [x] Loại bỏ hoàn toàn 100% mã nguồn giả lập (Mock Mode) và các hàm `sleep` ở Frontend, đảm bảo ứng dụng luôn giao tiếp với dữ liệu thực.
+- [x] Sửa lỗi UX khi ghế trong giỏ bị người khác đặt mất (Cart Eviction). Chuyển từ việc văng ra trang lỗi toàn màn hình sang hiển thị Pop-up Modal tại chỗ.
+- [x] Khắc phục triệt để lỗi "nhảy số thứ tự" hàng chờ bằng cách triển khai Redis Lua Script. Đảm bảo việc cấp số là nguyên tử (Atomic) ngay cả khi có hàng chục request đồng thời từ một người dùng.
+- [x] Tăng giới hạn Rate Limit cho các API đăng nhập/đăng ký để hỗ trợ việc chạy kịch bản kiểm thử giả lập nhiều người dùng cùng lúc.
+- [x] Nâng cấp script kiểm thử `simulate_multi_booking.js` để hỗ trợ giả lập gọi API đồng thời (Concurrency) nhằm kiểm chứng tính an toàn của hệ thống.
+
 ---
-*Cập nhật lần cuối: Thứ Sáu, ngày 15 tháng 5 năm 2026*
+*Cập nhật lần cuối: Thứ Bảy, ngày 16 tháng 5 năm 2026*

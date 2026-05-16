@@ -546,6 +546,62 @@ func main() {
 	}
 
 	// ============================================================
+	// 6. SAMPLE COMPLAINTS (SYSTEM REPORTS)
+	// ============================================================
+	fmt.Println("💬 Creating sample system reports (complaints)...")
+
+	complaintTemplates := []struct {
+		Title   string
+		Content string
+		Rating  int
+	}{
+		{
+			Title:   "Giao diện cực kỳ hiện đại!",
+			Content: "Tôi rất ấn tượng với cách thiết kế sơ đồ ghế ngồi. Rất trực quan và dễ sử dụng so với các nền tảng khác.",
+			Rating:  5,
+		},
+		{
+			Title:   "Tốc độ đặt vé rất nhanh",
+			Content: "Vừa mở bán là tôi vào đặt được ngay, không bị tình trạng lag hay quay tròn như mọi khi. Tuyệt vời!",
+			Rating:  5,
+		},
+		{
+			Title:   "Hỗ trợ nhiệt tình",
+			Content: "Tôi có nhầm lẫn một chút về email nhận vé nhưng đội ngũ hỗ trợ đã giải quyết chỉ trong 5 phút.",
+			Rating:  4,
+		},
+		{
+			Title:   "Hàng chờ ảo hoạt động tốt",
+			Content: "Dù số thứ tự của mình khá cao nhưng hệ thống đếm ngược rất chính xác. Cảm giác rất an tâm khi chờ đợi.",
+			Rating:  5,
+		},
+		{
+			Title:   "Dễ dàng tìm kiếm sự kiện",
+			Content: "Các bộ lọc theo địa điểm và thể loại giúp tôi tìm được show kịch nói yêu thích một cách nhanh chóng.",
+			Rating:  4,
+		},
+		{
+			Title:   "Xác thực 2FA rất an toàn",
+			Content: "Tôi cảm thấy an tâm hơn hẳn khi tài khoản được bảo mật 2 lớp. Việc thanh toán cũng trở nên tin cậy hơn.",
+			Rating:  5,
+		},
+	}
+
+	for i, template := range complaintTemplates {
+		// Assign to random customers
+		user := customers[i%len(customers)]
+		complaint := models.Complaint{
+			UserID:  user.ID,
+			Title:   template.Title,
+			Content: template.Content,
+			Rating:  template.Rating,
+			Status:  models.ComplaintResolved,
+		}
+		db.Create(&complaint)
+	}
+	fmt.Printf("   ✅ Created %d sample reports for carousel\n", len(complaintTemplates))
+
+	// ============================================================
 	// SUMMARY
 	// ============================================================
 	fmt.Println("\n" + "═══════════════════════════════════════════════")
@@ -573,11 +629,13 @@ func main() {
 	}
 	fmt.Printf("   • Seats:  %d total\n", totalSeats)
 
-	var orderCount, ticketCount int64
+	var orderCount, ticketCount, complaintCount int64
 	db.Model(&models.Order{}).Count(&orderCount)
 	db.Model(&models.Ticket{}).Count(&ticketCount)
+	db.Model(&models.Complaint{}).Count(&complaintCount)
 	fmt.Printf("   • Orders: %d\n", orderCount)
 	fmt.Printf("   • Tickets: %d\n", ticketCount)
+	fmt.Printf("   • Reports: %d\n", complaintCount)
 
 	fmt.Println()
 	fmt.Println("🔑 Login credentials (all passwords: 'password'):")

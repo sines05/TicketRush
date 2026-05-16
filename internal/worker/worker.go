@@ -57,8 +57,30 @@ func (s *workerService) StartWorkers() {
 
 			for _, event := range events {
 				ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-				if err := s.queueService.ProcessQueue(ctx, event.ID); err != nil {
+				admitted, err := s.queueService.ProcessQueue(ctx, event.ID)
+				if err != nil {
 					log.Printf("Error processing queue for event %s: %v", event.ID, err)
+				} else {
+					for _, session := range admitted {
+						channelName := fmt.Sprintf("user:%s", session.UserID)
+						s.wsHub.Broadcast(channelName, map[string]interface{}{
+							"type":        "QUEUE_PASSED",
+							"event_id":    session.EventID,
+							"queue_token": session.Token,
+							"allowed_at":  session.AllowedAt,
+						})
+					}
+
+					// If anyone was admitted, update positions for everyone else
+					if len(admitted) > 0 {
+						currentIndex, _ := s.queueRepo.GetProcessedIndex(ctx, event.ID)
+						channelName := fmt.Sprintf("event:%s", event.ID)
+						s.wsHub.Broadcast(channelName, map[string]interface{}{
+							"type":          "QUEUE_UPDATE",
+							"event_id":      event.ID,
+							"current_index": currentIndex,
+						})
+					}
 				}
 				cancel()
 			}
@@ -76,30 +98,32 @@ func (s *workerService) StartWorkers() {
 
 func (s *workerService) ReleaseExpiredSessions() {
 	ctx := context.Background()
-	sessions, err := s.queueRepo.ListSessions(ctx)
+	expiredTokens, err := s.queueRepo.GetExpiredSessions(ctx, 100)
 	if err != nil {
-		log.Printf("Error listing sessions: %v", err)
+		log.Printf("Error getting expired sessions: %v", err)
 		return
 	}
 
-	now := time.Now().UTC()
-	for _, session := range sessions {
+	for _, token := range expiredTokens {
+		session, err := s.queueRepo.GetSession(ctx, token)
+		if err != nil {
+			continue
+		}
+
 		if session.Status == "allowed" && session.AllowedAt != nil {
 			shouldExpire := false
-			if now.Sub(*session.AllowedAt) > 15*time.Minute+30*time.Second {
-				if session.OrderID == nil {
+			if session.OrderID == nil {
+				shouldExpire = true
+			} else {
+				// Check if the order is still pending
+				order, err := s.orderRepo.GetOrderByID(*session.OrderID)
+				if err != nil {
+					// If order not found, it's a zombie session
+					log.Printf("Order %s not found for session cleanup, treating as zombie", *session.OrderID)
 					shouldExpire = true
-				} else {
-					// Check if the order is still pending
-					order, err := s.orderRepo.GetOrderByID(*session.OrderID)
-					if err != nil {
-						// If order not found, it's a zombie session
-						log.Printf("Order %s not found for session cleanup, treating as zombie", *session.OrderID)
-						shouldExpire = true
-					} else if order.Status != models.OrderPending {
-						// Order is COMPLETED or CANCELLED, but session still exists
-						shouldExpire = true
-					}
+				} else if order.Status != models.OrderPending {
+					// Order is COMPLETED or CANCELLED, but session still exists
+					shouldExpire = true
 				}
 			}
 
@@ -111,6 +135,11 @@ func (s *workerService) ReleaseExpiredSessions() {
 				if err := s.queueRepo.DeleteSession(ctx, session.Token, session.EventID, session.UserID); err != nil {
 					log.Printf("Error deleting session: %v", err)
 				}
+			}
+		} else {
+			// Expired waiting session or other
+			if err := s.queueRepo.DeleteSession(ctx, session.Token, session.EventID, session.UserID); err != nil {
+				log.Printf("Error deleting expired session: %v", err)
 			}
 		}
 	}

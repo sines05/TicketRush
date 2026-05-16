@@ -60,9 +60,9 @@ export default function SeatMap() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const { selectedSeats, toggleSeat, clearSelection, startBooking } =
+  const { selectedSeats, toggleSeat, clearSelection, startBooking, removeSeats } =
     useContext(BookingContext);
-  const { user, token } = useAuth();
+  const { user } = useAuth();
 
   const [selected, setSelected] = useState(() => new Set());
 
@@ -85,6 +85,8 @@ export default function SeatMap() {
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [allowedAt, setAllowedAt] = useState(location.state?.allowedAt);
+  const [isConflictModalOpen, setIsConflictModalOpen] = useState(false);
+  const [conflictMessage, setConflictMessage] = useState('');
 
   // Countdown timer logic
   useEffect(() => {
@@ -114,8 +116,7 @@ export default function SeatMap() {
 
   // WebSocket real-time seat updates
   const { status: wsStatus, setOnMessage, send } = useWebSocket('/ws', { 
-    enabled: !!eventId,
-    token
+    enabled: !!eventId
   });
 
   // Handle subscription
@@ -135,6 +136,17 @@ export default function SeatMap() {
         const type = msg.type;
         const targetIds = msg.seat_ids || (msg.seat_id ? [msg.seat_id] : []);
         if (targetIds.length === 0) return;
+
+        // CART EVICTION: If someone else locked/sold seats that I have in my cart, remove them
+        const isOtherUser = msg.user_id && msg.user_id !== user?.user_id;
+        if (isOtherUser && (type.includes('LOCKED') || type.includes('SOLD'))) {
+          const inCart = targetIds.filter(id => selected.has(id));
+          if (inCart.length > 0) {
+            removeSeats(inCart);
+            setConflictMessage("Một số ghế bạn chọn đã được người khác giữ hoặc đặt mất.");
+            setIsConflictModalOpen(true);
+          }
+        }
 
         setSeatMap((prev) => {
           if (!prev) return prev;
@@ -173,7 +185,7 @@ export default function SeatMap() {
         // Ignore malformed messages
       }
     });
-  }, [setOnMessage]);
+  }, [setOnMessage, selected, removeSeats, user?.user_id]);
 
   useEffect(() => {
     if (!eventId) {
@@ -207,7 +219,7 @@ export default function SeatMap() {
     };
   }, [eventId, startBooking]);
 
-  const zones = seatMap?.zones ?? [];
+  const zones = useMemo(() => seatMap?.zones ?? [], [seatMap]);
 
   const getZonePos = useCallback((zone, index, total) => {
     const meta = zone?.layout_meta || {};
@@ -410,7 +422,12 @@ export default function SeatMap() {
         replace: false
       });
     } catch (e) {
-      setError(e?.message || 'Không giữ được ghế.');
+      if (e?.errorCode === 'SEAT_ALREADY_TAKEN') {
+        setConflictMessage(e?.message || 'Một vài ghế bạn chọn không available nữa, vui lòng chọn lại');
+        setIsConflictModalOpen(true);
+      } else {
+        setError(e?.message || 'Không giữ được ghế.');
+      }
     } finally {
       setSubmitting(false);
     }
@@ -472,6 +489,36 @@ export default function SeatMap() {
               className="flex-1 shadow-lg shadow-primary/20"
             >
               Quay lại hàng chờ
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isConflictModalOpen} onOpenChange={(open) => {
+        setIsConflictModalOpen(open);
+        if (!open) {
+          clearSelection();
+        }
+      }}>
+        <DialogContent className="sm:max-w-md glass-surface">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertCircle className="h-5 w-5" />
+              Ghế đã bị đặt
+            </DialogTitle>
+            <DialogDescription>
+              {conflictMessage}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button 
+              onClick={() => {
+                setIsConflictModalOpen(false);
+                clearSelection();
+              }} 
+              className="w-full shadow-lg shadow-primary/20"
+            >
+              Đã hiểu, để tôi chọn lại
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -629,19 +676,19 @@ export default function SeatMap() {
                           const seatForSelect = {
                             ...s,
                             lockedByMe,
-                            seat_id: s.seat_id,
+                            seat_id: seatId,
                             label: seatLabel(s),
                             zone_id: activeZone.zone_id,
                             zone_name: activeZone.name,
                             price: activeZone.price,
                           };
 
-                          const seatState = selected.has(seatId)
-                            ? 'selected'
-                            : s.status === 'SOLD'
-                              ? 'sold'
-                              : s.status === 'LOCKED'
-                                ? 'locked'
+                          const seatState = s.status === 'SOLD'
+                            ? 'sold'
+                            : s.status === 'LOCKED' && !lockedByMe
+                              ? 'locked'
+                              : selected.has(seatId)
+                                ? 'selected'
                                 : 'available';
 
                           const handleClick = () => {
@@ -655,7 +702,7 @@ export default function SeatMap() {
                               key={seatId}
                               className={cn(
                                 'absolute rounded-md flex items-center justify-center',
-                                seatState === 'sold' || seatState === 'locked' ? 'opacity-85' : 'hover:bg-primary/5'
+                                (seatState === 'sold' || seatState === 'locked') && !selected.has(seatId) ? 'opacity-85' : 'hover:bg-primary/5'
                               )}
                               style={{
                                 left: coord.x,
@@ -670,7 +717,7 @@ export default function SeatMap() {
                                 rotation={coord.rotation}
                                 color={activeZoneColor}
                                 seatLabel={seatForSelect.label}
-                                onClick={seatState === 'sold' || seatState === 'locked' ? undefined : handleClick}
+                                onClick={(seatState === 'sold' || seatState === 'locked') && !selected.has(seatId) ? undefined : handleClick}
                               />
                             </div>
                           );
@@ -700,19 +747,19 @@ export default function SeatMap() {
                               const seatForSelect = {
                                 ...s,
                                 lockedByMe,
-                                seat_id: s.seat_id,
+                                seat_id: seatId,
                                 label: seatLabel(s),
                                 zone_id: activeZone.zone_id,
                                 zone_name: activeZone.name,
                                 price: activeZone.price
                               };
 
-                              const seatState = selected.has(seatId)
-                                ? 'selected'
-                                : s.status === 'SOLD'
-                                  ? 'sold'
-                                  : s.status === 'LOCKED'
-                                    ? 'locked'
+                              const seatState = s.status === 'SOLD'
+                                ? 'sold'
+                                : s.status === 'LOCKED' && !lockedByMe
+                                  ? 'locked'
+                                  : selected.has(seatId)
+                                    ? 'selected'
                                     : 'available';
 
                               const handleClick = () => {
@@ -726,7 +773,7 @@ export default function SeatMap() {
                                   key={seatId}
                                   className={cn(
                                     'h-8 w-8 rounded-md flex items-center justify-center',
-                                    seatState === 'sold' || seatState === 'locked' ? 'opacity-85' : 'hover:bg-primary/5'
+                                    (seatState === 'sold' || seatState === 'locked') && !selected.has(seatId) ? 'opacity-85' : 'hover:bg-primary/5'
                                   )}
                                 >
                                   <SeatIcon
@@ -734,7 +781,7 @@ export default function SeatMap() {
                                     rotation={0}
                                     color={activeZoneColor}
                                     seatLabel={seatForSelect.label}
-                                    onClick={seatState === 'sold' || seatState === 'locked' ? undefined : handleClick}
+                                    onClick={(seatState === 'sold' || seatState === 'locked') && !selected.has(seatId) ? undefined : handleClick}
                                   />
                                 </div>
                               );

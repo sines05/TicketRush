@@ -29,21 +29,37 @@ type clientMessage struct {
 }
 
 func ServeWs(hub *Hub, authService service.AuthService, w http.ResponseWriter, r *http.Request) {
+	var tokenString string
 	protocol := r.Header.Get("Sec-WebSocket-Protocol")
-	if protocol == "" {
+
+	// 1. Try to get token from cookie
+	cookie, err := r.Cookie("tr_access_token")
+	if err == nil {
+		tokenString = cookie.Value
+	} else if protocol != "" {
+		// 2. Fallback to Sec-WebSocket-Protocol header
+		tokenString = protocol
+	}
+
+	if tokenString == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
-	_, err := authService.ValidateToken(protocol)
+	_, err = authService.ValidateToken(tokenString)
 	if err != nil {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
-	conn, err := upgrader.Upgrade(w, r, http.Header{
-		"Sec-WebSocket-Protocol": []string{protocol},
-	})
+	var responseHeader http.Header
+	if protocol != "" {
+		responseHeader = http.Header{
+			"Sec-WebSocket-Protocol": []string{protocol},
+		}
+	}
+
+	conn, err := upgrader.Upgrade(w, r, responseHeader)
 	if err != nil {
 		log.Printf("Upgrade error: %v", err)
 		return
@@ -71,6 +87,9 @@ func (c *Client) readPump() {
 
 		var msg clientMessage
 		if err := json.Unmarshal(message, &msg); err == nil {
+			if msg.Action == "ping" {
+				continue
+			}
 			if msg.Action == "subscribe" && msg.Channel != "" {
 				c.Hub.Subscribe(c, msg.Channel)
 			} else if msg.Action == "unsubscribe" && msg.Channel != "" {

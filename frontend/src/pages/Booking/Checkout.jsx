@@ -11,12 +11,6 @@ import orderService from '../../services/orderService.js';
 import notificationService from '../../services/notificationService.js';
 import { Clock, AlertCircle, CheckCircle2, ArrowLeft, CreditCard, Info } from 'lucide-react';
 
-const USE_MOCK = import.meta.env.VITE_USE_MOCK !== 'false';
-
-function makeQrToken() {
-  return `TICKETRUSH-${Math.random().toString(16).slice(2, 10).toUpperCase()}`;
-}
-
 export default function Checkout() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -47,7 +41,7 @@ export default function Checkout() {
         setEvent(evt);
       })
       .catch(() => {
-        // ignore in demo
+        // ignore
       });
 
     return () => {
@@ -56,7 +50,6 @@ export default function Checkout() {
   }, [eventId]);
 
   useEffect(() => {
-    // If navigated directly without state, require going back to SeatMap to lock again.
     if (!order && orderId) {
       setError('Thiếu thông tin đơn hàng. Vui lòng quay lại chọn ghế để giữ chỗ.');
     }
@@ -73,12 +66,11 @@ export default function Checkout() {
   }, [isExpired, paid, clearBooking]);
 
   async function handleEditSeats() {
-    // Cancel the current order to release seats before going back to seat selection
-    if (order?.order_id && !USE_MOCK) {
+    if (order?.order_id) {
       try {
         await orderService.cancelOrder({ order_id: order.order_id });
       } catch {
-        // Best-effort: still allow navigation even if cancel fails
+        // Best-effort
       }
     }
     clearBooking();
@@ -104,30 +96,9 @@ export default function Checkout() {
         `Bạn đã đặt thành công ${selectedSeats.length} vé cho sự kiện ${event?.title || ''}.`
       );
 
-      if (!USE_MOCK) {
-        clearSelection();
-        setPaid(true);
-        setTickets([]);
-        return;
-      }
-
-      const created = selectedSeats.map((s) => {
-        return {
-          ticket_id: `uuid-ticket-${Math.random().toString(16).slice(2)}`,
-          event_title: event?.title || 'TicketRush Event',
-          zone_name: s.zone_name || 'Zone',
-          seat_label: s.label || `${s.row_label}-${s.seat_number}`,
-          qr_code_token: makeQrToken(),
-          is_checked_in: false,
-          // keep some extras for UI
-          price: s.price,
-          order_id: result.order_id
-        };
-      });
-
       clearSelection();
       setPaid(true);
-      setTickets(created);
+      setTickets(result.tickets || []);
     } catch (e) {
       setError(e?.message || 'Thanh toán thất bại');
     } finally {
@@ -266,7 +237,7 @@ export default function Checkout() {
                       ) : (
                         <>
                           <CreditCard className="mr-2 h-4 w-4" />
-                          {USE_MOCK ? 'Thanh toán (Demo)' : 'Thanh toán ngay'}
+                          Thanh toán ngay
                         </>
                       )}
                     </Button>

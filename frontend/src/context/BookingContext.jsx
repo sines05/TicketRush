@@ -47,14 +47,31 @@ function reducer(state, action) {
       const seat = action.seat;
       const seatId = seat?.seat_id || seat?.seatId;
       if (!seatId) return state;
-      if (seat.status !== SEAT_STATUS.AVAILABLE) return state;
 
       const exists = state.selectedSeats.some((s) => (s.seat_id || s.seatId) === seatId);
+      if (exists) {
+        return {
+          ...state,
+          selectedSeats: state.selectedSeats.filter((s) => (s.seat_id || s.seatId) !== seatId)
+        };
+      }
+
+      if (seat.status !== SEAT_STATUS.AVAILABLE) return state;
+
       return {
         ...state,
-        selectedSeats: exists
-          ? state.selectedSeats.filter((s) => (s.seat_id || s.seatId) !== seatId)
-          : [...state.selectedSeats, { ...seat, seat_id: seatId }]
+        selectedSeats: [...state.selectedSeats, { ...seat, seat_id: seatId }]
+      };
+    }
+
+    case 'REMOVE_SEATS': {
+      const seatIds = action.seatIds;
+      if (!Array.isArray(seatIds)) return state;
+      return {
+        ...state,
+        selectedSeats: state.selectedSeats.filter(
+          (s) => !seatIds.includes(s.seat_id || s.seatId)
+        )
       };
     }
 
@@ -82,6 +99,10 @@ export function BookingProvider({ children }) {
     dispatch({ type: 'CLEAR_SELECTION' });
   }, []);
 
+  const removeSeats = useCallback((seatIds) => {
+    dispatch({ type: 'REMOVE_SEATS', seatIds });
+  }, []);
+
   const isSelected = useCallback(
     (seatId) => state.selectedSeats.some((s) => (s.seat_id || s.seatId) === seatId),
     [state.selectedSeats]
@@ -101,6 +122,7 @@ export function BookingProvider({ children }) {
       startBooking,
       clearBooking,
       clearSelection,
+      removeSeats,
       isSelected,
       toggleSeat
     };
@@ -110,6 +132,7 @@ export function BookingProvider({ children }) {
     startBooking,
     clearBooking,
     clearSelection,
+    removeSeats,
     isSelected,
     toggleSeat
   ]);

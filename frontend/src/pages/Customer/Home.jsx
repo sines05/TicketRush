@@ -10,8 +10,6 @@ import EventListWithTabs from '@/components/home/EventListWithTabs';
 import { CATEGORY_OPTIONS } from '@/constants/categories';
 import eventService from '@/services/eventService';
 
-const USE_MOCK = import.meta.env.VITE_USE_MOCK !== 'false';
-
 export default function Home() {
   const location = useLocation();
   const [heroEvents, setHeroEvents] = useState([]);
@@ -70,7 +68,7 @@ export default function Home() {
       {/* Footer Info */}
       <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground pt-10">
         <span className="rounded-full bg-primary/10 px-2 py-0.5 text-primary font-medium">
-          {USE_MOCK ? 'Mock Data' : 'Live API'}
+          Live API
         </span>
         <span>•</span>
         <span>TicketRush Premium Experience</span>

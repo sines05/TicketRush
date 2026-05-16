@@ -43,12 +43,24 @@ func (m *statefulQueueRepo) AllowUser(ctx context.Context, eventID uuid.UUID, us
 func (m *statefulQueueRepo) PopFromQueue(ctx context.Context, eventID uuid.UUID, count int) ([]uuid.UUID, error) {
 	return nil, nil
 }
+func (m *statefulQueueRepo) PopFromQueueAndIncrementProcessedIndex(ctx context.Context, eventID uuid.UUID, count int) ([]uuid.UUID, int64, error) {
+	return nil, 0, nil
+}
 func (m *statefulQueueRepo) GetCurrentActiveCount(ctx context.Context, eventID uuid.UUID) (int64, error) {
 	return int64(len(m.activeUsers)), nil
 }
 func (m *statefulQueueRepo) RemoveFromActive(ctx context.Context, eventID uuid.UUID, userID uuid.UUID) error {
 	delete(m.activeUsers, userID.String())
 	return nil
+}
+func (m *statefulQueueRepo) GetNextJoinIndex(ctx context.Context, eventID uuid.UUID) (int64, error) {
+	return 0, nil
+}
+func (m *statefulQueueRepo) GetProcessedIndex(ctx context.Context, eventID uuid.UUID) (int64, error) {
+	return 0, nil
+}
+func (m *statefulQueueRepo) IncrementProcessedIndex(ctx context.Context, eventID uuid.UUID, count int) (int64, error) {
+	return 0, nil
 }
 func (m *statefulQueueRepo) SaveSession(ctx context.Context, session *queue.QueueSession, expiration time.Duration) error {
 	m.sessions[session.Token] = session
@@ -72,9 +84,36 @@ func (m *statefulQueueRepo) ListSessions(ctx context.Context) ([]*queue.QueueSes
 	}
 	return sessions, nil
 }
+func (m *statefulQueueRepo) GetExpiredSessions(ctx context.Context, limit int) ([]string, error) {
+	var expired []string
+	now := time.Now().UTC()
+	for token, s := range m.sessions {
+		if s.AllowedAt != nil && now.Sub(*s.AllowedAt) > 15*time.Minute+30*time.Second {
+			expired = append(expired, token)
+		} else if s.AllowedAt == nil {
+			// For waiting sessions, we don't have a good way to mock 2h expiry easily without a created_at field
+			// but we can just skip them or add a dummy check.
+		}
+	}
+	return expired, nil
+}
 func (m *statefulQueueRepo) DeleteSession(ctx context.Context, token string, eventID uuid.UUID, userID uuid.UUID) error {
 	delete(m.sessions, token)
 	return nil
+}
+func (m *statefulQueueRepo) GetAllQueueUsers(ctx context.Context, eventID uuid.UUID) ([]uuid.UUID, error) {
+	return nil, nil
+}
+func (m *statefulQueueRepo) GetOrCreateSessionAtomic(ctx context.Context, session *queue.QueueSession, expiration time.Duration, incrementJoinIndex bool) (*queue.QueueSession, bool, error) {
+	existing, _ := m.GetSessionByEventAndUser(ctx, session.EventID, session.UserID)
+	if existing != nil {
+		return existing, false, nil
+	}
+	if incrementJoinIndex {
+		session.JoinIndex = int64(len(m.sessions) + 1)
+	}
+	m.sessions[session.Token] = session
+	return session, true, nil
 }
 
 // Stateful Mock for Order Repository
@@ -164,7 +203,7 @@ func TestQueueLifecycleIntegration(t *testing.T) {
 	// Let's just manually allow them to simulate being at the front of the queue
 	queueRepo.AllowUser(ctx, eventID, userID)
 	
-	status, token, _, err := queueSvc.JoinQueue(ctx, eventID, userID)
+	status, token, _, _, err := queueSvc.JoinQueue(ctx, eventID, userID)
 	assert.NoError(t, err)
 	assert.Equal(t, "allowed", status)
 	assert.NotEmpty(t, token)
@@ -193,7 +232,7 @@ func TestQueueLifecycleIntegration(t *testing.T) {
 	assert.NotNil(t, session, "Session should STILL exist after cancellation")
 
 	// 4. Join Queue again (should return the SAME session)
-	status2, token2, _, err := queueSvc.JoinQueue(ctx, eventID, userID)
+	status2, token2, _, _, err := queueSvc.JoinQueue(ctx, eventID, userID)
 	assert.NoError(t, err)
 	assert.Equal(t, "allowed", status2)
 	assert.Equal(t, token, token2, "Should get the SAME token")
@@ -263,7 +302,7 @@ func TestTimerImmutability(t *testing.T) {
 
 	// 1. Admit user
 	queueRepo.AllowUser(ctx, eventID, userID)
-	status, token, allowedAt, err := queueSvc.JoinQueue(ctx, eventID, userID)
+	status, token, _, allowedAt, err := queueSvc.JoinQueue(ctx, eventID, userID)
 	assert.NoError(t, err)
 	assert.Equal(t, "allowed", status)
 	assert.NotNil(t, allowedAt)
@@ -271,7 +310,7 @@ func TestTimerImmutability(t *testing.T) {
 
 	// 2. Call JoinQueue again - AllowedAt should be the same
 	time.Sleep(10 * time.Millisecond)
-	_, _, allowedAt2, _ := queueSvc.JoinQueue(ctx, eventID, userID)
+	_, _, _, allowedAt2, _ := queueSvc.JoinQueue(ctx, eventID, userID)
 	assert.Equal(t, originalAllowedAt, *allowedAt2)
 
 	// 3. Lock seats - AllowedAt should be the same

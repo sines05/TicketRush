@@ -109,8 +109,8 @@ func main() {
 		// Auth Routes
 		auth := v1.Group("/auth")
 		{
-			auth.POST("/register", middleware.RateLimitMiddleware(rdb, 5, 15*time.Minute), authHandler.Register)
-			auth.POST("/login", middleware.RateLimitMiddleware(rdb, 5, 15*time.Minute), authHandler.Login)
+			auth.POST("/register", middleware.RateLimitMiddleware(rdb, 100, 15*time.Minute), authHandler.Register)
+			auth.POST("/login", middleware.RateLimitMiddleware(rdb, 100, 15*time.Minute), authHandler.Login)
 			auth.POST("/verify-2fa", authHandler.Verify2FALogin)
 			auth.GET("/google/login", authHandler.GoogleLogin)
 			auth.GET("/google/callback", authHandler.GoogleCallback)

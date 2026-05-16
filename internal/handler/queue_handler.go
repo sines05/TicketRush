@@ -32,7 +32,7 @@ func (h *QueueHandler) JoinQueue(c *gin.Context) {
 	user, _ := c.Get("user")
 	u := user.(*models.User)
 
-	status, token, allowedAt, err := h.queueService.JoinQueue(c.Request.Context(), req.EventID, u.ID)
+	status, token, joinIndex, allowedAt, err := h.queueService.JoinQueue(c.Request.Context(), req.EventID, u.ID)
 	if err != nil {
 		utils.SendError(c, http.StatusInternalServerError, err.Error(), "QUEUE_JOIN_FAILED")
 		return
@@ -42,6 +42,7 @@ func (h *QueueHandler) JoinQueue(c *gin.Context) {
 	utils.SendSuccess(c, http.StatusOK, gin.H{
 		"status":      status,
 		"queue_token": token,
+		"join_index":  joinIndex,
 		"allowed_at":  allowedAt,
 	}, "Thành công")
 }
@@ -57,7 +58,7 @@ func (h *QueueHandler) GetStatus(c *gin.Context) {
 	user, _ := c.Get("user")
 	u := user.(*models.User)
 
-	status, pos, token, allowedAt, err := h.queueService.GetStatus(c.Request.Context(), eventID, u.ID)
+	status, joinIndex, token, allowedAt, err := h.queueService.GetStatus(c.Request.Context(), eventID, u.ID)
 	if err != nil {
 		utils.SendError(c, http.StatusInternalServerError, err.Error(), "FETCH_FAILED")
 		return
@@ -66,7 +67,7 @@ func (h *QueueHandler) GetStatus(c *gin.Context) {
 	c.Header("X-Queue-Token", token)
 	utils.SendSuccess(c, http.StatusOK, gin.H{
 		"status":      status,
-		"position":    pos,
+		"join_index":  joinIndex,
 		"queue_token": token,
 		"allowed_at":  allowedAt,
 	}, "Thành công")
