@@ -8,6 +8,7 @@ export const API_ROUTES = Object.freeze({
   AUTH_FACEBOOK_LOGIN: '/auth/facebook/login',
   AUTH_SETUP_2FA: '/auth/setup-2fa',
   AUTH_ENABLE_2FA: '/auth/enable-2fa',
+  AUTH_DISABLE_2FA: '/auth/disable-2fa',
   AUTH_LOGOUT: '/auth/logout',
 
   EVENTS: '/events',
