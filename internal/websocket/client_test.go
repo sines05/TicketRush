@@ -16,14 +16,14 @@ import (
 
 type mockAuthService struct {
 	service.AuthService
-	validateTokenFunc func(tokenString string) (*models.User, error)
+	validateTokenFunc func(tokenString string) (*models.User, bool, error)
 }
 
-func (m *mockAuthService) ValidateToken(tokenString string) (*models.User, error) {
+func (m *mockAuthService) ValidateToken(tokenString string) (*models.User, bool, error) {
 	if m.validateTokenFunc != nil {
 		return m.validateTokenFunc(tokenString)
 	}
-	return nil, errors.New("not implemented")
+	return nil, false, errors.New("not implemented")
 }
 
 func TestServeWs_Auth(t *testing.T) {
@@ -34,7 +34,7 @@ func TestServeWs_Auth(t *testing.T) {
 		name           string
 		cookie         *http.Cookie
 		protocolHeader string
-		validateFunc   func(tokenString string) (*models.User, error)
+		validateFunc   func(tokenString string) (*models.User, bool, error)
 		expectedStatus int
 	}{
 		{
@@ -43,22 +43,22 @@ func TestServeWs_Auth(t *testing.T) {
 				Name:  "tr_access_token",
 				Value: "valid-token",
 			},
-			validateFunc: func(tokenString string) (*models.User, error) {
+			validateFunc: func(tokenString string) (*models.User, bool, error) {
 				if tokenString == "valid-token" {
-					return &models.User{BaseModel: models.BaseModel{ID: uuid.New()}}, nil
+					return &models.User{BaseModel: models.BaseModel{ID: uuid.New()}}, true, nil
 				}
-				return nil, errors.New("invalid token")
+				return nil, false, errors.New("invalid token")
 			},
 			expectedStatus: -1, // Upgrade expected
 		},
 		{
 			name:           "Valid Protocol Header Auth",
 			protocolHeader: "valid-token-header",
-			validateFunc: func(tokenString string) (*models.User, error) {
+			validateFunc: func(tokenString string) (*models.User, bool, error) {
 				if tokenString == "valid-token-header" {
-					return &models.User{BaseModel: models.BaseModel{ID: uuid.New()}}, nil
+					return &models.User{BaseModel: models.BaseModel{ID: uuid.New()}}, true, nil
 				}
-				return nil, errors.New("invalid token")
+				return nil, false, errors.New("invalid token")
 			},
 			expectedStatus: -1, // Upgrade expected
 		},
@@ -72,8 +72,8 @@ func TestServeWs_Auth(t *testing.T) {
 				Name:  "tr_access_token",
 				Value: "invalid-token",
 			},
-			validateFunc: func(tokenString string) (*models.User, error) {
-				return nil, errors.New("invalid token")
+			validateFunc: func(tokenString string) (*models.User, bool, error) {
+				return nil, false, errors.New("invalid token")
 			},
 			expectedStatus: http.StatusUnauthorized,
 		},
@@ -117,8 +117,8 @@ func TestHub_Broadcast(t *testing.T) {
 	go hub.Run()
 
 	auth := &mockAuthService{
-		validateTokenFunc: func(tokenString string) (*models.User, error) {
-			return &models.User{BaseModel: models.BaseModel{ID: uuid.New()}}, nil
+		validateTokenFunc: func(tokenString string) (*models.User, bool, error) {
+			return &models.User{BaseModel: models.BaseModel{ID: uuid.New()}}, true, nil
 		},
 	}
 

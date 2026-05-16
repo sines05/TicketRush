@@ -6,6 +6,10 @@
 - [x] Ngăn chặn việc bỏ qua bước 2FA (báo lỗi 401 thay vì cho đăng nhập thẳng).
 - [x] Cập nhật đăng nhập Google/Facebook để hoạt động với Cookie bảo mật thay vì Token trên URL.
 - [x] Sửa lỗi không hiển thị form nhập mã 2FA khi đăng nhập bằng mạng xã hội.
+- [x] Sửa lỗi "Could not generate 2FA" bằng cách cấu hình và kiểm tra độ dài 32-byte của `ENCRYPTION_MASTER_KEY`.
+- [x] Kích hoạt và áp dụng `TwoFactorMiddleware` cho các endpoint nhạy cảm (thanh toán, đổi mật khẩu, v.v.) để bắt buộc xác thực 2FA.
+- [x] Thêm tính năng mã khôi phục (Recovery Codes) và trạng thái chờ xác thực (Pending State) để tránh khóa tài khoản ngoài ý muốn khi cấu hình.
+- [x] Cập nhật JWT claim để bao gồm trạng thái `2fa_verified`, đảm bảo an toàn cho phiên làm việc có 2FA.
 
 ## 📝 Xác thực dữ liệu & Trải nghiệm (UX)
 - [x] Việt hóa các thông báo lỗi kỹ thuật của backend (ví dụ: "failed on min" thành "Phải có ít nhất...").
@@ -29,6 +33,6 @@
 - [x] Khắc phục triệt để lỗi "nhảy số thứ tự" hàng chờ bằng cách triển khai Redis Lua Script. Đảm bảo việc cấp số là nguyên tử (Atomic) ngay cả khi có hàng chục request đồng thời từ một người dùng.
 - [x] Tăng giới hạn Rate Limit cho các API đăng nhập/đăng ký để hỗ trợ việc chạy kịch bản kiểm thử giả lập nhiều người dùng cùng lúc.
 - [x] Nâng cấp script kiểm thử `simulate_multi_booking.js` để hỗ trợ giả lập gọi API đồng thời (Concurrency) nhằm kiểm chứng tính an toàn của hệ thống.
-
+- [x] Bổ sung bộ kiểm thử bảo mật (Security Tests) toàn diện cho vòng đời 2FA và cơ chế bảo vệ route.
 ---
 *Cập nhật lần cuối: Thứ Bảy, ngày 16 tháng 5 năm 2026*

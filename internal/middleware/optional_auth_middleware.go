@@ -21,7 +21,7 @@ func OptionalAuthMiddleware(authService service.AuthService) gin.HandlerFunc {
 			return
 		}
 
-		user, err := authService.ValidateToken(parts[1])
+		user, _, err := authService.ValidateToken(parts[1])
 		if err != nil {
 			c.Next()
 			return

@@ -16,7 +16,8 @@ type UserRepository interface {
 	CreatePasswordReset(reset *models.PasswordReset) error
 	FindPasswordResetByToken(token string) (*models.PasswordReset, error)
 	DeletePasswordReset(token string) error
-	Update2FA(userID uuid.UUID, enabled bool, secret string) error
+	Update2FA(userID uuid.UUID, enabled bool, secret string, recoveryCodes string) error
+	Update2FAPending(userID uuid.UUID, pendingSecret string, recoveryCodes string) error
 	UpdateNotificationToken(userID uuid.UUID, token string) error
 	FindAll() ([]models.User, error)
 	UpdateRole(userID uuid.UUID, role models.UserRole) error
@@ -76,10 +77,20 @@ func (r *userRepo) DeletePasswordReset(token string) error {
 	return r.db.Where("token = ?", token).Delete(&models.PasswordReset{}).Error
 }
 
-func (r *userRepo) Update2FA(userID uuid.UUID, enabled bool, secret string) error {
+func (r *userRepo) Update2FA(userID uuid.UUID, enabled bool, secret string, recoveryCodes string) error {
+	updates := map[string]interface{}{
+		"two_factor_enabled":         enabled,
+		"two_factor_secret":          secret,
+		"recovery_codes":             recoveryCodes,
+		"pending_two_factor_secret": "",
+	}
+	return r.db.Model(&models.User{}).Where("id = ?", userID).Updates(updates).Error
+}
+
+func (r *userRepo) Update2FAPending(userID uuid.UUID, pendingSecret string, recoveryCodes string) error {
 	return r.db.Model(&models.User{}).Where("id = ?", userID).Updates(map[string]interface{}{
-		"two_factor_enabled": enabled,
-		"two_factor_secret":  secret,
+		"pending_two_factor_secret": pendingSecret,
+		"recovery_codes":            recoveryCodes,
 	}).Error
 }
 

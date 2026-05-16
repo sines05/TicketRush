@@ -35,6 +35,8 @@ type User struct {
 	MembershipTier    *MembershipTier `gorm:"foreignKey:MembershipTierID" json:"membership_tier,omitempty"`
 	TwoFactorSecret   string          `gorm:"type:varchar(255)" json:"-"`
 	TwoFactorEnabled  bool            `gorm:"default:false" json:"two_factor_enabled"`
+	RecoveryCodes     string          `gorm:"type:text" json:"-"`
+	PendingTwoFactorSecret string     `gorm:"type:varchar(255)" json:"-"`
 	IsOAuth           bool            `gorm:"column:is_oauth;default:false" json:"is_oauth"`
 	NotificationToken string          `gorm:"type:varchar(255)" json:"notification_token"`
 }

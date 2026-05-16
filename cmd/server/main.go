@@ -143,8 +143,8 @@ func main() {
 			protected.GET("/queue/status", queueHandler.GetStatus)
 
 			// Orders
-			protected.POST("/orders/lock-seats", orderHandler.LockSeats)
-			protected.POST("/orders/checkout", orderHandler.Checkout)
+			protected.POST("/orders/lock-seats", middleware.TwoFactorMiddleware(), orderHandler.LockSeats)
+			protected.POST("/orders/checkout", middleware.TwoFactorMiddleware(), orderHandler.Checkout)
 			protected.POST("/orders/cancel", orderHandler.CancelOrder)
 
 			// Tickets
@@ -153,11 +153,11 @@ func main() {
 			// 2FA Management
 			protected.POST("/auth/setup-2fa", authHandler.Setup2FA)
 			protected.POST("/auth/enable-2fa", authHandler.Enable2FA)
-			protected.POST("/auth/disable-2fa", authHandler.Disable2FA)
+			protected.POST("/auth/disable-2fa", middleware.TwoFactorMiddleware(), authHandler.Disable2FA)
 
 			// Membership
 			protected.GET("/membership/me", membershipHandler.GetMyMembership)
-			protected.POST("/membership/upgrade", membershipHandler.UpgradeTier)
+			protected.POST("/membership/upgrade", middleware.TwoFactorMiddleware(), membershipHandler.UpgradeTier)
 
 			// Reviews
 			protected.POST("/reviews", reviewHandler.CreateReview)
@@ -168,7 +168,7 @@ func main() {
 
 			protected.GET("/users/me", authHandler.GetMe)
 			protected.PATCH("/users/me", authHandler.UpdateMe)
-			protected.POST("/users/change-password", authHandler.ChangePassword)
+			protected.POST("/users/change-password", middleware.TwoFactorMiddleware(), authHandler.ChangePassword)
 			protected.POST("/users/notification-token", authHandler.UpdateNotificationToken)
 
 			// Admin Routes

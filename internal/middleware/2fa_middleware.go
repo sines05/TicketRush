@@ -23,12 +23,12 @@ func TwoFactorMiddleware() gin.HandlerFunc {
 
 		u := user.(*models.User)
 		if u.TwoFactorEnabled {
-			// Check for a specific header or claim that indicates 2FA was verified
-			// For simplicity, we assume the frontend sends a 'X-2FA-Verified' header if we're not using advanced JWT claims
-			// Or we can just check if the current request is for a 'sensitive' operation.
-			
-			// In this implementation, we'll just log it. 
-			// A stricter implementation would require a specific session token.
+			isVerified, _ := c.Get("2fa_verified")
+			if verified, ok := isVerified.(bool); !ok || !verified {
+				utils.SendError(c, http.StatusForbidden, "Two-factor authentication required", "2FA_REQUIRED")
+				c.Abort()
+				return
+			}
 		}
 
 		c.Next()

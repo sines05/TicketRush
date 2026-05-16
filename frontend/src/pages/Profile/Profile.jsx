@@ -115,7 +115,7 @@ export default function Profile() {
           avatar_url: me?.avatar_url || user?.avatar_url || '',
           gender: me?.gender || user?.gender || '',
           date_of_birth: toDateInputValue(me?.date_of_birth || user?.date_of_birth || ''),
-          is_2fa_enabled: me?.is_2fa_enabled || false,
+          is_2fa_enabled: me?.two_factor_enabled ?? user?.is_2fa_enabled ?? false,
           is_oauth: me?.is_oauth || false
         };
         setLastLoaded(next);

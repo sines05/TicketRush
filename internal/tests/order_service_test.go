@@ -189,7 +189,12 @@ func (m *mockUserRepo) FindPasswordResetByToken(token string) (*models.PasswordR
 	return nil, nil
 }
 func (m *mockUserRepo) DeletePasswordReset(token string) error                        { return nil }
-func (m *mockUserRepo) Update2FA(userID uuid.UUID, enabled bool, secret string) error { return nil }
+func (m *mockUserRepo) Update2FA(userID uuid.UUID, enabled bool, secret string, recoveryCode string) error {
+	return nil
+}
+func (m *mockUserRepo) Update2FAPending(userID uuid.UUID, pendingSecret string, recoveryCodes string) error {
+	return nil
+}
 func (m *mockUserRepo) UpdateNotificationToken(userID uuid.UUID, token string) error  { return nil }
 func (m *mockUserRepo) FindAll() ([]models.User, error)                               { return nil, nil }
 func (m *mockUserRepo) UpdateRole(userID uuid.UUID, role models.UserRole) error       { return nil }

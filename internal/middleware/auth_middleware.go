@@ -37,7 +37,7 @@ func AuthMiddleware(authService service.AuthService) gin.HandlerFunc {
 			return
 		}
 
-		user, err := authService.ValidateToken(token)
+		user, is2FAVerified, err := authService.ValidateToken(token)
 		if err != nil {
 			utils.SendError(c, http.StatusUnauthorized, err.Error(), "INVALID_TOKEN")
 			c.Abort()
@@ -45,6 +45,7 @@ func AuthMiddleware(authService service.AuthService) gin.HandlerFunc {
 		}
 
 		c.Set("user", user)
+		c.Set("2fa_verified", is2FAVerified)
 		c.Next()
 	}
 }

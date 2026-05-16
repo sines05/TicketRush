@@ -82,6 +82,9 @@ func LoadConfig() *Config {
 	if cfg.EnableConfigWarnings && cfg.EncryptionMasterKey == "" {
 		log.Println("WARNING: ENCRYPTION_MASTER_KEY is not set! 2FA will not work.")
 	}
+	if cfg.EncryptionMasterKey != "" && len(cfg.EncryptionMasterKey) != 32 {
+		log.Fatalf("FATAL: ENCRYPTION_MASTER_KEY must be exactly 32 bytes long for AES-256 encryption. Current length: %d", len(cfg.EncryptionMasterKey))
+	}
 	if cfg.EnableConfigWarnings && cfg.FacebookClientID == "" {
 		log.Printf("WARNING: OAuth credentials missing for %s", "Facebook")
 	}

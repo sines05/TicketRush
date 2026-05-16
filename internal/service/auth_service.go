@@ -33,14 +33,14 @@ type RegisterRequest struct {
 type AuthService interface {
 	Register(req RegisterRequest) (*models.User, error)
 	Login(email, password string) (string, *models.User, bool, error)
-	ValidateToken(tokenString string) (*models.User, error)
+	ValidateToken(tokenString string) (*models.User, bool, error)
 	ForgotPassword(email string) error
 	ResetPassword(token, newPassword string) error
 	GoogleLoginURL(state string) string
 	GoogleLoginCallback(code string) (string, *models.User, error)
 	FacebookLoginURL(state string) string
 	FacebookLoginCallback(code string) (string, *models.User, error)
-	Generate2FA(userID uuid.UUID) (string, string, error)
+	Generate2FA(userID uuid.UUID) (string, string, []string, error)
 	Enable2FA(userID uuid.UUID, code string) error
 	Verify2FA(userID uuid.UUID, code string) (string, error)
 	UpdateNotificationToken(userID uuid.UUID, token string) error
@@ -177,9 +177,10 @@ func (s *authService) Login(email, password string) (string, *models.User, bool,
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"user_id": user.ID.String(),
-		"role":    user.Role,
-		"exp":     time.Now().UTC().Add(time.Hour * 24).Unix(),
+		"user_id":      user.ID.String(),
+		"role":         user.Role,
+		"2fa_verified": true,
+		"exp":          time.Now().UTC().Add(time.Hour * 24).Unix(),
 	})
 
 	tokenString, err := token.SignedString([]byte(s.jwtSecret))
@@ -190,23 +191,28 @@ func (s *authService) Login(email, password string) (string, *models.User, bool,
 	return tokenString, user, false, nil
 }
 
-func (s *authService) ValidateToken(tokenString string) (*models.User, error) {
+func (s *authService) ValidateToken(tokenString string) (*models.User, bool, error) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		return []byte(s.jwtSecret), nil
 	})
 
 	if err != nil || !token.Valid {
-		return nil, errors.New("invalid token")
+		return nil, false, errors.New("invalid token")
 	}
 
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok {
-		return nil, errors.New("invalid claims")
+		return nil, false, errors.New("invalid claims")
 	}
 
 	val, ok := claims["user_id"]
 	if !ok {
-		return nil, errors.New("user_id not found in token")
+		return nil, false, errors.New("user_id not found in token")
+	}
+
+	is2FAVerified := false
+	if v, ok := claims["2fa_verified"].(bool); ok {
+		is2FAVerified = v
 	}
 
 	var userIDStr string
@@ -217,20 +223,20 @@ func (s *authService) ValidateToken(tokenString string) (*models.User, error) {
 		// Handle legacy tokens if any, though they will likely fail uuid.Parse
 		userIDStr = fmt.Sprintf("%.0f", v)
 	default:
-		return nil, errors.New("invalid user_id type in token")
+		return nil, false, errors.New("invalid user_id type in token")
 	}
 
 	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
-		return nil, errors.New("invalid user_id format in token")
+		return nil, false, errors.New("invalid user_id format in token")
 	}
 
 	user, err := s.userRepo.FindByID(userID)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
-	return user, nil
+	return user, is2FAVerified, nil
 }
 
 func (s *authService) GoogleLoginURL(state string) string {
@@ -287,9 +293,10 @@ func (s *authService) GoogleLoginCallback(code string) (string, *models.User, er
 
 	// 4. Generate JWT
 	jwtToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"user_id": user.ID.String(),
-		"role":    user.Role,
-		"exp":     time.Now().UTC().Add(time.Hour * 24).Unix(),
+		"user_id":      user.ID.String(),
+		"role":         user.Role,
+		"2fa_verified": true,
+		"exp":          time.Now().UTC().Add(time.Hour * 24).Unix(),
 	})
 
 	tokenString, err := jwtToken.SignedString([]byte(s.jwtSecret))
@@ -402,9 +409,10 @@ func (s *authService) FacebookLoginCallback(code string) (string, *models.User, 
 	}
 
 	jwtToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"user_id": user.ID.String(),
-		"role":    user.Role,
-		"exp":     time.Now().UTC().Add(time.Hour * 24).Unix(),
+		"user_id":      user.ID.String(),
+		"role":         user.Role,
+		"2fa_verified": true,
+		"exp":          time.Now().UTC().Add(time.Hour * 24).Unix(),
 	})
 
 	tokenString, err := jwtToken.SignedString([]byte(s.jwtSecret))
@@ -415,10 +423,10 @@ func (s *authService) FacebookLoginCallback(code string) (string, *models.User, 
 	return tokenString, user, nil
 }
 
-func (s *authService) Generate2FA(userID uuid.UUID) (string, string, error) {
+func (s *authService) Generate2FA(userID uuid.UUID) (string, string, []string, error) {
 	user, err := s.userRepo.FindByID(userID)
 	if err != nil {
-		return "", "", err
+		return "", "", nil, err
 	}
 
 	key, err := totp.Generate(totp.GenerateOpts{
@@ -426,20 +434,34 @@ func (s *authService) Generate2FA(userID uuid.UUID) (string, string, error) {
 		AccountName: user.Email,
 	})
 	if err != nil {
-		return "", "", err
+		return "", "", nil, err
 	}
 
 	encryptedSecret, err := encryption.EncryptAES(key.Secret(), s.encryptionKey)
 	if err != nil {
-		return "", "", err
+		return "", "", nil, err
 	}
 
-	// Store secret temporarily but not enabled yet
-	if err := s.userRepo.Update2FA(userID, false, encryptedSecret); err != nil {
-		return "", "", err
+	// Generate 10 recovery codes
+	codes := make([]string, 10)
+	hashedCodes := make([]string, 10)
+	for i := 0; i < 10; i++ {
+		code := uuid.New().String()[:8]
+		codes[i] = code
+		hash, err := bcrypt.GenerateFromPassword([]byte(code), bcrypt.DefaultCost)
+		if err != nil {
+			return "", "", nil, err
+		}
+		hashedCodes[i] = string(hash)
+	}
+	recoveryCodesJSON, _ := json.Marshal(hashedCodes)
+
+	// Store secret temporarily in PendingTwoFactorSecret and hashed recovery codes
+	if err := s.userRepo.Update2FAPending(userID, encryptedSecret, string(recoveryCodesJSON)); err != nil {
+		return "", "", nil, err
 	}
 
-	return key.Secret(), key.URL(), nil
+	return key.Secret(), key.URL(), codes, nil
 }
 
 func (s *authService) Enable2FA(userID uuid.UUID, code string) error {
@@ -448,7 +470,11 @@ func (s *authService) Enable2FA(userID uuid.UUID, code string) error {
 		return err
 	}
 
-	secret, err := s.decrypt2FASecret(user.TwoFactorSecret)
+	if user.PendingTwoFactorSecret == "" {
+		return errors.New("2FA setup not initiated")
+	}
+
+	secret, err := s.decrypt2FASecret(user.PendingTwoFactorSecret)
 	if err != nil {
 		return err
 	}
@@ -458,7 +484,7 @@ func (s *authService) Enable2FA(userID uuid.UUID, code string) error {
 		return errors.New("invalid verification code")
 	}
 
-	return s.userRepo.Update2FA(userID, true, user.TwoFactorSecret)
+	return s.userRepo.Update2FA(userID, true, user.PendingTwoFactorSecret, user.RecoveryCodes)
 }
 
 func (s *authService) Verify2FA(userID uuid.UUID, code string) (string, error) {
@@ -467,20 +493,46 @@ func (s *authService) Verify2FA(userID uuid.UUID, code string) (string, error) {
 		return "", err
 	}
 
-	secret, err := s.decrypt2FASecret(user.TwoFactorSecret)
-	if err != nil {
-		return "", err
+	if !user.TwoFactorEnabled {
+		return "", errors.New("2FA is not enabled")
 	}
 
-	valid := totp.Validate(code, secret)
-	if !valid {
-		return "", errors.New("invalid verification code")
+	verified := false
+
+	// Try TOTP
+	secret, err := s.decrypt2FASecret(user.TwoFactorSecret)
+	if err == nil && secret != "" {
+		if totp.Validate(code, secret) {
+			verified = true
+		}
+	}
+
+	// Try Recovery Codes if not verified by TOTP
+	if !verified && user.RecoveryCodes != "" {
+		var hashedCodes []string
+		if err := json.Unmarshal([]byte(user.RecoveryCodes), &hashedCodes); err == nil {
+			for i, hashedCode := range hashedCodes {
+				if bcrypt.CompareHashAndPassword([]byte(hashedCode), []byte(code)) == nil {
+					verified = true
+					// Remove used recovery code
+					hashedCodes = append(hashedCodes[:i], hashedCodes[i+1:]...)
+					newCodesJSON, _ := json.Marshal(hashedCodes)
+					s.userRepo.Update2FA(userID, true, user.TwoFactorSecret, string(newCodesJSON))
+					break
+				}
+			}
+		}
+	}
+
+	if !verified {
+		return "", errors.New("invalid verification code or recovery code")
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"user_id": user.ID.String(),
-		"role":    user.Role,
-		"exp":     time.Now().UTC().Add(time.Hour * 24).Unix(),
+		"user_id":      user.ID.String(),
+		"role":         user.Role,
+		"2fa_verified": true,
+		"exp":          time.Now().UTC().Add(time.Hour * 24).Unix(),
 	})
 
 	return token.SignedString([]byte(s.jwtSecret))
@@ -563,7 +615,7 @@ func (s *authService) Disable2FA(userID uuid.UUID, code string) error {
 		return errors.New("invalid verification code")
 	}
 
-	if err := s.userRepo.Update2FA(userID, false, ""); err != nil {
+	if err := s.userRepo.Update2FA(userID, false, "", ""); err != nil {
 		return err
 	}
 

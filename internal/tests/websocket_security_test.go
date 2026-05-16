@@ -29,12 +29,12 @@ func (m *MockAuthService) Login(email, password string) (string, *models.User, b
 	return args.String(0), args.Get(1).(*models.User), args.Bool(2), args.Error(3)
 }
 
-func (m *MockAuthService) ValidateToken(token string) (*models.User, error) {
+func (m *MockAuthService) ValidateToken(token string) (*models.User, bool, error) {
 	args := m.Called(token)
 	if args.Get(0) == nil {
-		return nil, args.Error(1)
+		return nil, false, args.Error(2)
 	}
-	return args.Get(0).(*models.User), args.Error(1)
+	return args.Get(0).(*models.User), args.Bool(1), args.Error(2)
 }
 
 func (m *MockAuthService) ForgotPassword(email string) error {
@@ -63,9 +63,9 @@ func (m *MockAuthService) FacebookLoginCallback(code string) (string, *models.Us
 	return args.String(0), args.Get(1).(*models.User), args.Error(2)
 }
 
-func (m *MockAuthService) Generate2FA(userID uuid.UUID) (string, string, error) {
+func (m *MockAuthService) Generate2FA(userID uuid.UUID) (string, string, []string, error) {
 	args := m.Called(userID)
-	return args.String(0), args.String(1), args.Error(2)
+	return args.String(0), args.String(1), args.Get(2).([]string), args.Error(3)
 }
 
 func (m *MockAuthService) Enable2FA(userID uuid.UUID, code string) error {
@@ -113,7 +113,7 @@ func TestWebSocketSecurity(t *testing.T) {
 		req.Header.Set("Sec-WebSocket-Protocol", "invalid-token")
 		w := httptest.NewRecorder()
 
-		mockAuth.On("ValidateToken", "invalid-token").Return(nil, errors.New("invalid token"))
+		mockAuth.On("ValidateToken", "invalid-token").Return(nil, false, errors.New("invalid token"))
 
 		websocket.ServeWs(hub, mockAuth, w, req)
 
@@ -134,7 +134,7 @@ func TestWebSocketSecurity(t *testing.T) {
 		
 		w := httptest.NewRecorder()
 
-		mockAuth.On("ValidateToken", "valid-token").Return(&models.User{BaseModel: models.BaseModel{ID: uuid.New()}}, nil)
+		mockAuth.On("ValidateToken", "valid-token").Return(&models.User{BaseModel: models.BaseModel{ID: uuid.New()}}, true, nil)
 
 		// ServeWs will call Upgrade. In httptest.NewRecorder, Upgrade will fail because it doesn't implement Hijacker.
 		// However, we want to verify it passed the authentication check.

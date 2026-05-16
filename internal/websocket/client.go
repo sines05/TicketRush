@@ -46,7 +46,7 @@ func ServeWs(hub *Hub, authService service.AuthService, w http.ResponseWriter, r
 		return
 	}
 
-	_, err = authService.ValidateToken(tokenString)
+	_, _, err = authService.ValidateToken(tokenString)
 	if err != nil {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return

@@ -1,17 +1,23 @@
 package tests
 
 import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/pquerna/otp/totp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"golang.org/x/crypto/bcrypt"
 	"ticketrush/internal/config"
+	"ticketrush/internal/middleware"
 	"ticketrush/internal/models"
 	"ticketrush/internal/service"
+	"ticketrush/internal/utils/encryption"
 )
 
 // MockUserRepository is a mock of UserRepository
@@ -68,8 +74,13 @@ func (m *MockUserRepository) DeletePasswordReset(token string) error {
 	return args.Error(0)
 }
 
-func (m *MockUserRepository) Update2FA(userID uuid.UUID, enabled bool, secret string) error {
-	args := m.Called(userID, enabled, secret)
+func (m *MockUserRepository) Update2FA(userID uuid.UUID, enabled bool, secret string, recoveryCodes string) error {
+	args := m.Called(userID, enabled, secret, recoveryCodes)
+	return args.Error(0)
+}
+
+func (m *MockUserRepository) Update2FAPending(userID uuid.UUID, pendingSecret string, recoveryCodes string) error {
+	args := m.Called(userID, pendingSecret, recoveryCodes)
 	return args.Error(0)
 }
 
@@ -270,7 +281,7 @@ func TestDisable2FA_Success(t *testing.T) {
 	}
 
 	mockRepo.On("FindByID", userID).Return(existingUser, nil)
-	mockRepo.On("Update2FA", userID, false, "").Return(nil)
+	mockRepo.On("Update2FA", userID, false, "", "").Return(nil)
 	mockNotif.On("NotifySecurityEvent", existingUser, "Two-Factor Authentication Disabled").Return()
 
 	err := authServ.Disable2FA(userID, code)
@@ -326,4 +337,164 @@ func TestDisable2FA_AlreadyDisabled(t *testing.T) {
 	assert.Error(t, err)
 	assert.Equal(t, "2FA is not enabled", err.Error())
 	mockRepo.AssertNotCalled(t, "Update2FA", mock.Anything, mock.Anything, mock.Anything)
+}
+
+func TestTwoFactor_Generate(t *testing.T) {
+	mockRepo := new(MockUserRepository)
+	mockNotif := new(MockNotificationService)
+	cfg := &config.Config{JWTSecret: "secret", EncryptionMasterKey: "12345678901234567890123456789012"}
+	authServ := service.NewAuthService(mockRepo, mockNotif, cfg)
+
+	userID := uuid.New()
+	user := &models.User{
+		BaseModel: models.BaseModel{ID: userID},
+		Email:     "test@example.com",
+	}
+
+	mockRepo.On("FindByID", userID).Return(user, nil)
+	mockRepo.On("Update2FAPending", userID, mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(nil)
+
+	secret, qrURL, codes, err := authServ.Generate2FA(userID)
+
+	assert.NoError(t, err)
+	assert.NotEmpty(t, secret)
+	assert.NotEmpty(t, qrURL)
+	assert.Len(t, codes, 10)
+	mockRepo.AssertExpectations(t)
+}
+
+func TestTwoFactor_Enable(t *testing.T) {
+	mockRepo := new(MockUserRepository)
+	mockNotif := new(MockNotificationService)
+	cfg := &config.Config{JWTSecret: "secret", EncryptionMasterKey: "12345678901234567890123456789012"}
+	authServ := service.NewAuthService(mockRepo, mockNotif, cfg)
+
+	userID := uuid.New()
+	secret := "JBSWY3DPEHPK3PXP"
+	encryptedSecret, _ := encryption.EncryptAES(secret, []byte(cfg.EncryptionMasterKey))
+	code, _ := totp.GenerateCode(secret, time.Now().UTC())
+
+	user := &models.User{
+		BaseModel:              models.BaseModel{ID: userID},
+		PendingTwoFactorSecret: encryptedSecret,
+		RecoveryCodes:          "[]",
+	}
+
+	mockRepo.On("FindByID", userID).Return(user, nil)
+	mockRepo.On("Update2FA", userID, true, encryptedSecret, "[]").Return(nil)
+
+	err := authServ.Enable2FA(userID, code)
+
+	assert.NoError(t, err)
+	mockRepo.AssertExpectations(t)
+}
+
+func TestTwoFactor_Verify_TOTP(t *testing.T) {
+	mockRepo := new(MockUserRepository)
+	mockNotif := new(MockNotificationService)
+	cfg := &config.Config{JWTSecret: "secret", EncryptionMasterKey: "12345678901234567890123456789012"}
+	authServ := service.NewAuthService(mockRepo, mockNotif, cfg)
+
+	userID := uuid.New()
+	secret := "JBSWY3DPEHPK3PXP"
+	encryptedSecret, _ := encryption.EncryptAES(secret, []byte(cfg.EncryptionMasterKey))
+	code, _ := totp.GenerateCode(secret, time.Now().UTC())
+
+	user := &models.User{
+		BaseModel:        models.BaseModel{ID: userID},
+		TwoFactorEnabled: true,
+		TwoFactorSecret:  encryptedSecret,
+		Role:             models.RoleCustomer,
+	}
+
+	mockRepo.On("FindByID", userID).Return(user, nil)
+
+	token, err := authServ.Verify2FA(userID, code)
+
+	assert.NoError(t, err)
+	assert.NotEmpty(t, token)
+
+	// Validate token
+	u, verified, err := authServ.ValidateToken(token)
+	assert.NoError(t, err)
+	assert.True(t, verified)
+	assert.Equal(t, userID, u.ID)
+}
+
+func TestTwoFactor_Verify_Recovery(t *testing.T) {
+	mockRepo := new(MockUserRepository)
+	mockNotif := new(MockNotificationService)
+	cfg := &config.Config{JWTSecret: "secret", EncryptionMasterKey: "12345678901234567890123456789012"}
+	authServ := service.NewAuthService(mockRepo, mockNotif, cfg)
+
+	userID := uuid.New()
+	recoveryCode := "ABCDEFGH"
+	hashedCode, _ := bcrypt.GenerateFromPassword([]byte(recoveryCode), bcrypt.DefaultCost)
+	codesJSON, _ := json.Marshal([]string{string(hashedCode)})
+
+	user := &models.User{
+		BaseModel:        models.BaseModel{ID: userID},
+		TwoFactorEnabled: true,
+		RecoveryCodes:    string(codesJSON),
+		Role:             models.RoleCustomer,
+	}
+
+	mockRepo.On("FindByID", userID).Return(user, nil)
+	mockRepo.On("Update2FA", userID, true, "", "[]").Return(nil)
+
+	token, err := authServ.Verify2FA(userID, recoveryCode)
+
+	assert.NoError(t, err)
+	assert.NotEmpty(t, token)
+
+	// Validate token
+	u, verified, err := authServ.ValidateToken(token)
+	assert.NoError(t, err)
+	assert.True(t, verified)
+	assert.Equal(t, userID, u.ID)
+}
+
+func TestTwoFactorMiddleware(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	t.Run("2FA Enabled and Verified", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+
+		user := &models.User{TwoFactorEnabled: true}
+		c.Set("user", user)
+		c.Set("2fa_verified", true)
+
+		middleware.TwoFactorMiddleware()(c)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.False(t, c.IsAborted())
+	})
+
+	t.Run("2FA Enabled and NOT Verified", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+
+		user := &models.User{TwoFactorEnabled: true}
+		c.Set("user", user)
+		c.Set("2fa_verified", false)
+
+		middleware.TwoFactorMiddleware()(c)
+
+		assert.Equal(t, http.StatusForbidden, w.Code)
+		assert.True(t, c.IsAborted())
+	})
+
+	t.Run("2FA Disabled", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+
+		user := &models.User{TwoFactorEnabled: false}
+		c.Set("user", user)
+
+		middleware.TwoFactorMiddleware()(c)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.False(t, c.IsAborted())
+	})
 }

@@ -221,15 +221,16 @@ func (h *AuthHandler) Setup2FA(c *gin.Context) {
 		return
 	}
 
-	secret, qrURL, err := h.authService.Generate2FA(u.ID)
+	secret, qrURL, recoveryCodes, err := h.authService.Generate2FA(u.ID)
 	if err != nil {
 		utils.SendError(c, http.StatusInternalServerError, "Could not generate 2FA", "2FA_SETUP_FAILED")
 		return
 	}
 
 	utils.SendSuccess(c, http.StatusOK, gin.H{
-		"secret": secret,
-		"qr_url": qrURL,
+		"secret":         secret,
+		"qr_url":         qrURL,
+		"recovery_codes": recoveryCodes,
 	}, "Cấu hình 2FA thành công")
 }
 
@@ -304,7 +305,7 @@ func (h *AuthHandler) Verify2FALogin(c *gin.Context) {
 		return
 	}
 
-	user, _ := h.authService.ValidateToken(token)
+	user, _, _ := h.authService.ValidateToken(token)
 
 	// Set JWT in HttpOnly cookie
 	c.SetSameSite(http.SameSiteLaxMode)

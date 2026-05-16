@@ -1,0 +1,2 @@
+ALTER TABLE users ADD COLUMN IF NOT EXISTS recovery_codes TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS pending_two_factor_secret VARCHAR(255);
