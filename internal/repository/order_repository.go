@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"sort"
 	"time"
 
 	"github.com/google/uuid"
@@ -40,6 +41,11 @@ func NewOrderRepository(db *gorm.DB) OrderRepository {
 func (r *orderRepo) LockSeats(ctx context.Context, userID uuid.UUID, eventID uuid.UUID, seatIDs []uuid.UUID) (*models.Order, error) {
 	var order models.Order
 
+	// Sort seatIDs to prevent deadlocks
+	sort.Slice(seatIDs, func(i, j int) bool {
+		return seatIDs[i].String() < seatIDs[j].String()
+	})
+
 	err := r.db.Transaction(func(tx *gorm.DB) error {
 		// 0. Get user and membership tier
 		var user models.User
@@ -50,6 +56,7 @@ func (r *orderRepo) LockSeats(ctx context.Context, userID uuid.UUID, eventID uui
 		// 1. Check if seats are available and lock them for update
 		var seats []models.Seat
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Preload("Zone").
 			Where("id IN ? AND status = ?", seatIDs, models.SeatAvailable).
 			Find(&seats).Error; err != nil {
 			return err
@@ -63,17 +70,11 @@ func (r *orderRepo) LockSeats(ctx context.Context, userID uuid.UUID, eventID uui
 		var totalAmount float64
 		var orderItems []models.OrderItem
 
-		for _, seatID := range seatIDs {
-			// Need price from zone
-			var zone models.EventZone
-			if err := tx.Joins("JOIN seats ON seats.zone_id = event_zones.id").
-				Where("seats.id = ?", seatID).First(&zone).Error; err != nil {
-				return err
-			}
-			totalAmount += zone.Price
+		for _, seat := range seats {
+			totalAmount += seat.Zone.Price
 			orderItems = append(orderItems, models.OrderItem{
-				SeatID: seatID,
-				Price:  zone.Price,
+				SeatID: seat.ID,
+				Price:  seat.Zone.Price,
 			})
 		}
 
@@ -287,7 +288,7 @@ func (r *orderRepo) ReleaseOrder(ctx context.Context, orderID uuid.UUID) ([]uuid
 	var seatIDs []uuid.UUID
 	err := r.db.Transaction(func(tx *gorm.DB) error {
 		var order models.Order
-		if err := tx.Preload("OrderItems").First(&order, orderID).Error; err != nil {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Preload("OrderItems").First(&order, orderID).Error; err != nil {
 			return err
 		}
 

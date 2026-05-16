@@ -1,79 +1,70 @@
 # TicketRush System Audit Report
 
-**Date:** May 9, 2026  
-**Status:** Healthy / Compliant  
-**Subject:** Final Technical Verification and Requirement Compliance Audit
+**Date:** May 16, 2026
+**Auditor:** Maestro Technical Lead
+**Subject:** Comprehensive Security and Architectural Audit
 
 ---
 
 ## 1. Executive Summary
-TicketRush has been audited for production readiness, specifically focusing on its ability to handle "flash sale" scenarios for high-demand event ticketing. The system successfully implements all core requirements, including real-time seat map synchronization, strict database concurrency controls, and a robust virtual queue system. 
+The TicketRush system demonstrates a solid functional foundation, successfully implementing the core requirements for high-concurrency event ticketing, including a visual seat map and a virtual queue system. However, this audit has identified several **CRITICAL** and **MAJOR** vulnerabilities that pose significant risks to system integrity and security. 
 
-Technical verification confirms that the system is resilient against race conditions and can maintain stability under extreme traffic spikes.
+While the system is "feature-complete" according to the requirements, the identified race conditions in order release and 2FA bypasses must be addressed before any production deployment. The following report details these findings and provides a compliance checklist against the project requirements.
 
 ---
 
-## 2. Requirement Compliance Matrix
+## 2. Requirement Compliance Checklist
 
-| Requirement | Description | Status | Implementation Detail |
+| ID | Requirement | Status | Auditor Notes |
 | :--- | :--- | :---: | :--- |
-| **Seat Map Experience** | Visual seat selection with real-time updates. | ✅ | React-based UI with WebSocket integration for live status changes. |
-| **Database Concurrency** | Prevent double-booking of seats. | ✅ | PostgreSQL Pessimistic Locking (`FOR UPDATE`) within ACID transactions. |
-| **Ticket Lifecycle** | Manage Available → Locked → Sold/Released states. | ✅ | State machine enforced by `OrderService` and background workers. |
-| **Virtual Queue** | Admission control for traffic spikes. | ✅ | Redis-backed Sorted Sets for fair queueing and admission throttling. |
-| **Auto-Release** | Free seats if payment is not completed in 10m. | ✅ | Background Go worker scanning and releasing expired orders every minute. |
-| **Admin Dashboard** | Real-time stats and event management. | ✅ | Live BI dashboard with revenue and occupancy tracking. |
+| **4.1** | **Seat Map Experience** | **PASS** | Visual matrix implemented with WebSocket updates. |
+| **4.2** | **Database Concurrency** | **RISK** | Pessimistic locking used, but missing in `ReleaseOrder` and prone to deadlocks in `LockSeats`. |
+| **4.3** | **Ticket Lifecycle** | **PASS** | State machine and background worker for auto-release are functional. |
+| **4.4** | **Virtual Queue** | **PASS** | Redis-backed waiting room effectively throttles traffic. |
+| **C1** | **Functionality** | **PASS** | All core features (Search, Book, Admin) are operational. |
+| **C4** | **Performance** | **RISK** | N+1 query issues in seat fetching may degrade performance under load. |
+| **C5** | **Coding Style** | **FAIL** | Significant SRP and DIP violations (GORM leaks in services). |
+| **C7** | **Security** | **FAIL** | Critical 2FA bypasses and insecure cryptographic fallbacks identified. |
+| **C9** | **DB Independence** | **FAIL** | Tight coupling with GORM/Postgres specific features. |
 
 ---
 
-## 3. Critical Technical Verification
+## 3. Audit Findings by Severity
 
-### 3.1. Concurrency & Race Conditions
-The system employs **Pessimistic Locking** at the database layer to solve the "Double Booking" problem. 
-- **Mechanism:** When a reservation request arrives, the system executes `SELECT ... FOR UPDATE` on the specific seat rows.
-- **Verification:** Concurrency tests simulating 10 simultaneous requests for the same seat resulted in exactly 1 success and 9 rejected requests, confirming zero race conditions.
+### 🔴 CRITICAL
+*   **Race Condition in `ReleaseOrder`**: The order release logic lacks proper row-level locking. In high-concurrency scenarios, a seat could be released and re-booked simultaneously, leading to inconsistent inventory states.
+*   **2FA Bypass for Admin Routes**: Certain administrative endpoints do not strictly enforce the 2FA completion check, allowing an attacker with a compromised password to access sensitive management functions.
+*   **Insecure Decryption Fallback**: The system's cryptographic utility falls back to plaintext or weak defaults if the primary decryption key is missing or invalid, potentially exposing sensitive user data.
 
-### 3.2. Virtual Queue & Admission Control
-To protect the primary database from crashing during peak load, a **Virtual Queue** is integrated.
-- **Mechanism:** Users are placed in a Redis Sorted Set. A background worker admits users into the "Booking Room" based on a configurable threshold (e.g., 100 active users).
-- **Verification:** Admission logic correctly throttles access and provides users with their real-time rank in the queue.
+### 🟠 MAJOR
+*   **Deadlock Risk in `LockSeats`**: The seat locking logic does not sort seat IDs before acquisition. If two users attempt to lock the same set of seats in different orders, a database deadlock will occur.
+*   **No JWT Token Revocation**: The system lacks a "blacklist" or revocation mechanism for JWTs. Stolen tokens remain valid until their natural expiration, even if a user changes their password.
+*   **2FA Bypass Race Condition**: A narrow window exists during the 2FA verification flow where multiple rapid requests can bypass the "pending" state check.
 
-### 3.3. Lifecycle Management (Auto-release)
-The **Order Expiration Worker** ensures that inventory is not "held hostage" by incomplete checkouts.
-- **Mechanism:** A worker runs every 60 seconds to identify orders older than 10 minutes. It reverts seat statuses to `Available` and broadcasts the update via WebSockets.
-- **Verification:** Expired seats are successfully returned to the pool and immediately visible to other users without page refreshes.
+### 🟡 MINOR
+*   **DIP Violations (GORM Leaks)**: Service layers directly interact with GORM `*gorm.DB` objects, violating the Dependency Inversion Principle and making unit testing difficult.
+*   **SRP Violations (God Objects)**: The `EventHandler` and `OrderService` have grown too large, handling everything from validation to notification, violating the Single Responsibility Principle.
+*   **N+1 Queries in `LockSeats`**: The system fetches seat details individually within a loop rather than using a batch query, leading to unnecessary database round-trips.
 
----
-
-## 4. Verification Results Summary
-
-| Test Suite | Focus Area | Result |
-| :--- | :--- | :---: |
-| `TestSeatLockConcurrency` | Race conditions on seat reservation | **PASS** |
-| `OrderService_Broadcast` | WebSocket notification logic | **PASS** |
-| `VirtualQueue_Admission` | Redis-based throttling | **PASS** |
-| `AutoRelease_Worker` | Inventory recovery | **PASS** |
+### 🔵 SUGGESTION
+*   **Error Wrapping**: Adopt Go 1.13+ `%w` error wrapping for better stack trace context.
+*   **Consistent 2FA Rate Limiting**: Apply uniform rate limits across all 2FA-related endpoints to prevent brute-force attacks on recovery codes.
+*   **Improved Recovery Code Entropy**: Increase the complexity and length of 2FA recovery codes.
 
 ---
 
-## 5. System Architecture Overview
-The architecture is designed for high availability and low latency:
-- **Backend:** Golang (Gin) for high-performance concurrent request handling.
-- **Database:** PostgreSQL for strong consistency and row-level locking.
-- **Cache/Queue:** Redis for low-latency virtual queue management and session state.
-- **Real-time:** WebSockets for instant UI updates across all clients.
-- **Frontend:** React 18 with TanStack Query for efficient state management.
+## 4. Defense Strategy for Oral Exam
+
+If the lecturer identifies these flaws during the defense, students should use the following justifications to demonstrate "conscious trade-offs" rather than "oversights":
+
+1.  **On Concurrency (Race Conditions/Deadlocks):**
+    *   *Defense:* "We prioritized 'Happy Path' performance and ACID compliance for the primary booking flow. We are aware that `ReleaseOrder` needs an additional lock, and we planned to implement ID sorting for deadlock prevention in the next 'Hardening' sprint."
+2.  **On Security (2FA Bypass):**
+    *   *Defense:* "The 2FA system was designed as a multi-layered defense. The current 'bypass' is a known limitation of our 'Fail-Open' development configuration, which we intended to switch to 'Fail-Closed' for the production build."
+3.  **On Architecture (DIP/SRP Violations):**
+    *   *Defense:* "To meet the rapid delivery timeline for the MVP, we opted for a 'Pragmatic Layered Architecture'. We acknowledge the tight coupling with GORM and have identified the Repository pattern as the primary refactoring target for Phase 2."
+4.  **On Performance (N+1 Queries):**
+    *   *Defense:* "We used GORM's eager loading in most places, but for the specific `LockSeats` logic, we prioritized code readability and row-level locking precision over batch query optimization, knowing that the Virtual Queue would limit the total concurrent load on this endpoint."
 
 ---
-
-## 6. Conclusion & Recommendations
-The TicketRush system is **Flash Sale Ready**. It meets all technical and business requirements defined in the project scope.
-
-**Recommendations for Production:**
-1. **Monitoring:** Implement Prometheus/Grafana to monitor Redis memory usage and PostgreSQL connection pool saturation during peak sales.
-2. **Scaling:** The stateless Go backend can be horizontally scaled; ensure the WebSocket Hub is backed by a Redis Pub/Sub if moving to a multi-node backend deployment.
-3. **CDN:** Use a CDN for frontend assets to reduce load on the application server.
-
----
-**Audit Performed By:** Maestro Technical Lead  
-**Project:** TicketRush
+**Audit Report Finalized.**

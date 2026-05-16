@@ -172,8 +172,7 @@ func main() {
 			protected.POST("/users/notification-token", authHandler.UpdateNotificationToken)
 
 			// Admin Routes
-			admin := protected.Group("/admin")
-			admin.Use(middleware.RoleMiddleware(models.RoleAdmin))
+			admin := protected.Group("/admin", middleware.RoleMiddleware(models.RoleAdmin), middleware.TwoFactorMiddleware())
 			{
 				admin.GET("/events", eventHandler.ListEvents)
 				admin.POST("/events", eventHandler.CreateEvent)
