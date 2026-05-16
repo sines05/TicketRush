@@ -24,9 +24,9 @@ func (m *MockAuthService) Register(req service.RegisterRequest) (*models.User, e
 	return args.Get(0).(*models.User), args.Error(1)
 }
 
-func (m *MockAuthService) Login(email, password string) (string, *models.User, bool, error) {
+func (m *MockAuthService) Login(email, password string) (string, string, string, *models.User, bool, error) {
 	args := m.Called(email, password)
-	return args.String(0), args.Get(1).(*models.User), args.Bool(2), args.Error(3)
+	return args.String(0), args.String(1), args.String(2), args.Get(3).(*models.User), args.Bool(4), args.Error(5)
 }
 
 func (m *MockAuthService) ValidateToken(token string) (*models.User, bool, error) {
@@ -35,6 +35,15 @@ func (m *MockAuthService) ValidateToken(token string) (*models.User, bool, error
 		return nil, false, args.Error(2)
 	}
 	return args.Get(0).(*models.User), args.Bool(1), args.Error(2)
+}
+
+func (m *MockAuthService) RefreshToken(oldRefreshToken string) (string, string, error) {
+	args := m.Called(oldRefreshToken)
+	return args.String(0), args.String(1), args.Error(2)
+}
+
+func (m *MockAuthService) Logout(refreshToken string) error {
+	return m.Called(refreshToken).Error(0)
 }
 
 func (m *MockAuthService) ForgotPassword(email string) error {
@@ -49,18 +58,18 @@ func (m *MockAuthService) GoogleLoginURL(state string) string {
 	return m.Called(state).String(0)
 }
 
-func (m *MockAuthService) GoogleLoginCallback(code string) (string, *models.User, error) {
+func (m *MockAuthService) GoogleLoginCallback(code string) (string, string, string, *models.User, error) {
 	args := m.Called(code)
-	return args.String(0), args.Get(1).(*models.User), args.Error(2)
+	return args.String(0), args.String(1), args.String(2), args.Get(3).(*models.User), args.Error(4)
 }
 
 func (m *MockAuthService) FacebookLoginURL(state string) string {
 	return m.Called(state).String(0)
 }
 
-func (m *MockAuthService) FacebookLoginCallback(code string) (string, *models.User, error) {
+func (m *MockAuthService) FacebookLoginCallback(code string) (string, string, string, *models.User, error) {
 	args := m.Called(code)
-	return args.String(0), args.Get(1).(*models.User), args.Error(2)
+	return args.String(0), args.String(1), args.String(2), args.Get(3).(*models.User), args.Error(4)
 }
 
 func (m *MockAuthService) Generate2FA(userID uuid.UUID) (string, string, []string, error) {
@@ -72,9 +81,9 @@ func (m *MockAuthService) Enable2FA(userID uuid.UUID, code string) error {
 	return m.Called(userID, code).Error(0)
 }
 
-func (m *MockAuthService) Verify2FA(userID uuid.UUID, code string) (string, error) {
+func (m *MockAuthService) Verify2FA(userID uuid.UUID, code string) (string, string, error) {
 	args := m.Called(userID, code)
-	return args.String(0), args.Error(1)
+	return args.String(0), args.String(1), args.Error(2)
 }
 
 func (m *MockAuthService) UpdateNotificationToken(userID uuid.UUID, token string) error {
@@ -93,6 +102,17 @@ func (m *MockAuthService) ChangePassword(userID uuid.UUID, oldPassword string, n
 func (m *MockAuthService) Disable2FA(userID uuid.UUID, code string) error {
 	return m.Called(userID, code).Error(0)
 }
+
+func (m *MockAuthService) Generate2FAPendingToken(userID uuid.UUID) (string, error) {
+	args := m.Called(userID)
+	return args.String(0), args.Error(1)
+}
+
+func (m *MockAuthService) Validate2FAPendingToken(token string) (uuid.UUID, error) {
+	args := m.Called(token)
+	return args.Get(0).(uuid.UUID), args.Error(1)
+}
+
 
 func TestWebSocketSecurity(t *testing.T) {
 	hub := websocket.NewHub()

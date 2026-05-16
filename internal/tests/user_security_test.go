@@ -145,7 +145,7 @@ func TestUpdateProfile_Success(t *testing.T) {
 	mockRepo := new(MockUserRepository)
 	mockNotif := new(MockNotificationService)
 	cfg := &config.Config{JWTSecret: "secret"}
-	authServ := service.NewAuthService(mockRepo, mockNotif, cfg)
+	authServ := service.NewAuthService(mockRepo, mockNotif, nil, cfg)
 
 	userID := uuid.New()
 	dobStr := "1990-01-01"
@@ -174,7 +174,7 @@ func TestUpdateProfile_InvalidDOB(t *testing.T) {
 	mockRepo := new(MockUserRepository)
 	mockNotif := new(MockNotificationService)
 	cfg := &config.Config{JWTSecret: "secret"}
-	authServ := service.NewAuthService(mockRepo, mockNotif, cfg)
+	authServ := service.NewAuthService(mockRepo, mockNotif, nil, cfg)
 
 	userID := uuid.New()
 	dobStr := "invalid-date"
@@ -195,7 +195,7 @@ func TestChangePassword_Success(t *testing.T) {
 	mockRepo := new(MockUserRepository)
 	mockNotif := new(MockNotificationService)
 	cfg := &config.Config{JWTSecret: "secret"}
-	authServ := service.NewAuthService(mockRepo, mockNotif, cfg)
+	authServ := service.NewAuthService(mockRepo, mockNotif, nil, cfg)
 
 	userID := uuid.New()
 	oldPassword := "oldPassword1"
@@ -220,7 +220,7 @@ func TestChangePassword_IncorrectOldPassword(t *testing.T) {
 	mockRepo := new(MockUserRepository)
 	mockNotif := new(MockNotificationService)
 	cfg := &config.Config{JWTSecret: "secret"}
-	authServ := service.NewAuthService(mockRepo, mockNotif, cfg)
+	authServ := service.NewAuthService(mockRepo, mockNotif, nil, cfg)
 
 	userID := uuid.New()
 	oldPassword := "oldPassword1"
@@ -246,7 +246,7 @@ func TestChangePassword_OAuthAccount(t *testing.T) {
 	mockRepo := new(MockUserRepository)
 	mockNotif := new(MockNotificationService)
 	cfg := &config.Config{JWTSecret: "secret"}
-	authServ := service.NewAuthService(mockRepo, mockNotif, cfg)
+	authServ := service.NewAuthService(mockRepo, mockNotif, nil, cfg)
 
 	userID := uuid.New()
 
@@ -268,7 +268,7 @@ func TestDisable2FA_Success(t *testing.T) {
 	mockRepo := new(MockUserRepository)
 	mockNotif := new(MockNotificationService)
 	cfg := &config.Config{JWTSecret: "secret"}
-	authServ := service.NewAuthService(mockRepo, mockNotif, cfg)
+	authServ := service.NewAuthService(mockRepo, mockNotif, nil, cfg)
 
 	userID := uuid.New()
 	secret := "JBSWY3DPEHPK3PXP" // Example secret
@@ -295,7 +295,7 @@ func TestDisable2FA_InvalidCode(t *testing.T) {
 	mockRepo := new(MockUserRepository)
 	mockNotif := new(MockNotificationService)
 	cfg := &config.Config{JWTSecret: "secret"}
-	authServ := service.NewAuthService(mockRepo, mockNotif, cfg)
+	authServ := service.NewAuthService(mockRepo, mockNotif, nil, cfg)
 
 	userID := uuid.New()
 	secret := "JBSWY3DPEHPK3PXP"
@@ -321,7 +321,7 @@ func TestDisable2FA_AlreadyDisabled(t *testing.T) {
 	mockRepo := new(MockUserRepository)
 	mockNotif := new(MockNotificationService)
 	cfg := &config.Config{JWTSecret: "secret"}
-	authServ := service.NewAuthService(mockRepo, mockNotif, cfg)
+	authServ := service.NewAuthService(mockRepo, mockNotif, nil, cfg)
 
 	userID := uuid.New()
 
@@ -343,7 +343,7 @@ func TestTwoFactor_Generate(t *testing.T) {
 	mockRepo := new(MockUserRepository)
 	mockNotif := new(MockNotificationService)
 	cfg := &config.Config{JWTSecret: "secret", EncryptionMasterKey: "12345678901234567890123456789012"}
-	authServ := service.NewAuthService(mockRepo, mockNotif, cfg)
+	authServ := service.NewAuthService(mockRepo, mockNotif, nil, cfg)
 
 	userID := uuid.New()
 	user := &models.User{
@@ -367,7 +367,7 @@ func TestTwoFactor_Enable(t *testing.T) {
 	mockRepo := new(MockUserRepository)
 	mockNotif := new(MockNotificationService)
 	cfg := &config.Config{JWTSecret: "secret", EncryptionMasterKey: "12345678901234567890123456789012"}
-	authServ := service.NewAuthService(mockRepo, mockNotif, cfg)
+	authServ := service.NewAuthService(mockRepo, mockNotif, nil, cfg)
 
 	userID := uuid.New()
 	secret := "JBSWY3DPEHPK3PXP"
@@ -393,7 +393,7 @@ func TestTwoFactor_Verify_TOTP(t *testing.T) {
 	mockRepo := new(MockUserRepository)
 	mockNotif := new(MockNotificationService)
 	cfg := &config.Config{JWTSecret: "secret", EncryptionMasterKey: "12345678901234567890123456789012"}
-	authServ := service.NewAuthService(mockRepo, mockNotif, cfg)
+	authServ := service.NewAuthService(mockRepo, mockNotif, nil, cfg)
 
 	userID := uuid.New()
 	secret := "JBSWY3DPEHPK3PXP"
@@ -409,7 +409,7 @@ func TestTwoFactor_Verify_TOTP(t *testing.T) {
 
 	mockRepo.On("FindByID", userID).Return(user, nil)
 
-	token, err := authServ.Verify2FA(userID, code)
+	token, _, err := authServ.Verify2FA(userID, code)
 
 	assert.NoError(t, err)
 	assert.NotEmpty(t, token)
@@ -425,7 +425,7 @@ func TestTwoFactor_Verify_Recovery(t *testing.T) {
 	mockRepo := new(MockUserRepository)
 	mockNotif := new(MockNotificationService)
 	cfg := &config.Config{JWTSecret: "secret", EncryptionMasterKey: "12345678901234567890123456789012"}
-	authServ := service.NewAuthService(mockRepo, mockNotif, cfg)
+	authServ := service.NewAuthService(mockRepo, mockNotif, nil, cfg)
 
 	userID := uuid.New()
 	recoveryCode := "ABCDEFGH"
@@ -442,7 +442,7 @@ func TestTwoFactor_Verify_Recovery(t *testing.T) {
 	mockRepo.On("FindByID", userID).Return(user, nil)
 	mockRepo.On("Update2FA", userID, true, "", "[]").Return(nil)
 
-	token, err := authServ.Verify2FA(userID, recoveryCode)
+	token, _, err := authServ.Verify2FA(userID, recoveryCode)
 
 	assert.NoError(t, err)
 	assert.NotEmpty(t, token)

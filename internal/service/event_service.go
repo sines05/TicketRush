@@ -13,7 +13,6 @@ import (
 	"ticketrush/internal/utils"
 
 	"github.com/google/uuid"
-	"gorm.io/gorm"
 )
 
 var ErrDuplicateZoneName = errors.New("duplicate zone name in event")
@@ -88,7 +87,6 @@ type TrendingEvent struct {
 type eventService struct {
 	eventRepo   repository.EventRepository
 	metricsRepo repository.EventMetricsRepository
-	db          *gorm.DB
 }
 
 func rowLabelFromIndex(index int) string {
@@ -147,11 +145,10 @@ func isUniqueZoneNameError(err error) bool {
 	return strings.Contains(err.Error(), "idx_event_zone_name") && strings.Contains(err.Error(), "duplicate key value violates unique constraint")
 }
 
-func NewEventService(eventRepo repository.EventRepository, metricsRepo repository.EventMetricsRepository, db *gorm.DB) EventService {
+func NewEventService(eventRepo repository.EventRepository, metricsRepo repository.EventMetricsRepository) EventService {
 	return &eventService{
 		eventRepo:   eventRepo,
 		metricsRepo: metricsRepo,
-		db:          db,
 	}
 }
 
@@ -160,106 +157,99 @@ func (s *eventService) CreateEvent(req EventCreateRequest) (*models.Event, error
 		return nil, err
 	}
 
-	var event models.Event
-	err := s.db.Transaction(func(tx *gorm.DB) error {
-		startTime, err := time.Parse(time.RFC3339, req.StartTime)
-		if err != nil {
-			return fmt.Errorf("invalid start time format: %w", err)
-		}
-		endTime, err := time.Parse(time.RFC3339, req.EndTime)
-		if err != nil {
-			return fmt.Errorf("invalid end time format: %w", err)
-		}
-
-		event = models.Event{
-			Title:       req.Title,
-			Slug:        utils.GenerateSlug(req.Title),
-			Description: req.Description,
-			BannerURL:   req.BannerURL,
-			Location:    req.Location,
-			Address:     req.Address,
-			Latitude:    req.Latitude,
-			Longitude:   req.Longitude,
-			Category:    req.Category,
-			StartTime:   startTime,
-			EndTime:     endTime,
-			IsPublished:   req.IsPublished,
-			IsFeatured:    req.IsFeatured,
-			IsHero:        req.IsHero,
-			OrganizerMeta: req.OrganizerMeta,
-			EventMeta:     req.EventMeta,
-		}
-		if err := tx.Create(&event).Error; err != nil {
-			return err
-		}
-
-		for _, zCfg := range req.Zones {
-			zoneName := strings.TrimSpace(zCfg.Name)
-			rowSeatCounts := normalizedRowSeatCounts(zCfg)
-			totalRows := len(rowSeatCounts)
-			seatsPerRow := 0
-			totalCapacity := 0
-			for _, count := range rowSeatCounts {
-				if count > seatsPerRow {
-					seatsPerRow = count
-				}
-				totalCapacity += count
-			}
-			if zCfg.Capacity > 0 {
-				totalCapacity = zCfg.Capacity
-			}
-
-			shapeType := zCfg.ShapeType
-			if shapeType == "" {
-				shapeType = "theatre"
-			}
-
-			zone := models.EventZone{
-				EventID:       event.ID,
-				Name:          zoneName,
-				Price:         zCfg.Price,
-				TotalRows:     totalRows,
-				SeatsPerRow:   seatsPerRow,
-				LayoutMeta:    zCfg.LayoutMeta,
-				CanvasX:       zCfg.CanvasX,
-				CanvasY:       zCfg.CanvasY,
-				Width:         zCfg.Width,
-				Height:        zCfg.Height,
-				RotationAngle: zCfg.RotationAngle,
-				Capacity:      totalCapacity,
-				ShapeType:     shapeType,
-			}
-			if err := tx.Create(&zone).Error; err != nil {
-				if isUniqueZoneNameError(err) {
-					return fmt.Errorf("%w: %q", ErrDuplicateZoneName, zoneName)
-				}
-				return err
-			}
-
-			// Bulk Insert Seats
-			var seats []models.Seat
-			for r, count := range rowSeatCounts {
-				rowLabel := rowLabelFromIndex(r)
-				for c := 1; c <= count; c++ {
-					seats = append(seats, models.Seat{
-						ZoneID:     zone.ID,
-						RowLabel:   rowLabel,
-						SeatNumber: c,
-						Status:     models.SeatAvailable,
-					})
-				}
-			}
-			if len(seats) == 0 {
-				return fmt.Errorf("zone %q has no seats", zoneName)
-			}
-			if err := tx.Create(&seats).Error; err != nil {
-				return err
-			}
-		}
-		return nil
-	})
-
+	startTime, err := time.Parse(time.RFC3339, req.StartTime)
 	if err != nil {
+		return nil, fmt.Errorf("invalid start time format: %w", err)
+	}
+	endTime, err := time.Parse(time.RFC3339, req.EndTime)
+	if err != nil {
+		return nil, fmt.Errorf("invalid end time format: %w", err)
+	}
+
+	event := models.Event{
+		Title:         req.Title,
+		Slug:          utils.GenerateSlug(req.Title),
+		Description:   req.Description,
+		BannerURL:     req.BannerURL,
+		Location:      req.Location,
+		Address:       req.Address,
+		Latitude:      req.Latitude,
+		Longitude:     req.Longitude,
+		Category:      req.Category,
+		StartTime:     startTime,
+		EndTime:       endTime,
+		IsPublished:   req.IsPublished,
+		IsFeatured:    req.IsFeatured,
+		IsHero:        req.IsHero,
+		OrganizerMeta: req.OrganizerMeta,
+		EventMeta:     req.EventMeta,
+	}
+
+	var zones []models.EventZone
+	var zoneSeats [][]models.Seat
+
+	for _, zCfg := range req.Zones {
+		zoneName := strings.TrimSpace(zCfg.Name)
+		rowSeatCounts := normalizedRowSeatCounts(zCfg)
+		totalRows := len(rowSeatCounts)
+		seatsPerRow := 0
+		totalCapacity := 0
+		for _, count := range rowSeatCounts {
+			if count > seatsPerRow {
+				seatsPerRow = count
+			}
+			totalCapacity += count
+		}
+		if zCfg.Capacity > 0 {
+			totalCapacity = zCfg.Capacity
+		}
+
+		shapeType := zCfg.ShapeType
+		if shapeType == "" {
+			shapeType = "theatre"
+		}
+
+		zone := models.EventZone{
+			Name:          zoneName,
+			Price:         zCfg.Price,
+			TotalRows:     totalRows,
+			SeatsPerRow:   seatsPerRow,
+			LayoutMeta:    zCfg.LayoutMeta,
+			CanvasX:       zCfg.CanvasX,
+			CanvasY:       zCfg.CanvasY,
+			Width:         zCfg.Width,
+			Height:        zCfg.Height,
+			RotationAngle: zCfg.RotationAngle,
+			Capacity:      totalCapacity,
+			ShapeType:     shapeType,
+		}
+		zones = append(zones, zone)
+
+		// Prepare Seats
+		var seats []models.Seat
+		for r, count := range rowSeatCounts {
+			rowLabel := rowLabelFromIndex(r)
+			for c := 1; c <= count; c++ {
+				seats = append(seats, models.Seat{
+					RowLabel:   rowLabel,
+					SeatNumber: c,
+					Status:     models.SeatAvailable,
+				})
+			}
+		}
+		if len(seats) == 0 {
+			return nil, fmt.Errorf("zone %q has no seats", zoneName)
+		}
+		zoneSeats = append(zoneSeats, seats)
+	}
+
+	if err := s.eventRepo.CreateEventWithZones(context.Background(), &event, zones, zoneSeats); err != nil {
+		if isUniqueZoneNameError(err) {
+			// Since we can't easily identify which zone failed here without parsing the error message further,
+			// we return a general duplicate zone name error or just the error itself.
+			// The previous code had access to zoneName because it was in the loop.
+			return nil, fmt.Errorf("%w", ErrDuplicateZoneName)
+		}
 		return nil, err
 	}
 
@@ -410,92 +400,7 @@ func (s *eventService) GetSeatMap(eventID uuid.UUID) (map[string]interface{}, er
 }
 
 func (s *eventService) GetAdminStats(eventID *uuid.UUID) (map[string]interface{}, error) {
-	var totalRevenue float64
-	query := s.db.Model(&models.Order{}).Where("status = ?", models.OrderCompleted)
-	if eventID != nil {
-		query = query.Where("event_id = ?", *eventID)
-	}
-	query.Select("COALESCE(SUM(total_amount), 0)").Scan(&totalRevenue)
-
-	var totalSold int64
-	querySold := s.db.Model(&models.Ticket{})
-	if eventID != nil {
-		querySold = querySold.Joins("JOIN orders ON orders.id = tickets.order_id").Where("orders.event_id = ?", *eventID)
-	}
-	querySold.Count(&totalSold)
-
-	// Demographics: based on actual ticket purchasers, not all users
-	var genders []struct {
-		Gender string
-		Count  int64
-	}
-	genderQuery := s.db.Model(&models.User{}).
-		Select("users.gender, count(DISTINCT users.id) as count").
-		Joins("JOIN tickets ON tickets.user_id = users.id").
-		Joins("JOIN orders ON orders.id = tickets.order_id")
-	if eventID != nil {
-		genderQuery = genderQuery.Where("orders.event_id = ?", *eventID)
-	}
-	genderQuery.Group("users.gender").Scan(&genders)
-
-	genderList := make([]map[string]interface{}, 0)
-	for _, g := range genders {
-		genderList = append(genderList, map[string]interface{}{
-			"gender": g.Gender,
-			"count":  g.Count,
-		})
-	}
-
-	// Age groups: based on ticket purchasers
-	ageGroups := map[string]int64{
-		"18-24": 0,
-		"25-34": 0,
-		"35+":   0,
-	}
-	var purchasers []models.User
-	purchaserQuery := s.db.Model(&models.User{}).
-		Select("DISTINCT users.id, users.date_of_birth").
-		Joins("JOIN tickets ON tickets.user_id = users.id").
-		Joins("JOIN orders ON orders.id = tickets.order_id")
-	if eventID != nil {
-		purchaserQuery = purchaserQuery.Where("orders.event_id = ?", *eventID)
-	}
-	purchaserQuery.Find(&purchasers)
-
-	now := time.Now().UTC()
-	for _, u := range purchasers {
-		if u.DateOfBirth.IsZero() {
-			continue
-		}
-		age := now.Year() - u.DateOfBirth.Year()
-		if age < 25 {
-			ageGroups["18-24"]++
-		} else if age < 35 {
-			ageGroups["25-34"]++
-		} else {
-			ageGroups["35+"]++
-		}
-	}
-
-	var totalSeats int64
-	querySeats := s.db.Model(&models.Seat{})
-	if eventID != nil {
-		querySeats = querySeats.Joins("JOIN event_zones ON event_zones.id = seats.zone_id").Where("event_zones.event_id = ?", *eventID)
-	}
-	querySeats.Count(&totalSeats)
-
-	occupancyRate := 0.0
-	if totalSeats > 0 {
-		occupancyRate = float64(totalSold) / float64(totalSeats)
-	}
-
-	return map[string]interface{}{
-		"total_revenue":  totalRevenue,
-		"total_sold":     totalSold,
-		"occupancy_rate": occupancyRate,
-		"gender_dist":    genderList,
-		"age_dist":       ageGroups,
-	}, nil
+	return s.eventRepo.GetAdminStats(context.Background(), eventID)
 }
 
 func (s *eventService) UpdateEvent(id uuid.UUID, req EventCreateRequest) (*models.Event, error) {

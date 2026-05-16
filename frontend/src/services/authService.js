@@ -61,8 +61,8 @@ async function enable2FA(code) {
   return unwrap(res);
 }
 
-async function verify2FALogin(user_id, code) {
-  const res = await api.post(API_ROUTES.AUTH_VERIFY_2FA, { user_id, code });
+async function verify2FALogin(pending_token, code) {
+  const res = await api.post(API_ROUTES.AUTH_VERIFY_2FA, { pending_token, code });
   return unwrap(res);
 }
 

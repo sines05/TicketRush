@@ -10,6 +10,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/facebook"
@@ -32,26 +33,31 @@ type RegisterRequest struct {
 
 type AuthService interface {
 	Register(req RegisterRequest) (*models.User, error)
-	Login(email, password string) (string, *models.User, bool, error)
+	Login(email, password string) (string, string, string, *models.User, bool, error)
 	ValidateToken(tokenString string) (*models.User, bool, error)
+	RefreshToken(oldRefreshToken string) (string, string, error)
+	Logout(refreshToken string) error
 	ForgotPassword(email string) error
 	ResetPassword(token, newPassword string) error
 	GoogleLoginURL(state string) string
-	GoogleLoginCallback(code string) (string, *models.User, error)
+	GoogleLoginCallback(code string) (string, string, string, *models.User, error)
 	FacebookLoginURL(state string) string
-	FacebookLoginCallback(code string) (string, *models.User, error)
+	FacebookLoginCallback(code string) (string, string, string, *models.User, error)
 	Generate2FA(userID uuid.UUID) (string, string, []string, error)
 	Enable2FA(userID uuid.UUID, code string) error
-	Verify2FA(userID uuid.UUID, code string) (string, error)
+	Verify2FA(userID uuid.UUID, code string) (string, string, error)
 	UpdateNotificationToken(userID uuid.UUID, token string) error
 	UpdateProfile(userID uuid.UUID, fullName string, avatarURL string, gender models.GenderType, dob string) (*models.User, error)
 	ChangePassword(userID uuid.UUID, oldPassword string, newPassword string) error
 	Disable2FA(userID uuid.UUID, code string) error
+	Generate2FAPendingToken(userID uuid.UUID) (string, error)
+	Validate2FAPendingToken(token string) (uuid.UUID, error)
 }
 
 type authService struct {
 	userRepo         repository.UserRepository
 	notificationServ NotificationService
+	redis            *redis.Client
 	jwtSecret        string
 	googleCfg        *oauth2.Config
 	facebookCfg      *oauth2.Config
@@ -80,15 +86,10 @@ func (s *authService) decrypt2FASecret(encryptedSecret string) (string, error) {
 	if encryptedSecret == "" {
 		return "", nil
 	}
-	decrypted, err := encryption.DecryptAES(encryptedSecret, s.encryptionKey)
-	if err != nil {
-		// Fallback to plaintext if decryption fails (legacy secrets)
-		return encryptedSecret, nil
-	}
-	return decrypted, nil
+	return encryption.DecryptAES(encryptedSecret, s.encryptionKey)
 }
 
-func NewAuthService(userRepo repository.UserRepository, notificationServ NotificationService, cfg *config.Config) AuthService {
+func NewAuthService(userRepo repository.UserRepository, notificationServ NotificationService, rdb *redis.Client, cfg *config.Config) AuthService {
 	googleCfg := &oauth2.Config{
 		ClientID:     cfg.GoogleClientID,
 		ClientSecret: cfg.GoogleClientSecret,
@@ -111,6 +112,7 @@ func NewAuthService(userRepo repository.UserRepository, notificationServ Notific
 	return &authService{
 		userRepo:         userRepo,
 		notificationServ: notificationServ,
+		redis:            rdb,
 		jwtSecret:        cfg.JWTSecret,
 		googleCfg:        googleCfg,
 		facebookCfg:      facebookCfg,
@@ -162,33 +164,92 @@ func (s *authService) Register(req RegisterRequest) (*models.User, error) {
 	return user, nil
 }
 
-func (s *authService) Login(email, password string) (string, *models.User, bool, error) {
+func (s *authService) Login(email, password string) (string, string, string, *models.User, bool, error) {
 	user, err := s.userRepo.FindByEmail(email)
 	if err != nil {
-		return "", nil, false, errors.New("invalid email or password")
+		return "", "", "", nil, false, errors.New("invalid email or password")
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
-		return "", nil, false, errors.New("invalid email or password")
+		return "", "", "", nil, false, errors.New("invalid email or password")
 	}
 
 	if user.TwoFactorEnabled {
-		return "", user, true, nil
+		pendingToken, err := s.Generate2FAPendingToken(user.ID)
+		if err != nil {
+			return "", "", "", nil, false, err
+		}
+		return "", "", pendingToken, user, true, nil
 	}
 
+	accessToken, refreshToken, err := s.generateTokenPair(user.ID, user.Role, true)
+	if err != nil {
+		return "", "", "", nil, false, err
+	}
+
+	return accessToken, refreshToken, "", user, false, nil
+}
+
+func (s *authService) generateTokenPair(userID uuid.UUID, role models.UserRole, is2FAVerified bool) (string, string, error) {
+	// Access Token
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"user_id":      user.ID.String(),
-		"role":         user.Role,
-		"2fa_verified": true,
-		"exp":          time.Now().UTC().Add(time.Hour * 24).Unix(),
+		"user_id":      userID.String(),
+		"role":         role,
+		"2fa_verified": is2FAVerified,
+		"exp":          time.Now().UTC().Add(time.Hour).Unix(), // 1 hour
 	})
 
-	tokenString, err := token.SignedString([]byte(s.jwtSecret))
+	accessToken, err := token.SignedString([]byte(s.jwtSecret))
 	if err != nil {
-		return "", nil, false, err
+		return "", "", err
 	}
 
-	return tokenString, user, false, nil
+	// Refresh Token
+	refreshToken := uuid.New().String()
+	if s.redis != nil {
+		err = s.redis.Set(context.Background(), fmt.Sprintf("RT:%s", refreshToken), userID.String(), 7*24*time.Hour).Err()
+		if err != nil {
+			return "", "", err
+		}
+	}
+
+	return accessToken, refreshToken, nil
+}
+
+func (s *authService) RefreshToken(oldRefreshToken string) (string, string, error) {
+	if s.redis == nil {
+		return "", "", errors.New("redis client not initialized")
+	}
+	ctx := context.Background()
+	key := fmt.Sprintf("RT:%s", oldRefreshToken)
+
+	userIDStr, err := s.redis.Get(ctx, key).Result()
+	if err != nil {
+		return "", "", errors.New("invalid or expired refresh token")
+	}
+
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		return "", "", errors.New("invalid user_id in refresh token")
+	}
+
+	user, err := s.userRepo.FindByID(userID)
+	if err != nil {
+		return "", "", errors.New("user not found")
+	}
+
+	// Token Rotation: Delete old token
+	s.redis.Del(ctx, key)
+
+	// Generate new pair
+	return s.generateTokenPair(user.ID, user.Role, true)
+}
+
+func (s *authService) Logout(refreshToken string) error {
+	if refreshToken == "" || s.redis == nil {
+		return nil
+	}
+	return s.redis.Del(context.Background(), fmt.Sprintf("RT:%s", refreshToken)).Err()
 }
 
 func (s *authService) ValidateToken(tokenString string) (*models.User, bool, error) {
@@ -243,18 +304,18 @@ func (s *authService) GoogleLoginURL(state string) string {
 	return s.googleCfg.AuthCodeURL(state)
 }
 
-func (s *authService) GoogleLoginCallback(code string) (string, *models.User, error) {
+func (s *authService) GoogleLoginCallback(code string) (string, string, string, *models.User, error) {
 	// 1. Exchange code for token
 	token, err := s.googleCfg.Exchange(context.Background(), code)
 	if err != nil {
-		return "", nil, fmt.Errorf("code exchange failed: %v", err)
+		return "", "", "", nil, fmt.Errorf("code exchange failed: %v", err)
 	}
 
 	// 2. Fetch user profile from Google
 	client := s.googleCfg.Client(context.Background(), token)
 	resp, err := client.Get("https://www.googleapis.com/oauth2/v2/userinfo")
 	if err != nil {
-		return "", nil, fmt.Errorf("failed getting user info: %v", err)
+		return "", "", "", nil, fmt.Errorf("failed getting user info: %v", err)
 	}
 	defer resp.Body.Close()
 
@@ -263,7 +324,7 @@ func (s *authService) GoogleLoginCallback(code string) (string, *models.User, er
 		Name  string `json:"name"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&userInfo); err != nil {
-		return "", nil, fmt.Errorf("failed parsing user info: %v", err)
+		return "", "", "", nil, fmt.Errorf("failed parsing user info: %v", err)
 	}
 
 	// 3. Find or Create User
@@ -280,7 +341,7 @@ func (s *authService) GoogleLoginCallback(code string) (string, *models.User, er
 			DateOfBirth:  time.Now().UTC(),   // Default or prompt later
 		}
 		if err := s.userRepo.Create(user); err != nil {
-			return "", nil, fmt.Errorf("failed to create oauth user: %v", err)
+			return "", "", "", nil, fmt.Errorf("failed to create oauth user: %v", err)
 		}
 		// Trigger Welcome Email for new OAuth user
 		s.notificationServ.NotifyWelcome(user)
@@ -288,23 +349,20 @@ func (s *authService) GoogleLoginCallback(code string) (string, *models.User, er
 
 	// 2FA check for social login
 	if user.TwoFactorEnabled {
-		return "", user, nil
+		pendingToken, err := s.Generate2FAPendingToken(user.ID)
+		if err != nil {
+			return "", "", "", nil, err
+		}
+		return "", "", pendingToken, user, nil
 	}
 
-	// 4. Generate JWT
-	jwtToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"user_id":      user.ID.String(),
-		"role":         user.Role,
-		"2fa_verified": true,
-		"exp":          time.Now().UTC().Add(time.Hour * 24).Unix(),
-	})
-
-	tokenString, err := jwtToken.SignedString([]byte(s.jwtSecret))
+	// 4. Generate Token Pair
+	accessToken, refreshToken, err := s.generateTokenPair(user.ID, user.Role, true)
 	if err != nil {
-		return "", nil, err
+		return "", "", "", nil, err
 	}
 
-	return tokenString, user, nil
+	return accessToken, refreshToken, "", user, nil
 }
 
 func (s *authService) ForgotPassword(email string) error {
@@ -363,16 +421,16 @@ func (s *authService) FacebookLoginURL(state string) string {
 	return s.facebookCfg.AuthCodeURL(state)
 }
 
-func (s *authService) FacebookLoginCallback(code string) (string, *models.User, error) {
+func (s *authService) FacebookLoginCallback(code string) (string, string, string, *models.User, error) {
 	token, err := s.facebookCfg.Exchange(context.Background(), code)
 	if err != nil {
-		return "", nil, fmt.Errorf("facebook code exchange failed: %v", err)
+		return "", "", "", nil, fmt.Errorf("facebook code exchange failed: %v", err)
 	}
 
 	client := s.facebookCfg.Client(context.Background(), token)
 	resp, err := client.Get("https://graph.facebook.com/me?fields=id,name,email")
 	if err != nil {
-		return "", nil, fmt.Errorf("failed getting facebook user info: %v", err)
+		return "", "", "", nil, fmt.Errorf("failed getting facebook user info: %v", err)
 	}
 	defer resp.Body.Close()
 
@@ -382,7 +440,7 @@ func (s *authService) FacebookLoginCallback(code string) (string, *models.User, 
 		Email string `json:"email"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&userInfo); err != nil {
-		return "", nil, fmt.Errorf("failed parsing facebook user info: %v", err)
+		return "", "", "", nil, fmt.Errorf("failed parsing facebook user info: %v", err)
 	}
 
 	user, err := s.userRepo.FindByEmail(userInfo.Email)
@@ -397,7 +455,7 @@ func (s *authService) FacebookLoginCallback(code string) (string, *models.User, 
 			DateOfBirth:  time.Now().UTC(),
 		}
 		if err := s.userRepo.Create(user); err != nil {
-			return "", nil, fmt.Errorf("failed to create facebook oauth user: %v", err)
+			return "", "", "", nil, fmt.Errorf("failed to create facebook oauth user: %v", err)
 		}
 		// Trigger Welcome Email for new OAuth user
 		s.notificationServ.NotifyWelcome(user)
@@ -405,22 +463,19 @@ func (s *authService) FacebookLoginCallback(code string) (string, *models.User, 
 
 	// 2FA check for social login
 	if user.TwoFactorEnabled {
-		return "", user, nil
+		pendingToken, err := s.Generate2FAPendingToken(user.ID)
+		if err != nil {
+			return "", "", "", nil, err
+		}
+		return "", "", pendingToken, user, nil
 	}
 
-	jwtToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"user_id":      user.ID.String(),
-		"role":         user.Role,
-		"2fa_verified": true,
-		"exp":          time.Now().UTC().Add(time.Hour * 24).Unix(),
-	})
-
-	tokenString, err := jwtToken.SignedString([]byte(s.jwtSecret))
+	accessToken, refreshToken, err := s.generateTokenPair(user.ID, user.Role, true)
 	if err != nil {
-		return "", nil, err
+		return "", "", "", nil, err
 	}
 
-	return tokenString, user, nil
+	return accessToken, refreshToken, "", user, nil
 }
 
 func (s *authService) Generate2FA(userID uuid.UUID) (string, string, []string, error) {
@@ -487,14 +542,14 @@ func (s *authService) Enable2FA(userID uuid.UUID, code string) error {
 	return s.userRepo.Update2FA(userID, true, user.PendingTwoFactorSecret, user.RecoveryCodes)
 }
 
-func (s *authService) Verify2FA(userID uuid.UUID, code string) (string, error) {
+func (s *authService) Verify2FA(userID uuid.UUID, code string) (string, string, error) {
 	user, err := s.userRepo.FindByID(userID)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
 	if !user.TwoFactorEnabled {
-		return "", errors.New("2FA is not enabled")
+		return "", "", errors.New("2FA is not enabled")
 	}
 
 	verified := false
@@ -525,17 +580,10 @@ func (s *authService) Verify2FA(userID uuid.UUID, code string) (string, error) {
 	}
 
 	if !verified {
-		return "", errors.New("invalid verification code or recovery code")
+		return "", "", errors.New("invalid verification code or recovery code")
 	}
 
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"user_id":      user.ID.String(),
-		"role":         user.Role,
-		"2fa_verified": true,
-		"exp":          time.Now().UTC().Add(time.Hour * 24).Unix(),
-	})
-
-	return token.SignedString([]byte(s.jwtSecret))
+	return s.generateTokenPair(user.ID, user.Role, true)
 }
 
 func (s *authService) UpdateNotificationToken(userID uuid.UUID, token string) error {
@@ -622,3 +670,40 @@ func (s *authService) Disable2FA(userID uuid.UUID, code string) error {
 	s.notificationServ.NotifySecurityEvent(user, "Two-Factor Authentication Disabled")
 	return nil
 }
+
+func (s *authService) Generate2FAPendingToken(userID uuid.UUID) (string, error) {
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"user_id": userID.String(),
+		"intent":  "2fa_login",
+		"exp":     time.Now().UTC().Add(5 * time.Minute).Unix(),
+	})
+
+	return token.SignedString([]byte(s.jwtSecret))
+}
+
+func (s *authService) Validate2FAPendingToken(tokenString string) (uuid.UUID, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		return []byte(s.jwtSecret), nil
+	})
+
+	if err != nil || !token.Valid {
+		return uuid.Nil, errors.New("invalid or expired 2FA pending token")
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return uuid.Nil, errors.New("invalid claims")
+	}
+
+	if claims["intent"] != "2fa_login" {
+		return uuid.Nil, errors.New("invalid token intent")
+	}
+
+	userIDStr, ok := claims["user_id"].(string)
+	if !ok {
+		return uuid.Nil, errors.New("user_id not found in token")
+	}
+
+	return uuid.Parse(userIDStr)
+}
+
