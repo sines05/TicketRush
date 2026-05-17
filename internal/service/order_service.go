@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/google/uuid"
 	"ticketrush/internal/models"
@@ -51,6 +52,10 @@ func (s *orderService) LockSeats(ctx context.Context, userID uuid.UUID, eventID 
 		return nil, err
 	}
 
+	if !event.EndTime.IsZero() && time.Now().After(event.EndTime) {
+		return nil, utils.ErrEventAlreadyEnded
+	}
+
 	if event.IsQueueMode {
 		if queueToken == "" {
 			return nil, errors.New("missing X-Queue-Token")
@@ -93,7 +98,17 @@ func (s *orderService) LockSeats(ctx context.Context, userID uuid.UUID, eventID 
 }
 
 func (s *orderService) Checkout(ctx context.Context, userID uuid.UUID, orderID uuid.UUID) (*models.Order, error) {
-	order, err := s.orderRepo.CompleteOrder(ctx, orderID)
+	// Fetch order first to check event end time
+	order, err := s.orderRepo.GetOrderByID(orderID)
+	if err != nil {
+		return nil, err
+	}
+
+	if !order.Event.EndTime.IsZero() && time.Now().After(order.Event.EndTime) {
+		return nil, utils.ErrEventAlreadyEnded
+	}
+
+	order, err = s.orderRepo.CompleteOrder(ctx, orderID)
 	if err == nil {
 		channelName := "event:" + order.EventID.String()
 		var seatIDs []uuid.UUID

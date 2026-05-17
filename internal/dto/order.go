@@ -38,6 +38,8 @@ type TicketResponse struct {
 	IsCheckedIn    bool          `json:"is_checked_in"`
 	EventTitle     string        `json:"event_title,omitempty"`
 	EventBannerURL string        `json:"event_banner_url,omitempty"`
+	EventStartTime *time.Time    `json:"event_start_time,omitempty"`
+	EventEndTime   *time.Time    `json:"event_end_time,omitempty"`
 	ZoneName       string        `json:"zone_name,omitempty"`
 	SeatLabel      string        `json:"seat_label,omitempty"`
 	RowLabel       string        `json:"row_label,omitempty"`
@@ -124,6 +126,8 @@ func ToTicketResponse(ticket models.Ticket) TicketResponse {
 			if ticket.Seat.Zone.Event.ID != uuid.Nil {
 				resp.EventTitle = ticket.Seat.Zone.Event.Title
 				resp.EventBannerURL = ticket.Seat.Zone.Event.BannerURL
+				resp.EventStartTime = &ticket.Seat.Zone.Event.StartTime
+				resp.EventEndTime = &ticket.Seat.Zone.Event.EndTime
 			}
 		}
 	}

@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"log"
 	coreRepo "ticketrush/internal/repository"
+	"ticketrush/internal/utils"
 	"time"
 
 	"github.com/google/uuid"
@@ -24,12 +25,13 @@ type Service interface {
 }
 
 type service struct {
-	repo     Repository
-	userRepo coreRepo.UserRepository
+	repo      Repository
+	userRepo  coreRepo.UserRepository
+	eventRepo coreRepo.EventRepository
 }
 
-func NewService(repo Repository, userRepo coreRepo.UserRepository) Service {
-	return &service{repo: repo, userRepo: userRepo}
+func NewService(repo Repository, userRepo coreRepo.UserRepository, eventRepo coreRepo.EventRepository) Service {
+	return &service{repo: repo, userRepo: userRepo, eventRepo: eventRepo}
 }
 
 func generateToken() string {
@@ -69,6 +71,15 @@ func (s *service) getOrCreateSession(ctx context.Context, eventID uuid.UUID, use
 }
 
 func (s *service) JoinQueue(ctx context.Context, eventID uuid.UUID, userID uuid.UUID) (string, string, int64, int64, *time.Time, error) {
+	event, err := s.eventRepo.GetEventByID(eventID)
+	if err != nil {
+		return "", "", 0, 0, nil, utils.ErrEventNotFound
+	}
+
+	if event.StartTime.Before(time.Now().UTC()) {
+		return "", "", 0, 0, nil, utils.ErrEventAlreadyStarted
+	}
+
 	allowed, err := s.repo.IsAllowed(ctx, eventID, userID)
 	if err != nil {
 		return "", "", 0, 0, nil, err

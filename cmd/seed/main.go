@@ -278,6 +278,50 @@ func main() {
 					{Name: "Standard", Price: 1000000, TotalRows: 10, SeatsPerRow: 22},
 				},
 			}
+		} else if i == 3 {
+			// Past Event 1
+			es = eventSeed{
+				event: models.Event{
+					Title:       "BLACKPINK: BORN PINK World Tour Hanoi",
+					Description: "Sự kiện âm nhạc lịch sử tại Sân vận động Mỹ Đình. BLACKPINK mang Born Pink World Tour đến Việt Nam với hai đêm diễn bùng nổ. Trải nghiệm những bản hit How You Like That, Kill This Love, Pink Venom,... cùng hàng vạn BLINK.",
+					BannerURL:   "https://images.unsplash.com/photo-1506157786151-b8491531f063?auto=format&fit=crop&w=1200&q=80",
+					Location:    "Hà Nội",
+					Address:     "Sân vận động Quốc gia Mỹ Đình, Hà Nội",
+					Latitude:    floatPtr(cityCoords["Hà Nội"].Lat),
+					Longitude:   floatPtr(cityCoords["Hà Nội"].Lon),
+					StartTime:   time.Now().UTC().AddDate(-1, 0, 0), // 1 year ago
+					EndTime:     time.Now().UTC().AddDate(-1, 0, 0).Add(3 * time.Hour),
+					IsPublished: true,
+					Category:    "music_festival",
+				},
+				zones: []models.EventZone{
+					{Name: "VIP", Price: 9800000, TotalRows: 4, SeatsPerRow: 15},
+					{Name: "Platinum", Price: 7800000, TotalRows: 6, SeatsPerRow: 20},
+					{Name: "CAT 1", Price: 5800000, TotalRows: 8, SeatsPerRow: 25},
+				},
+			}
+		} else if i == 4 {
+			// Past Event 2
+			es = eventSeed{
+				event: models.Event{
+					Title:       "Hà Anh Tuấn: Chân Trời Rực Rỡ (The Glorious Horizon)",
+					Description: "Đêm nhạc kết hợp giữa Hà Anh Tuấn và huyền thoại âm nhạc thế giới Kitaro tại Cố đô Hoa Lư, Ninh Bình. Một trải nghiệm âm nhạc tâm linh và duy mỹ giữa không gian di sản hùng vĩ.",
+					BannerURL:   "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?auto=format&fit=crop&w=1200&q=80",
+					Location:    "Huế",
+					Address:     "Cố đô Hoa Lư, Ninh Bình",
+					Latitude:    floatPtr(cityCoords["Huế"].Lat),
+					Longitude:   floatPtr(cityCoords["Huế"].Lon),
+					StartTime:   time.Now().UTC().AddDate(0, -6, 0), // 6 months ago
+					EndTime:     time.Now().UTC().AddDate(0, -6, 0).Add(4 * time.Hour),
+					IsPublished: true,
+					Category:    "music_festival",
+				},
+				zones: []models.EventZone{
+					{Name: "Silk", Price: 5000000, TotalRows: 5, SeatsPerRow: 10},
+					{Name: "Bamboo", Price: 3000000, TotalRows: 8, SeatsPerRow: 15},
+					{Name: "Grass", Price: 1500000, TotalRows: 10, SeatsPerRow: 20},
+				},
+			}
 		} else {
 			title := titles[rand.Intn(len(titles))]
 			title = fmt.Sprintf("%s #%d", title, i+1)

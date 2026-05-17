@@ -25,9 +25,9 @@ export default function EventListWithTabs({ categoryKey, title }) {
         date_to: format(sunday, 'yyyy-MM-dd')
       };
     } else {
-      // Logic for this month
+      // Logic for this month (from today onwards)
       return {
-        date_from: format(startOfMonth(now), 'yyyy-MM-dd'),
+        date_from: format(now, 'yyyy-MM-dd'),
         date_to: format(endOfMonth(now), 'yyyy-MM-dd')
       };
     }

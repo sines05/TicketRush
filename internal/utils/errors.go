@@ -11,6 +11,8 @@ var (
 	ErrTicketAlreadyCheckedIn  = errors.New("ticket has already been checked in")
 	ErrEventNotFound           = errors.New("event not found")
 	ErrEventNotPublished       = errors.New("event is not published")
+	ErrEventAlreadyStarted     = errors.New("event has already started")
+	ErrEventAlreadyEnded       = errors.New("event has already ended")
 	ErrInvalidSeatSelection    = errors.New("invalid seat selection")
 	ErrOrderNotFound           = errors.New("order not found")
 )

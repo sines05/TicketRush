@@ -128,6 +128,7 @@ func (r *orderRepo) CompleteOrder(ctx context.Context, orderID uuid.UUID) (*mode
 		// 1. Get order and lock it
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
 			Preload("OrderItems").
+			Preload("Event").
 			First(&order, orderID).Error; err != nil {
 			return err
 		}
@@ -269,7 +270,7 @@ func (r *orderRepo) CancelOrder(ctx context.Context, orderID uuid.UUID, userID u
 
 func (r *orderRepo) GetOrderByID(id uuid.UUID) (*models.Order, error) {
 	var order models.Order
-	if err := r.db.Preload("OrderItems").First(&order, id).Error; err != nil {
+	if err := r.db.Preload("OrderItems").Preload("Event").First(&order, id).Error; err != nil {
 		return nil, err
 	}
 	return &order, nil

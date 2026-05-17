@@ -69,6 +69,13 @@ func (h *EventHandler) ListEvents(c *gin.Context) {
 			filter.DateTo = &t
 		}
 	}
+
+	// Default to upcoming events if no date filters are provided
+	if filter.DateFrom == nil && filter.DateTo == nil {
+		now := time.Now().UTC()
+		filter.DateFrom = &now
+	}
+
 	if minPriceStr := c.Query("min_price"); minPriceStr != "" {
 		if p, err := strconv.ParseFloat(minPriceStr, 64); err == nil {
 			filter.MinPrice = &p

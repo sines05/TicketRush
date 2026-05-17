@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"time"
 	"ticketrush/internal/dto"
 	"ticketrush/internal/models"
 	"ticketrush/internal/repository"
@@ -13,10 +14,14 @@ import (
 
 type ReviewHandler struct {
 	reviewRepo repository.ReviewRepository
+	eventRepo  repository.EventRepository
 }
 
-func NewReviewHandler(reviewRepo repository.ReviewRepository) *ReviewHandler {
-	return &ReviewHandler{reviewRepo: reviewRepo}
+func NewReviewHandler(reviewRepo repository.ReviewRepository, eventRepo repository.EventRepository) *ReviewHandler {
+	return &ReviewHandler{
+		reviewRepo: reviewRepo,
+		eventRepo:  eventRepo,
+	}
 }
 
 func (h *ReviewHandler) CreateReview(c *gin.Context) {
@@ -36,6 +41,18 @@ func (h *ReviewHandler) CreateReview(c *gin.Context) {
 
 	if err := c.ShouldBindJSON(&input); err != nil {
 		utils.SendError(c, http.StatusBadRequest, "Invalid input", "INVALID_INPUT")
+		return
+	}
+
+	// Check if event has started
+	event, err := h.eventRepo.GetEventByID(input.EventID)
+	if err != nil {
+		utils.SendError(c, http.StatusNotFound, "Event not found", "EVENT_NOT_FOUND")
+		return
+	}
+
+	if time.Now().Before(event.StartTime) {
+		utils.SendError(c, http.StatusBadRequest, "You can only review an event after it has started", "EVENT_NOT_STARTED")
 		return
 	}
 

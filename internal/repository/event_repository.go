@@ -150,7 +150,7 @@ func (r *eventRepo) GetAllEvents(filter EventFilter) ([]EventSearchResult, error
 
 func (r *eventRepo) GetFeaturedEvents(limit int) ([]models.Event, error) {
 	var events []models.Event
-	if err := r.db.Where("is_published = ? AND is_featured = ?", true, true).
+	if err := r.db.Where("is_published = ? AND is_featured = ? AND start_time > ?", true, true, time.Now().UTC()).
 		Order("start_time ASC").
 		Limit(limit).
 		Find(&events).Error; err != nil {
@@ -161,7 +161,7 @@ func (r *eventRepo) GetFeaturedEvents(limit int) ([]models.Event, error) {
 
 func (r *eventRepo) GetHeroEvents(limit int) ([]models.Event, error) {
 	var events []models.Event
-	if err := r.db.Where("is_published = ? AND is_hero = ?", true, true).
+	if err := r.db.Where("is_published = ? AND is_hero = ? AND start_time > ?", true, true, time.Now().UTC()).
 		Order("start_time ASC").
 		Limit(limit).
 		Find(&events).Error; err != nil {
@@ -197,13 +197,13 @@ SELECT
 FROM events e
 LEFT JOIN orders o ON o.event_id = e.id
 LEFT JOIN tickets t ON t.order_id = o.id
-WHERE e.is_published = true AND e.deleted_at IS NULL
+WHERE e.is_published = true AND e.deleted_at IS NULL AND e.end_time > ?
 GROUP BY e.id
 ORDER BY sold_7d DESC, sold_all DESC, e.start_time ASC
 LIMIT ?;
 `
 
-	if err := r.db.Raw(query, since.UTC(), limit).Scan(&out).Error; err != nil {
+	if err := r.db.Raw(query, since.UTC(), time.Now().UTC(), limit).Scan(&out).Error; err != nil {
 		return nil, err
 	}
 	return out, nil
