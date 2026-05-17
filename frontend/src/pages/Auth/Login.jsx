@@ -74,19 +74,19 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
 
   const [requires2FA, setRequires2FA] = useState(() => {
-    return !!window.sessionStorage.getItem('2fa_user_id');
+    return !!window.sessionStorage.getItem('2fa_pending_token');
   });
   const [twoFACode, setTwoFACode] = useState('');
-  const [userId, setUserId] = useState(() => {
-    return window.sessionStorage.getItem('2fa_user_id') || '';
+  const [pendingToken, setPendingToken] = useState(() => {
+    return window.sessionStorage.getItem('2fa_pending_token') || '';
   });
 
   useEffect(() => {
-    const urlUserId = searchParams.get('user_id');
-    if (urlUserId) {
+    const urlToken = searchParams.get('pending_token');
+    if (urlToken) {
       setRequires2FA(true);
-      setUserId(urlUserId);
-      window.sessionStorage.setItem('2fa_user_id', urlUserId);
+      setPendingToken(urlToken);
+      window.sessionStorage.setItem('2fa_pending_token', urlToken);
     }
   }, [searchParams]);
 
@@ -120,14 +120,14 @@ export default function Login() {
       handleLoginSuccess(result);
     } catch (err) {
       if (err?.errorCode === '2FA_REQUIRED') {
-        const uid = err.data?.user_id;
+        const token = err.data?.pending_token;
         setRequires2FA(true);
-        setUserId(uid);
-        window.sessionStorage.setItem('2fa_user_id', uid);
+        setPendingToken(token);
+        window.sessionStorage.setItem('2fa_pending_token', token);
       } else if (err?.requires_2fa) {
         setRequires2FA(true);
-        setUserId(err.user_id);
-        window.sessionStorage.setItem('2fa_user_id', err.user_id);
+        setPendingToken(err.pending_token);
+        window.sessionStorage.setItem('2fa_pending_token', err.pending_token);
       } else {
         if (err?.details) {
           setFieldErrors(err.details);
@@ -152,8 +152,8 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const result = await verify2FA(userId, twoFACode);
-      window.sessionStorage.removeItem('2fa_user_id');
+      const result = await verify2FA(pendingToken, twoFACode);
+      window.sessionStorage.removeItem('2fa_pending_token');
       handleLoginSuccess(result);
     } catch (err) {
       if (err?.details) {
@@ -175,8 +175,8 @@ export default function Login() {
 
   const handleBackToLogin = () => {
     setRequires2FA(false);
-    setUserId('');
-    window.sessionStorage.removeItem('2fa_user_id');
+    setPendingToken('');
+    window.sessionStorage.removeItem('2fa_pending_token');
   };
 
   const handleSocialLogin = (provider) => {

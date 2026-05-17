@@ -26,6 +26,7 @@ type EventFilter struct {
 
 type EventRepository interface {
 	CreateEvent(event *models.Event) error
+	CreateEventWithZones(ctx context.Context, event *models.Event, zones []models.EventZone, zoneSeats [][]models.Seat) error
 	GetEventByID(id uuid.UUID) (*models.Event, error)
 	GetEventBySlug(slug string) (*models.Event, error)
 	GetAllEvents(filter EventFilter) ([]EventSearchResult, error)
@@ -37,6 +38,7 @@ type EventRepository interface {
 	GetSeatMap(eventID uuid.UUID) ([]models.EventZone, error)
 	GetTotalSeats(ctx context.Context, eventID uuid.UUID) (int64, error)
 	GetSimilarEvents(ctx context.Context, eventID uuid.UUID, category string, limit int) ([]models.Event, error)
+	GetAdminStats(ctx context.Context, eventID *uuid.UUID) (map[string]interface{}, error)
 }
 
 type EventTrendingTicketStats struct {
@@ -62,6 +64,31 @@ func NewEventRepository(db *gorm.DB) EventRepository {
 
 func (r *eventRepo) CreateEvent(event *models.Event) error {
 	return r.db.Create(event).Error
+}
+
+func (r *eventRepo) CreateEventWithZones(ctx context.Context, event *models.Event, zones []models.EventZone, zoneSeats [][]models.Seat) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(event).Error; err != nil {
+			return err
+		}
+
+		for i := range zones {
+			zones[i].EventID = event.ID
+			if err := tx.Create(&zones[i]).Error; err != nil {
+				return err
+			}
+
+			if len(zoneSeats[i]) > 0 {
+				for j := range zoneSeats[i] {
+					zoneSeats[i][j].ZoneID = zones[i].ID
+				}
+				if err := tx.Create(&zoneSeats[i]).Error; err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	})
 }
 
 func (r *eventRepo) GetEventByID(id uuid.UUID) (*models.Event, error) {
@@ -216,4 +243,93 @@ func (r *eventRepo) GetSimilarEvents(ctx context.Context, eventID uuid.UUID, cat
 		Limit(limit).
 		Find(&events).Error
 	return events, err
+}
+
+func (r *eventRepo) GetAdminStats(ctx context.Context, eventID *uuid.UUID) (map[string]interface{}, error) {
+	var totalRevenue float64
+	query := r.db.WithContext(ctx).Model(&models.Order{}).Where("status = ?", models.OrderCompleted)
+	if eventID != nil {
+		query = query.Where("event_id = ?", *eventID)
+	}
+	query.Select("COALESCE(SUM(total_amount), 0)").Scan(&totalRevenue)
+
+	var totalSold int64
+	querySold := r.db.WithContext(ctx).Model(&models.Ticket{})
+	if eventID != nil {
+		querySold = querySold.Joins("JOIN orders ON orders.id = tickets.order_id").Where("orders.event_id = ?", *eventID)
+	}
+	querySold.Count(&totalSold)
+
+	// Demographics: based on actual ticket purchasers, not all users
+	var genders []struct {
+		Gender string
+		Count  int64
+	}
+	genderQuery := r.db.WithContext(ctx).Model(&models.User{}).
+		Select("users.gender, count(DISTINCT users.id) as count").
+		Joins("JOIN tickets ON tickets.user_id = users.id").
+		Joins("JOIN orders ON orders.id = tickets.order_id")
+	if eventID != nil {
+		genderQuery = genderQuery.Where("orders.event_id = ?", *eventID)
+	}
+	genderQuery.Group("users.gender").Scan(&genders)
+
+	genderList := make([]map[string]interface{}, 0)
+	for _, g := range genders {
+		genderList = append(genderList, map[string]interface{}{
+			"gender": g.Gender,
+			"count":  g.Count,
+		})
+	}
+
+	// Age groups: based on ticket purchasers
+	ageGroups := map[string]int64{
+		"18-24": 0,
+		"25-34": 0,
+		"35+":   0,
+	}
+	var purchasers []models.User
+	purchaserQuery := r.db.WithContext(ctx).Model(&models.User{}).
+		Select("DISTINCT users.id, users.date_of_birth").
+		Joins("JOIN tickets ON tickets.user_id = users.id").
+		Joins("JOIN orders ON orders.id = tickets.order_id")
+	if eventID != nil {
+		purchaserQuery = purchaserQuery.Where("orders.event_id = ?", *eventID)
+	}
+	purchaserQuery.Find(&purchasers)
+
+	now := time.Now().UTC()
+	for _, u := range purchasers {
+		if u.DateOfBirth.IsZero() {
+			continue
+		}
+		age := now.Year() - u.DateOfBirth.Year()
+		if age < 25 {
+			ageGroups["18-24"]++
+		} else if age < 35 {
+			ageGroups["25-34"]++
+		} else {
+			ageGroups["35+"]++
+		}
+	}
+
+	var totalSeats int64
+	querySeats := r.db.WithContext(ctx).Model(&models.Seat{})
+	if eventID != nil {
+		querySeats = querySeats.Joins("JOIN event_zones ON event_zones.id = seats.zone_id").Where("event_zones.event_id = ?", *eventID)
+	}
+	querySeats.Count(&totalSeats)
+
+	occupancyRate := 0.0
+	if totalSeats > 0 {
+		occupancyRate = float64(totalSold) / float64(totalSeats)
+	}
+
+	return map[string]interface{}{
+		"total_revenue":  totalRevenue,
+		"total_sold":     totalSold,
+		"occupancy_rate": occupancyRate,
+		"gender_dist":    genderList,
+		"age_dist":       ageGroups,
+	}, nil
 }

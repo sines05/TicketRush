@@ -60,7 +60,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	token, user, requires2FA, err := h.authService.Login(req.Email, req.Password)
+	accessToken, refreshToken, pendingToken, user, requires2FA, err := h.authService.Login(req.Email, req.Password)
 	if err != nil {
 		utils.SendError(c, http.StatusUnauthorized, "Email hoặc mật khẩu không chính xác", "LOGIN_FAILED")
 		return
@@ -68,21 +68,32 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	if requires2FA {
 		utils.SendResponse(c, http.StatusUnauthorized, false, gin.H{
-			"requires_2fa": true,
-			"user_id":      user.ID,
+			"requires_2fa":  true,
+			"pending_token": pendingToken,
 		}, "Vui lòng nhập mã xác thực 2 lớp", "2FA_REQUIRED", nil)
 		return
 	}
 
 	// Set JWT in HttpOnly cookie
-	c.SetSameSite(http.SameSiteLaxMode)
-	c.SetCookie("tr_access_token", token, 86400, "/", "", h.cfg.CookieSecure, true)
+	h.setTokenCookies(c, accessToken, refreshToken)
 
 	utils.SendSuccess(c, http.StatusOK, dto.ToUserResponse(*user), "Đăng nhập thành công")
 }
 
+func (h *AuthHandler) setTokenCookies(c *gin.Context, accessToken, refreshToken string) {
+	c.SetSameSite(http.SameSiteLaxMode)
+	// Access Token: 1 hour
+	c.SetCookie("tr_access_token", accessToken, 3600, "/", "", h.cfg.CookieSecure, true)
+	// Refresh Token: 7 days
+	c.SetCookie("tr_refresh_token", refreshToken, 7*24*3600, "/", "", h.cfg.CookieSecure, true)
+}
+
 func (h *AuthHandler) Logout(c *gin.Context) {
+	refreshToken, _ := c.Cookie("tr_refresh_token")
+	_ = h.authService.Logout(refreshToken)
+
 	c.SetCookie("tr_access_token", "", -1, "/", "", h.cfg.CookieSecure, true)
+	c.SetCookie("tr_refresh_token", "", -1, "/", "", h.cfg.CookieSecure, true)
 	utils.SendSuccess(c, http.StatusOK, nil, "Đăng xuất thành công")
 }
 
@@ -109,20 +120,19 @@ func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 		return
 	}
 
-	token, user, err := h.authService.GoogleLoginCallback(code)
+	accessToken, refreshToken, pendingToken, _, err := h.authService.GoogleLoginCallback(code)
 	if err != nil {
 		utils.SendError(c, http.StatusUnauthorized, err.Error(), "GOOGLE_LOGIN_FAILED")
 		return
 	}
 
-	if token == "" && user != nil {
-		c.Redirect(http.StatusTemporaryRedirect, fmt.Sprintf("%s/auth/login?user_id=%s", h.cfg.FrontendURL, user.ID.String()))
+	if accessToken == "" && pendingToken != "" {
+		c.Redirect(http.StatusTemporaryRedirect, fmt.Sprintf("%s/auth/login?pending_token=%s", h.cfg.FrontendURL, pendingToken))
 		return
 	}
 
 	// Set JWT in HttpOnly cookie
-	c.SetSameSite(http.SameSiteLaxMode)
-	c.SetCookie("tr_access_token", token, 86400, "/", "", h.cfg.CookieSecure, true)
+	h.setTokenCookies(c, accessToken, refreshToken)
 
 	c.Redirect(http.StatusTemporaryRedirect, fmt.Sprintf("%s/auth/callback", h.cfg.FrontendURL))
 }
@@ -194,20 +204,19 @@ func (h *AuthHandler) FacebookCallback(c *gin.Context) {
 		return
 	}
 
-	token, user, err := h.authService.FacebookLoginCallback(code)
+	accessToken, refreshToken, pendingToken, _, err := h.authService.FacebookLoginCallback(code)
 	if err != nil {
 		utils.SendError(c, http.StatusUnauthorized, err.Error(), "FACEBOOK_LOGIN_FAILED")
 		return
 	}
 
-	if token == "" && user != nil {
-		c.Redirect(http.StatusTemporaryRedirect, fmt.Sprintf("%s/auth/login?user_id=%s", h.cfg.FrontendURL, user.ID.String()))
+	if accessToken == "" && pendingToken != "" {
+		c.Redirect(http.StatusTemporaryRedirect, fmt.Sprintf("%s/auth/login?pending_token=%s", h.cfg.FrontendURL, pendingToken))
 		return
 	}
 
 	// Set JWT in HttpOnly cookie
-	c.SetSameSite(http.SameSiteLaxMode)
-	c.SetCookie("tr_access_token", token, 86400, "/", "", h.cfg.CookieSecure, true)
+	h.setTokenCookies(c, accessToken, refreshToken)
 
 	c.Redirect(http.StatusTemporaryRedirect, fmt.Sprintf("%s/auth/callback", h.cfg.FrontendURL))
 }
@@ -281,8 +290,8 @@ func (h *AuthHandler) Disable2FA(c *gin.Context) {
 }
 
 type login2FARequest struct {
-	UserID string `json:"user_id" binding:"required"`
-	Code   string `json:"code" binding:"required"`
+	PendingToken string `json:"pending_token" binding:"required"`
+	Code         string `json:"code" binding:"required"`
 }
 
 func (h *AuthHandler) Verify2FALogin(c *gin.Context) {
@@ -293,25 +302,41 @@ func (h *AuthHandler) Verify2FALogin(c *gin.Context) {
 		return
 	}
 
-	userID, err := uuid.Parse(req.UserID)
+	userID, err := h.authService.Validate2FAPendingToken(req.PendingToken)
 	if err != nil {
-		utils.SendError(c, http.StatusBadRequest, "Invalid User ID", "INVALID_INPUT")
+		utils.SendError(c, http.StatusUnauthorized, "Phiên đăng nhập đã hết hạn", "TOKEN_EXPIRED")
 		return
 	}
 
-	token, err := h.authService.Verify2FA(userID, req.Code)
+	accessToken, refreshToken, err := h.authService.Verify2FA(userID, req.Code)
 	if err != nil {
 		utils.SendError(c, http.StatusUnauthorized, "Mã xác thực không chính xác hoặc đã hết hạn", "INVALID_CODE")
 		return
 	}
 
-	user, _, _ := h.authService.ValidateToken(token)
+	user, _, _ := h.authService.ValidateToken(accessToken)
 
 	// Set JWT in HttpOnly cookie
-	c.SetSameSite(http.SameSiteLaxMode)
-	c.SetCookie("tr_access_token", token, 86400, "/", "", h.cfg.CookieSecure, true)
+	h.setTokenCookies(c, accessToken, refreshToken)
 
 	utils.SendSuccess(c, http.StatusOK, dto.ToUserResponse(*user), "Xác thực thành công")
+}
+
+func (h *AuthHandler) Refresh(c *gin.Context) {
+	refreshToken, err := c.Cookie("tr_refresh_token")
+	if err != nil {
+		utils.SendError(c, http.StatusUnauthorized, "Refresh token missing", "REFRESH_TOKEN_MISSING")
+		return
+	}
+
+	accessToken, newRefreshToken, err := h.authService.RefreshToken(refreshToken)
+	if err != nil {
+		utils.SendError(c, http.StatusUnauthorized, err.Error(), "REFRESH_FAILED")
+		return
+	}
+
+	h.setTokenCookies(c, accessToken, newRefreshToken)
+	utils.SendSuccess(c, http.StatusOK, nil, "Token refreshed")
 }
 
 func (h *AuthHandler) UpdateNotificationToken(c *gin.Context) {

@@ -56,12 +56,12 @@ func main() {
 	notificationService.StartWorker()
 	log.Println("Notification service started")
 
-	authService := service.NewAuthService(userRepo, notificationService, cfg)
+	authService := service.NewAuthService(userRepo, notificationService, rdb, cfg)
 	authHandler := handler.NewAuthHandler(authService, cfg)
 
 	eventRepo := repository.NewEventRepository(db)
 	eventMetricsRepo := repository.NewEventMetricsRepository(rdb)
-	eventService := service.NewEventService(eventRepo, eventMetricsRepo, db)
+	eventService := service.NewEventService(eventRepo, eventMetricsRepo)
 	eventHandler := handler.NewEventHandler(eventService)
 
 	orderRepo := repository.NewOrderRepository(db)
@@ -111,13 +111,14 @@ func main() {
 		{
 			auth.POST("/register", middleware.RateLimitMiddleware(rdb, 100, 15*time.Minute), authHandler.Register)
 			auth.POST("/login", middleware.RateLimitMiddleware(rdb, 100, 15*time.Minute), authHandler.Login)
-			auth.POST("/verify-2fa", authHandler.Verify2FALogin)
+			auth.POST("/verify-2fa", middleware.RateLimitMiddleware(rdb, 5, 15*time.Minute), authHandler.Verify2FALogin)
 			auth.GET("/google/login", authHandler.GoogleLogin)
 			auth.GET("/google/callback", authHandler.GoogleCallback)
 			auth.GET("/facebook/login", authHandler.FacebookLogin)
 			auth.GET("/facebook/callback", authHandler.FacebookCallback)
 			auth.POST("/forgot-password", middleware.RateLimitMiddleware(rdb, 5, 15*time.Minute), authHandler.ForgotPassword)
 			auth.POST("/reset-password", authHandler.ResetPassword)
+			auth.POST("/refresh", authHandler.Refresh)
 			auth.POST("/logout", authHandler.Logout)
 		}
 
@@ -172,8 +173,7 @@ func main() {
 			protected.POST("/users/notification-token", authHandler.UpdateNotificationToken)
 
 			// Admin Routes
-			admin := protected.Group("/admin")
-			admin.Use(middleware.RoleMiddleware(models.RoleAdmin))
+			admin := protected.Group("/admin", middleware.RoleMiddleware(models.RoleAdmin), middleware.TwoFactorMiddleware())
 			{
 				admin.GET("/events", eventHandler.ListEvents)
 				admin.POST("/events", eventHandler.CreateEvent)

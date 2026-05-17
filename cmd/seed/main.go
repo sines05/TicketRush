@@ -68,6 +68,7 @@ func main() {
 		Role:         models.RoleAdmin,
 		Gender:       models.GenderMale,
 		DateOfBirth:  time.Date(1990, 5, 15, 0, 0, 0, 0, time.UTC),
+		TwoFactorEnabled: false,
 	}
 	db.Create(&admin)
 

@@ -554,6 +554,7 @@ export default function Profile() {
                     </AlertDescription>
                   </Alert>
                   <div className="max-w-sm space-y-4">
+                    {error && <p className="text-sm font-medium text-destructive">{error}</p>}
                     <div className="space-y-2">
                       <Label htmlFor="disable-2fa-code">Mã xác thực (6 số)</Label>
                       <Input
@@ -590,6 +591,7 @@ export default function Profile() {
                     </div>
 
                     <div className="space-y-4">
+                      {error && <p className="text-sm font-medium text-destructive">{error}</p>}
                       <div className="space-y-2">
                         <Label htmlFor="2fa-code">Mã xác thực</Label>
                         <Input

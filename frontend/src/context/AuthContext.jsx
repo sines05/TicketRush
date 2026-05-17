@@ -22,11 +22,32 @@ export function AuthProvider({ children }) {
   const queryClient = useQueryClient();
 
   useEffect(() => {
+    const handleUnauthorized = () => {
+      setUser(null);
+      localStorage.removeItem(STORAGE_USER);
+      if (!window.location.pathname.includes('/auth/login')) {
+        window.location.href = '/auth/login';
+      }
+    };
+
+    window.addEventListener('auth:unauthorized', handleUnauthorized);
+    return () => window.removeEventListener('auth:unauthorized', handleUnauthorized);
+  }, []);
+
+  useEffect(() => {
     async function hydrate() {
+      // Only attempt hydration if we have a user in storage
+      const storedUser = localStorage.getItem(STORAGE_USER);
+      if (!storedUser) {
+        setLoading(false);
+        return;
+      }
+
       try {
         const userData = await userService.getMe();
         if (!userData) {
           setUser(null);
+          localStorage.removeItem(STORAGE_USER);
           setLoading(false);
           return;
         }
@@ -139,8 +160,8 @@ export function AuthProvider({ children }) {
     return { user: nextUser };
   }, []);
 
-  const verify2FA = useCallback(async (userId, code) => {
-    const data = await authService.verify2FALogin(userId, code);
+  const verify2FA = useCallback(async (pendingToken, code) => {
+    const data = await authService.verify2FALogin(pendingToken, code);
 
     const nextUser = {
       user_id: data.id || data.user_id,

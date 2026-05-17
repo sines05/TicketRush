@@ -49,10 +49,12 @@ export default function VirtualQueue() {
           return;
         }
         setJoinIndex(res.join_index);
+        setCurrentIndex(res.current_processed_index || 0);
 
         // If not allowed immediately, get current position
         const statusRes = await queueService.getStatus({ event_id: eventId });
         setJoinIndex(statusRes.join_index);
+        setCurrentIndex(statusRes.current_processed_index || 0);
       } catch (err) {
         setError(err?.message || 'Lỗi khi tham gia hàng chờ');
       }

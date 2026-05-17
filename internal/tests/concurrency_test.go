@@ -16,19 +16,28 @@ import (
 	"gorm.io/gorm"
 )
 
-func TestSeatLockConcurrency(t *testing.T) {
+func getTestDB(t *testing.T) *gorm.DB {
 	config.LoadConfig() // Ensure env is loaded
 	// Use a test-specific DSN if needed, but for simplicity we'll try to connect to the local DB
 	dsn := "host=localhost user=user password=password dbname=ticketrush port=5433 sslmode=disable"
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		t.Skip("Database not available for concurrency test")
-		return
+		return nil
 	}
 	if !db.Migrator().HasColumn(&models.Event{}, "organizer_meta") ||
 		!db.Migrator().HasColumn(&models.Event{}, "event_meta") ||
 		!db.Migrator().HasColumn(&models.EventZone{}, "layout_meta") {
 		t.Skip("Database schema is not migrated for concurrency test")
+		return nil
+	}
+	return db
+}
+
+func TestSeatLockConcurrency(t *testing.T) {
+	db := getTestDB(t)
+	if db == nil {
+		return
 	}
 
 	// Setup: Create a test user, event and one seat
@@ -97,4 +106,187 @@ func TestSeatLockConcurrency(t *testing.T) {
 	db.Unscoped().Delete(&zone)
 	db.Unscoped().Delete(&event)
 	db.Unscoped().Delete(&user)
+}
+
+func TestDeadlockPrevention(t *testing.T) {
+	db := getTestDB(t)
+	if db == nil {
+		return
+	}
+	orderRepo := repository.NewOrderRepository(db)
+
+	// Setup: Create event, zone, and seats
+	event := models.Event{Title: "Deadlock Test", Slug: uuid.New().String()}
+	db.Create(&event)
+	t.Cleanup(func() { db.Unscoped().Delete(&event) })
+
+	zone := models.EventZone{EventID: event.ID, Name: "VIP", Price: 100}
+	db.Create(&zone)
+	t.Cleanup(func() { db.Unscoped().Delete(&zone) })
+
+	seat1 := models.Seat{ZoneID: zone.ID, RowLabel: "A", SeatNumber: 1, Status: models.SeatAvailable}
+	seat2 := models.Seat{ZoneID: zone.ID, RowLabel: "A", SeatNumber: 2, Status: models.SeatAvailable}
+	db.Create(&seat1)
+	db.Create(&seat2)
+	t.Cleanup(func() {
+		db.Unscoped().Delete(&seat1)
+		db.Unscoped().Delete(&seat2)
+	})
+
+	user1 := models.User{Email: uuid.New().String() + "@test.com", FullName: "User 1"}
+	user2 := models.User{Email: uuid.New().String() + "@test.com", FullName: "User 2"}
+	db.Create(&user1)
+	db.Create(&user2)
+	t.Cleanup(func() {
+		db.Unscoped().Delete(&user1)
+		db.Unscoped().Delete(&user2)
+	})
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	errs := make(chan error, 2)
+
+	go func() {
+		defer wg.Done()
+		_, err := orderRepo.LockSeats(context.Background(), user1.ID, event.ID, []uuid.UUID{seat1.ID, seat2.ID})
+		if err != nil {
+			errs <- err
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		// Pass them in reverse order
+		_, err := orderRepo.LockSeats(context.Background(), user2.ID, event.ID, []uuid.UUID{seat2.ID, seat1.ID})
+		if err != nil {
+			errs <- err
+		}
+	}()
+
+	wg.Wait()
+	close(errs)
+
+	successCount := 0
+	failCount := 0
+	for err := range errs {
+		if err != nil {
+			failCount++
+		}
+	}
+	successCount = 2 - failCount
+
+	assert.Equal(t, 1, successCount, "Exactly one user should successfully lock the seats")
+	assert.Equal(t, 1, failCount, "The other user should fail")
+
+	// Cleanup
+	db.Exec("DELETE FROM order_items")
+	db.Exec("DELETE FROM orders")
+}
+
+func TestRaceCompleteRelease(t *testing.T) {
+	db := getTestDB(t)
+	if db == nil {
+		return
+	}
+	orderRepo := repository.NewOrderRepository(db)
+
+	// Setup
+	event := models.Event{Title: "Race Test", Slug: uuid.New().String()}
+	db.Create(&event)
+	zone := models.EventZone{EventID: event.ID, Name: "VIP", Price: 100}
+	db.Create(&zone)
+	seat := models.Seat{ZoneID: zone.ID, RowLabel: "A", SeatNumber: 1, Status: models.SeatAvailable}
+	db.Create(&seat)
+	user := models.User{Email: uuid.New().String() + "@test.com", FullName: "User"}
+	db.Create(&user)
+
+	t.Cleanup(func() {
+		db.Unscoped().Delete(&user)
+		db.Unscoped().Delete(&seat)
+		db.Unscoped().Delete(&zone)
+		db.Unscoped().Delete(&event)
+	})
+
+	// Lock seat to create a pending order
+	order, err := orderRepo.LockSeats(context.Background(), user.ID, event.ID, []uuid.UUID{seat.ID})
+	assert.NoError(t, err)
+
+	// Now try to Complete and Release simultaneously
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		orderRepo.CompleteOrder(context.Background(), order.ID)
+	}()
+
+	go func() {
+		defer wg.Done()
+		orderRepo.ReleaseOrder(context.Background(), order.ID)
+	}()
+
+	wg.Wait()
+
+	finalOrder, _ := orderRepo.GetOrderByID(order.ID)
+	assert.True(t, finalOrder.Status == models.OrderCompleted || finalOrder.Status == models.OrderCancelled)
+
+	var finalSeat models.Seat
+	db.First(&finalSeat, seat.ID)
+	if finalOrder.Status == models.OrderCompleted {
+		assert.Equal(t, models.SeatSold, finalSeat.Status)
+	} else {
+		assert.Equal(t, models.SeatAvailable, finalSeat.Status)
+	}
+
+	// Cleanup
+	db.Exec("DELETE FROM tickets")
+	db.Exec("DELETE FROM order_items")
+	db.Exec("DELETE FROM orders")
+}
+
+func TestNPlusOneAndTotalAmount(t *testing.T) {
+	db := getTestDB(t)
+	if db == nil {
+		return
+	}
+	orderRepo := repository.NewOrderRepository(db)
+
+	// Setup
+	event := models.Event{Title: "N+1 Test", Slug: uuid.New().String()}
+	db.Create(&event)
+	zone1 := models.EventZone{EventID: event.ID, Name: "VIP", Price: 150}
+	db.Create(&zone1)
+	zone2 := models.EventZone{EventID: event.ID, Name: "Regular", Price: 50}
+	db.Create(&zone2)
+
+	seat1 := models.Seat{ZoneID: zone1.ID, RowLabel: "A", SeatNumber: 1, Status: models.SeatAvailable}
+	seat2 := models.Seat{ZoneID: zone2.ID, RowLabel: "B", SeatNumber: 1, Status: models.SeatAvailable}
+	db.Create(&seat1)
+	db.Create(&seat2)
+
+	user := models.User{Email: uuid.New().String() + "@test.com", FullName: "User"}
+	db.Create(&user)
+
+	t.Cleanup(func() {
+		db.Unscoped().Delete(&user)
+		db.Unscoped().Delete(&seat1)
+		db.Unscoped().Delete(&seat2)
+		db.Unscoped().Delete(&zone1)
+		db.Unscoped().Delete(&zone2)
+		db.Unscoped().Delete(&event)
+	})
+
+	// Lock both seats
+	order, err := orderRepo.LockSeats(context.Background(), user.ID, event.ID, []uuid.UUID{seat1.ID, seat2.ID})
+	assert.NoError(t, err)
+	assert.NotNil(t, order)
+
+	// Verify total amount: 150 + 50 = 200
+	assert.Equal(t, float64(200), order.TotalAmount)
+	assert.Equal(t, 2, len(order.OrderItems))
+
+	// Cleanup
+	db.Exec("DELETE FROM order_items")
+	db.Exec("DELETE FROM orders")
 }

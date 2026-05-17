@@ -203,7 +203,7 @@ func TestQueueLifecycleIntegration(t *testing.T) {
 	// Let's just manually allow them to simulate being at the front of the queue
 	queueRepo.AllowUser(ctx, eventID, userID)
 	
-	status, token, _, _, err := queueSvc.JoinQueue(ctx, eventID, userID)
+	status, token, _, _, _, err := queueSvc.JoinQueue(ctx, eventID, userID)
 	assert.NoError(t, err)
 	assert.Equal(t, "allowed", status)
 	assert.NotEmpty(t, token)
@@ -232,7 +232,7 @@ func TestQueueLifecycleIntegration(t *testing.T) {
 	assert.NotNil(t, session, "Session should STILL exist after cancellation")
 
 	// 4. Join Queue again (should return the SAME session)
-	status2, token2, _, _, err := queueSvc.JoinQueue(ctx, eventID, userID)
+	status2, token2, _, _, _, err := queueSvc.JoinQueue(ctx, eventID, userID)
 	assert.NoError(t, err)
 	assert.Equal(t, "allowed", status2)
 	assert.Equal(t, token, token2, "Should get the SAME token")
@@ -302,7 +302,7 @@ func TestTimerImmutability(t *testing.T) {
 
 	// 1. Admit user
 	queueRepo.AllowUser(ctx, eventID, userID)
-	status, token, _, allowedAt, err := queueSvc.JoinQueue(ctx, eventID, userID)
+	status, token, _, _, allowedAt, err := queueSvc.JoinQueue(ctx, eventID, userID)
 	assert.NoError(t, err)
 	assert.Equal(t, "allowed", status)
 	assert.NotNil(t, allowedAt)
@@ -310,7 +310,7 @@ func TestTimerImmutability(t *testing.T) {
 
 	// 2. Call JoinQueue again - AllowedAt should be the same
 	time.Sleep(10 * time.Millisecond)
-	_, _, _, allowedAt2, _ := queueSvc.JoinQueue(ctx, eventID, userID)
+	_, _, _, _, allowedAt2, _ := queueSvc.JoinQueue(ctx, eventID, userID)
 	assert.Equal(t, originalAllowedAt, *allowedAt2)
 
 	// 3. Lock seats - AllowedAt should be the same
@@ -320,7 +320,7 @@ func TestTimerImmutability(t *testing.T) {
 	assert.Equal(t, originalAllowedAt, *session.AllowedAt)
 
 	// 4. GetStatus - AllowedAt should be the same
-	_, _, _, allowedAt3, _ := queueSvc.GetStatus(ctx, eventID, userID)
+	_, _, _, _, allowedAt3, _ := queueSvc.GetStatus(ctx, eventID, userID)
 	assert.Equal(t, originalAllowedAt, *allowedAt3)
 }
 

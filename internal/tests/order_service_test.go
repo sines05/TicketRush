@@ -143,6 +143,9 @@ func (m *mockQueueRepo) GetOrCreateSessionAtomic(ctx context.Context, session *q
 type mockEventRepo struct{}
 
 func (m *mockEventRepo) CreateEvent(event *models.Event) error { return nil }
+func (m *mockEventRepo) CreateEventWithZones(ctx context.Context, event *models.Event, zones []models.EventZone, zoneSeats [][]models.Seat) error {
+	return nil
+}
 func (m *mockEventRepo) GetEventByID(id uuid.UUID) (*models.Event, error) {
 	return &models.Event{}, nil
 }
@@ -164,6 +167,9 @@ func (m *mockEventRepo) GetTotalSeats(ctx context.Context, eventID uuid.UUID) (i
 	return 0, nil
 }
 func (m *mockEventRepo) GetSimilarEvents(ctx context.Context, eventID uuid.UUID, category string, limit int) ([]models.Event, error) {
+	return nil, nil
+}
+func (m *mockEventRepo) GetAdminStats(ctx context.Context, eventID *uuid.UUID) (map[string]interface{}, error) {
 	return nil, nil
 }
 
