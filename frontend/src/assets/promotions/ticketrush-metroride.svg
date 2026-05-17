@@ -1,0 +1,66 @@
+<svg width="1440" height="260" viewBox="0 0 1440 260" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">TicketRush x MetroRide promotion banner</title>
+  <desc id="desc">Promotional banner for a fictional MetroRide event travel offer on TicketRush.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1440" y2="260" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#111827"/>
+      <stop offset=".48" stop-color="#7C2D12"/>
+      <stop offset="1" stop-color="#1E293B"/>
+    </linearGradient>
+    <linearGradient id="ticket" x1="862" y1="62" x2="1212" y2="205" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF7ED"/>
+      <stop offset=".5" stop-color="#FDBA74"/>
+      <stop offset="1" stop-color="#F97316"/>
+    </linearGradient>
+    <radialGradient id="spot" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1086 116) rotate(10) scale(430 180)">
+      <stop stop-color="#FDBA74" stop-opacity=".48"/>
+      <stop offset="1" stop-color="#FDBA74" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="20" stdDeviation="24" flood-color="#1C0A00" flood-opacity=".45"/>
+    </filter>
+  </defs>
+  <rect width="1440" height="260" rx="28" fill="url(#bg)"/>
+  <rect width="1440" height="260" rx="28" fill="url(#spot)"/>
+  <path d="M55 202C201 144 354 145 512 182C665 218 805 215 951 162C1107 106 1279 102 1397 141" stroke="#FED7AA" stroke-width="5" stroke-linecap="round" opacity=".22"/>
+  <text x="78" y="79" fill="#FFF7ED" font-family="Inter, Arial, sans-serif" font-size="34" font-weight="900" >TicketRush</text>
+  <text x="295" y="79" fill="#FED7AA" font-family="Inter, Arial, sans-serif" font-size="31" font-weight="850">x MetroRide</text>
+  <text x="78" y="145" fill="#FFEDD5" font-size="47" font-weight="950">Đi show đúng giờ, về nhà an tâm</text>
+  <text x="82" y="190" fill="#FED7AA" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="700">Ưu đãi chuyến đi cho khán giả đặt vé sự kiện trong tuần này</text>
+  <g filter="url(#shadow)">
+    <rect x="790" y="58" width="250" height="142" rx="30" fill="#0F172A"/>
+    <path d="M824 151H984L962 112C956 101 944 94 931 94H879C866 94 854 101 848 112L824 151Z" fill="#FB923C"/>
+    <path d="M858 115H950L940 100H868L858 115Z" fill="#FDBA74"/>
+    <circle cx="870" cy="159" r="15" fill="#111827"/>
+    <circle cx="952" cy="159" r="15" fill="#111827"/>
+    <rect x="1060" y="43" width="270" height="174" rx="34" fill="url(#ticketGradient)"/>
+
+  <defs>
+
+  <linearGradient id="ticketGradient" x1="0" y1="0" x2="1" y2="1">
+
+    <stop offset="0" stop-color="#EA580C"/>
+
+    <stop offset="1" stop-color="#FB923C"/>
+
+  </linearGradient>
+
+</defs>
+
+<path d="M1070 95C1088 95 1102 81 1102 63H1288C1288 81 1302 95 1320 95V166C1302 166 1288 180 1288 198H1102C1102 180 1088 166 1070 166V95Z" fill="#FFF7ED" opacity=".92"/>
+
+
+
+<text x="1120" y="118" fill="#7C2D12" font-family="Inter, Arial, sans-serif" font-size="26" font-weight="950">RIDE DEAL</text>
+
+
+
+<text x="1120" y="175" fill="#7C2D12" font-family="Inter, Arial, sans-serif" font-size="58" font-weight="950">-25%</text>
+  </g>
+  <g opacity=".64">
+    <rect x="1340" y="54" width="48" height="5" rx="2.5" fill="#FED7AA"/>
+    <rect x="1308" y="78" width="82" height="5" rx="2.5" fill="#FDBA74"/>
+    <rect x="710" y="58" width="44" height="5" rx="2.5" fill="#FDBA74"/>
+  </g>
+  
+</svg>

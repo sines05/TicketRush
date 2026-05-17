@@ -57,6 +57,23 @@ const AGE_COLORS = [
 
 const AGE_GROUP_ORDER = ['18-24', '25-34', '35+'];
 
+const chartTooltipProps = {
+  contentStyle: {
+    borderRadius: '12px',
+    border: '1px solid hsl(var(--tr-border))',
+    background: 'hsl(var(--tr-card) / 0.96)',
+    color: 'hsl(var(--tr-card-foreground))',
+    boxShadow: '0 18px 44px -28px hsl(var(--tr-chart-1) / 0.55)'
+  },
+  labelStyle: {
+    color: 'hsl(var(--tr-card-foreground))',
+    fontWeight: 700
+  },
+  itemStyle: {
+    color: 'hsl(var(--tr-card-foreground))'
+  }
+};
+
 export default function Dashboard() {
   const queryClient = useQueryClient();
   const [selectedEventId, setSelectedEventId] = useState('all');
@@ -220,11 +237,11 @@ export default function Dashboard() {
                     <Tooltip 
                       cursor={{ fill: 'hsl(var(--tr-chart-1) / 0.08)' }}
                       contentStyle={{
-                        borderRadius: '12px',
-                        border: '1px solid hsl(var(--tr-border))',
-                        background: 'hsl(var(--tr-card) / 0.96)',
+                        ...chartTooltipProps.contentStyle,
                         boxShadow: '0 18px 44px -28px hsl(var(--tr-chart-1) / 0.55)'
                       }}
+                      labelStyle={chartTooltipProps.labelStyle}
+                      itemStyle={chartTooltipProps.itemStyle}
                     />
                     <Bar dataKey="value" radius={[10, 10, 4, 4]} barSize={42}>
                       {ageData.map((entry, index) => (
@@ -280,11 +297,11 @@ export default function Dashboard() {
                     />
                     <Tooltip 
                       contentStyle={{
-                        borderRadius: '12px',
-                        border: '1px solid hsl(var(--tr-border))',
-                        background: 'hsl(var(--tr-card) / 0.96)',
+                        ...chartTooltipProps.contentStyle,
                         boxShadow: '0 18px 44px -28px hsl(var(--tr-chart-4) / 0.5)'
                       }}
+                      labelStyle={chartTooltipProps.labelStyle}
+                      itemStyle={chartTooltipProps.itemStyle}
                     />
                   </PieChart>
                 </ResponsiveContainer>

@@ -7,6 +7,7 @@ import TrendingEvents from '@/components/home/TrendingEvents';
 import LocationCards from '@/components/home/LocationCards';
 import SystemReportCarousel from '@/components/home/SystemReportCarousel';
 import EventListWithTabs from '@/components/home/EventListWithTabs';
+import PromotionBanners from '@/components/home/PromotionBanners';
 import { CATEGORY_OPTIONS } from '@/constants/categories';
 import eventService from '@/services/eventService';
 
@@ -41,6 +42,8 @@ export default function Home() {
       {!loading && heroEvents.length > 0 && (
         <HeroCarousel events={heroEvents} />
       )}
+
+      <PromotionBanners />
 
       {/* 1. Special Events - High Impact vertical cards */}
       <SpecialEvents />

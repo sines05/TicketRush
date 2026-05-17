@@ -46,6 +46,16 @@
     --tr-chart-5: 214 76% 59%;
     --tr-chart-grid: 190 24% 72%;
 
+    --tr-bg: 248 250 252;
+    --tr-text: 17 24 39;
+    --tr-on-brand: 255 255 255;
+    --tr-brand-50: 236 254 255;
+    --tr-brand-600: 8 145 158;
+    --tr-brand-700: 14 116 144;
+    --tr-danger: 225 29 72;
+    --tr-success: 5 150 105;
+    --tr-warning: 245 158 11;
+
     /* Glassmorphism Variables */
     --tr-glass-bg: 0 0% 100% / 0.4;
     --tr-glass-border: 214.3 31.8% 91.4% / 0.3;
@@ -91,6 +101,16 @@
     --tr-chart-4: 342 83% 72%;
     --tr-chart-5: 253 74% 76%;
     --tr-chart-grid: 263 24% 34%;
+
+    --tr-bg: 18 13 27;
+    --tr-text: 255 247 248;
+    --tr-on-brand: 12 10 20;
+    --tr-brand-50: 22 78 99;
+    --tr-brand-600: 134 239 172;
+    --tr-brand-700: 110 231 183;
+    --tr-danger: 251 113 133;
+    --tr-success: 110 231 183;
+    --tr-warning: 251 191 36;
 
     /* Glassmorphism Variables */
     --tr-glass-bg: 263 30% 10% / 0.4;
