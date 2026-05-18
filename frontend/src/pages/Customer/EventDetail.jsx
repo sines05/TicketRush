@@ -82,6 +82,11 @@ export default function EventDetail() {
     };
   }, [event]);
 
+  const isPast = useMemo(() => {
+    if (!mappedEvent) return false;
+    return new Date(mappedEvent.endTime || mappedEvent.startTime) < new Date();
+  }, [mappedEvent]);
+
   const showtimes = useMemo(() => {
     if (!event) return [];
     // If backend doesn't provide multiple showtimes yet, use the main start_time
@@ -89,6 +94,7 @@ export default function EventDetail() {
   }, [event]);
 
   const handleBuyTickets = () => {
+    if (isPast) return;
     navigate(`/booking/queue?eventId=${event.id}`);
   };
 
@@ -118,6 +124,7 @@ export default function EventDetail() {
         isVisible={isStickyVisible}
         onBuyTickets={handleBuyTickets}
         minPrice={minPrice}
+        isPast={isPast}
       />
 
       <HeroSection
@@ -125,6 +132,7 @@ export default function EventDetail() {
         event={mappedEvent}
         minPrice={minPrice}
         onBuyTickets={handleBuyTickets}
+        isPast={isPast}
       />
 
       <div className="container mx-auto px-4 py-10 space-y-8">
@@ -142,6 +150,7 @@ export default function EventDetail() {
               event={mappedEvent}
               showtimes={showtimes}
               onBuyTickets={handleBuyTickets}
+              isPast={isPast}
             />
 
             <ReviewSection
@@ -178,8 +187,12 @@ export default function EventDetail() {
                   <div className="text-sm text-muted-foreground italic">Đang cập nhật giá vé...</div>
                 )}
               </div>
-              <Button className="w-full py-4" onClick={handleBuyTickets}>
-                Mua vé ngay
+              <Button 
+                className="w-full py-4" 
+                onClick={handleBuyTickets}
+                disabled={isPast}
+              >
+                {isPast ? 'Sự kiện đã kết thúc' : 'Mua vé ngay'}
               </Button>
             </section>
 

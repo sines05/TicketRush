@@ -1,5 +1,5 @@
 import { QRCodeCanvas } from 'qrcode.react';
-import { formatVND } from '../../utils/formatters.js';
+import { formatVND, formatDateTime } from '../../utils/formatters.js';
 import bannerFallback from '../../assets/banner-sample.svg';
 import { resolveMediaUrl } from '../../utils/media.js';
 
@@ -10,6 +10,7 @@ export default function TicketItem({ ticket }) {
   const seatNumber = (ticket.seat_number ?? String(ticket.seat_label || '').split('-')[1]) || '—';
   const gate = ticket.zone_name || '—';
   const bannerUrl = resolveMediaUrl(ticket.event_banner_url) || bannerFallback;
+  const isPast = new Date(ticket.event_end_time) < new Date();
 
   return (
     <div className="overflow-hidden rounded-2xl border bg-card text-card-foreground shadow-sm"> 
@@ -31,19 +32,29 @@ export default function TicketItem({ ticket }) {
           <div className="space-y-3 md:pl-3">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <div className="text-lg font-bold truncate">{ticket.event_title}</div>
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
-                      ticket.is_checked_in 
-                        ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' 
-                        : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
-                    }`}
-                  >
-                    {ticket.is_checked_in ? 'Đã check-in' : 'Chưa check-in'}
-                  </span>
+                  <div className="flex gap-1.5">
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                        ticket.is_checked_in 
+                          ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' 
+                          : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
+                      }`}
+                    >
+                      {ticket.is_checked_in ? 'Đã check-in' : 'Chưa check-in'}
+                    </span>
+                    {isPast && (
+                      <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
+                        Đã kết thúc
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <div className="mt-1 text-sm text-muted-foreground break-all">Mã vé: {ticket.ticket_id}</div>
+                <div className="mt-1 text-sm font-medium text-brand-600">
+                  {formatDateTime(ticket.event_start_time)}
+                </div>
+                <div className="mt-1 text-xs text-muted-foreground break-all">Mã vé: {ticket.ticket_id}</div>
                 {ticket.price != null && <div className="mt-2 text-base font-semibold text-primary">{formatVND(ticket.price)}</div>}
               </div>
               <div className="shrink-0 rounded-lg border bg-white p-2">

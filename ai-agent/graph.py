@@ -79,7 +79,7 @@ def call_model(state: AgentState):
         if isinstance(m, ToolMessage):
             try:
                 data = json.loads(m.content)
-                if m.name in ["SearchEvents", "GetTrendingEvents", "GetFeaturedEvents"]:
+                if m.name in ["SearchEvents", "GetTrendingEvents", "GetFeaturedEvents", "GetPastEvents"]:
                     if isinstance(data, list):
                         for item in data:
                             ui_components.append({

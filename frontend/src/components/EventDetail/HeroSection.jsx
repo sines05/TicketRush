@@ -3,7 +3,7 @@ import { MapPin, Calendar, Clock, Tag } from 'lucide-react';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
 
-const HeroSection = React.forwardRef(({ event, minPrice, onBuyTickets }, ref) => {
+const HeroSection = React.forwardRef(({ event, minPrice, onBuyTickets, isPast }, ref) => {
   if (!event) return null;
 
   const formattedDate = event.startTime
@@ -76,9 +76,10 @@ const HeroSection = React.forwardRef(({ event, minPrice, onBuyTickets }, ref) =>
 
             <button
               onClick={onBuyTickets}
-              className="w-full rounded-xl bg-primary px-8 py-4 font-bold text-primary-foreground shadow-[0_18px_44px_-24px_hsl(var(--tr-primary)/0.8)] transition-all duration-300 hover:-translate-y-1 hover:bg-primary/92 hover:shadow-[0_22px_56px_-24px_hsl(var(--tr-primary)/0.9)] active:scale-95 md:w-auto"
+              disabled={isPast}
+              className="w-full rounded-xl bg-primary px-8 py-4 font-bold text-primary-foreground shadow-[0_18px_44px_-24px_hsl(var(--tr-primary)/0.8)] transition-all duration-300 hover:-translate-y-1 hover:bg-primary/92 hover:shadow-[0_22px_56px_-24px_hsl(var(--tr-primary)/0.9)] active:scale-95 md:w-auto disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:shadow-none"
             >
-              Mua vé ngay
+              {isPast ? 'Sự kiện đã kết thúc' : 'Mua vé ngay'}
             </button>
           </div>
 

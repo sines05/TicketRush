@@ -47,8 +47,9 @@ func main() {
 	log.Println("WebSocket Hub started")
 
 	userRepo := repository.NewUserRepository(db)
+	eventRepo := repository.NewEventRepository(db)
 	queueRepo := queue.NewRepository(rdb)
-	queueService := queue.NewService(queueRepo, userRepo)
+	queueService := queue.NewService(queueRepo, userRepo, eventRepo)
 	queueHandler := handler.NewQueueHandler(queueService)
 
 	emailService := service.NewEmailService(cfg)
@@ -59,7 +60,6 @@ func main() {
 	authService := service.NewAuthService(userRepo, notificationService, rdb, cfg)
 	authHandler := handler.NewAuthHandler(authService, cfg)
 
-	eventRepo := repository.NewEventRepository(db)
 	eventMetricsRepo := repository.NewEventMetricsRepository(rdb)
 	eventService := service.NewEventService(eventRepo, eventMetricsRepo)
 	eventHandler := handler.NewEventHandler(eventService)
@@ -72,7 +72,7 @@ func main() {
 	membershipHandler := handler.NewMembershipHandler(membershipRepo, userRepo)
 
 	reviewRepo := repository.NewReviewRepository(db)
-	reviewHandler := handler.NewReviewHandler(reviewRepo)
+	reviewHandler := handler.NewReviewHandler(reviewRepo, eventRepo)
 
 	complaintRepo := repository.NewComplaintRepository(db)
 	complaintHandler := handler.NewComplaintHandler(complaintRepo)

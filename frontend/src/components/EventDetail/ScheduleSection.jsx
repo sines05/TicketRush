@@ -5,7 +5,7 @@ import { format, isSameDay, parseISO } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 
-const ScheduleSection = ({ event, showtimes = [], onBuyTickets }) => {
+const ScheduleSection = ({ event, showtimes = [], onBuyTickets, isPast }) => {
   const [viewMode, setViewMode] = useState('list'); // 'list' or 'calendar'
   const [selectedDate, setSelectedDate] = useState(new Date());
 
@@ -75,9 +75,15 @@ const ScheduleSection = ({ event, showtimes = [], onBuyTickets }) => {
                   </div>
                   <button 
                     onClick={onBuyTickets}
-                    className="px-4 py-2 rounded-lg border border-brand-600 text-brand-600 text-sm font-bold hover:bg-brand-600 hover:text-onBrand transition-all opacity-0 group-hover:opacity-100"
+                    disabled={isPast}
+                    className={cn(
+                      "px-4 py-2 rounded-lg border border-brand-600 text-brand-600 text-sm font-bold transition-all",
+                      isPast 
+                        ? "opacity-50 cursor-not-allowed" 
+                        : "opacity-0 group-hover:opacity-100 hover:bg-brand-600 hover:text-onBrand"
+                    )}
                   >
-                    Chọn
+                    {isPast ? 'Đã kết thúc' : 'Chọn'}
                   </button>
                 </div>
               ))
@@ -120,10 +126,16 @@ const ScheduleSection = ({ event, showtimes = [], onBuyTickets }) => {
                       <button 
                         key={st.id || idx}
                         onClick={onBuyTickets}
-                        className="p-3 rounded-xl bg-background/50 glass-border hover:border-brand-600 text-center transition-all hover:-translate-y-1"
+                        disabled={isPast}
+                        className={cn(
+                          "p-3 rounded-xl bg-background/50 glass-border text-center transition-all",
+                          isPast 
+                            ? "opacity-50 cursor-not-allowed" 
+                            : "hover:border-brand-600 hover:-translate-y-1"
+                        )}
                       >
                         <p className="font-bold text-brand-600">{format(parseISO(st.startTime), 'HH:mm')}</p>
-                        <p className="text-xs text-muted-foreground mt-1">Còn vé</p>
+                        <p className="text-xs text-muted-foreground mt-1">{isPast ? 'Đã kết thúc' : 'Còn vé'}</p>
                       </button>
                     ))
                 ) : (

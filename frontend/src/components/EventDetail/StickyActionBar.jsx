@@ -3,8 +3,9 @@ import { MapPin } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatVND } from '../../utils/formatters.js';
 
-const StickyActionBar = ({ event, isVisible, onBuyTickets, minPrice }) => {
+const StickyActionBar = ({ event, isVisible, onBuyTickets, minPrice, isPast }) => {
   if (!event) return null;
+
 
   return (
     <div 
@@ -32,9 +33,15 @@ const StickyActionBar = ({ event, isVisible, onBuyTickets, minPrice }) => {
           
           <button
             onClick={onBuyTickets}
-            className="flex-1 sm:flex-none px-8 py-3 bg-brand-600 hover:bg-brand-700 text-onBrand font-bold rounded-lg transition-all active:scale-95 shadow-lg shadow-brand-600/20"
+            disabled={isPast}
+            className={cn(
+              "flex-1 sm:flex-none px-8 py-3 bg-brand-600 text-onBrand font-bold rounded-lg transition-all shadow-lg shadow-brand-600/20",
+              isPast 
+                ? "opacity-50 cursor-not-allowed" 
+                : "hover:bg-brand-700 active:scale-95"
+            )}
           >
-            Mua vé ngay
+            {isPast ? 'Sự kiện đã kết thúc' : 'Mua vé ngay'}
           </button>
         </div>
       </div>

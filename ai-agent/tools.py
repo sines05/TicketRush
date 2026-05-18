@@ -54,6 +54,24 @@ def get_event_details(event_id: str) -> str:
     except Exception as e:
         return json.dumps({"error": str(e)})
 
+def get_past_events(_: str = "") -> str:
+    """
+    Useful for getting past events from the last 6 months.
+    """
+    try:
+        from datetime import datetime, timedelta
+        now = datetime.utcnow()
+        six_months_ago = (now - timedelta(days=180)).strftime('%Y-%m-%d')
+        yesterday = (now - timedelta(days=1)).strftime('%Y-%m-%d')
+        
+        url = f"http://backend:8080/api/v1/events?date_from={six_months_ago}&date_to={yesterday}"
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+        return json.dumps(data.get("data", []))
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+
 tools = [
     Tool(
         name="SearchEvents",
@@ -69,6 +87,11 @@ tools = [
         name="GetFeaturedEvents",
         func=get_featured_events,
         description="Use this when the user asks for 'any events', 'recommendations', or generic 'events' without a specific search term."
+    ),
+    Tool(
+        name="GetPastEvents",
+        func=get_past_events,
+        description="Use this when the user asks for 'past events', 'history', 'finished events', or wants to see what happened in the last few months."
     ),
     Tool(
         name="GetEventDetails",
