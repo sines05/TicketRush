@@ -52,6 +52,8 @@ export default function SearchOverlay({ isOpen, onClose }) {
   });
   const [trendingEvents, setTrendingEvents] = useState([]);
   const [activeTab, setActiveTab] = useState('category'); // 'category' | 'city'
+  const [searchResults, setSearchResults] = useState(null);
+  const [isSearching, setIsSearching] = useState(false);
 
   // Sync recent searches to localStorage
   useEffect(() => {
@@ -70,6 +72,29 @@ export default function SearchOverlay({ isOpen, onClose }) {
     };
     fetchTrending();
   }, []);
+
+  // Real-time search
+  useEffect(() => {
+    if (!query.trim()) {
+      setSearchResults(null);
+      setIsSearching(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const data = await eventService.getEvents({ q: query.trim(), limit: 10 });
+        setSearchResults(data);
+      } catch (e) {
+        console.error('Search failed', e);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [query]);
 
   useEffect(() => {
     if (isOpen) {
@@ -220,8 +245,52 @@ export default function SearchOverlay({ isOpen, onClose }) {
 
         {/* Bottom 80% - Tabs & Suggestions */}
         <div className="flex-1 overflow-y-auto p-6 md:p-10 custom-scrollbar space-y-12">
-          {/* Tabs Section */}
-          <div className="space-y-8">
+          {query.trim() ? (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h3 className="text-white/40 text-[10px] font-bold uppercase tracking-[0.2em]">
+                  {isSearching ? 'Đang tìm kiếm...' : `Kết quả cho "${query}"`}
+                </h3>
+                <div className="h-px flex-1 bg-white/5 ml-6" />
+              </div>
+              
+              {!isSearching && searchResults && searchResults.length === 0 ? (
+                <div className="text-center py-10 text-white/50">
+                  Không tìm thấy sự kiện nào phù hợp.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {(searchResults || []).map((event) => (
+                    <div 
+                      key={event.id}
+                      onClick={() => handleEventClick(event)}
+                      className="group flex items-center gap-4 p-3 rounded-2xl bg-white/[0.03] border border-white/5 hover:bg-white/[0.07] hover:border-white/10 transition-all cursor-pointer"
+                    >
+                      <div className="relative h-16 w-16 rounded-xl overflow-hidden flex-shrink-0">
+                        <img 
+                          src={resolveMediaUrl(event.banner_url)} 
+                          alt={event.title}
+                          className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-all duration-700"
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-white font-bold text-sm truncate group-hover:text-primary transition-colors">{event.title}</h4>
+                        <div className="flex items-center gap-2 mt-1 text-[10px] text-white/40">
+                           <span className="text-primary/80 font-bold uppercase">{getCategoryLabel(event.category)}</span>
+                           <span className="w-1 h-1 rounded-full bg-white/10" />
+                           <span>{event.location}</span>
+                        </div>
+                      </div>
+                      <ArrowUpRight className="h-4 w-4 text-white/10 group-hover:text-primary transition-all mr-2" />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
+              {/* Tabs Section */}
+              <div className="space-y-8">
             <div className="flex items-center gap-8 border-b border-white/5">
               <button 
                 onClick={() => setActiveTab('category')}
@@ -336,6 +405,8 @@ export default function SearchOverlay({ isOpen, onClose }) {
               ))}
             </div>
           </div>
+        </>
+        )}
         </div>
       </div>
 

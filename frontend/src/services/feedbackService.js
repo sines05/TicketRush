@@ -38,6 +38,11 @@ async function getFeaturedComplaints(limit = 12) {
   return (unwrap(res) || []).map(normalizeComplaint).filter((complaint) => complaint.rating >= 4);
 }
 
+async function getFeaturedReviews(limit = 12) {
+  const res = await api.get('/reviews/featured', { params: { limit } });
+  return (unwrap(res) || []).map(normalizeComplaint).filter((review) => review.rating >= 4);
+}
+
 async function submitComplaint({ title, content, rating }) {
   const res = await api.post(API_ROUTES.COMPLAINTS, { title, content, rating });
   return normalizeComplaint(unwrap(res));
@@ -63,6 +68,7 @@ export default {
   getComplaints,
   getAllComplaints,
   getFeaturedComplaints,
+  getFeaturedReviews,
   submitComplaint,
   getReviews,
   submitReview,

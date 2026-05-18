@@ -8,13 +8,14 @@ import (
 )
 
 type ReviewResponse struct {
-	ID        uuid.UUID `json:"id"`
-	UserID    uuid.UUID `json:"user_id"`
-	EventID   uuid.UUID `json:"event_id"`
-	Rating    int       `json:"rating"`
-	Comment   string    `json:"comment"`
-	CreatedAt time.Time `json:"created_at"`
-	User      *UserResponse `json:"user,omitempty"`
+	ID         uuid.UUID     `json:"id"`
+	UserID     uuid.UUID     `json:"user_id"`
+	EventID    uuid.UUID     `json:"event_id"`
+	Rating     int           `json:"rating"`
+	Comment    string        `json:"comment"`
+	CreatedAt  time.Time     `json:"created_at"`
+	User       *UserResponse `json:"user,omitempty"`
+	EventTitle string        `json:"event_title,omitempty"`
 }
 
 func ToReviewResponse(r *models.Review) ReviewResponse {
@@ -29,6 +30,9 @@ func ToReviewResponse(r *models.Review) ReviewResponse {
 	if r.User.ID != uuid.Nil {
 		ur := ToUserResponse(r.User)
 		res.User = &ur
+	}
+	if r.Event.ID != uuid.Nil {
+		res.EventTitle = r.Event.Title
 	}
 	return res
 }

@@ -18,7 +18,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Loading from '../../components/common/Loading.jsx';
 import TicketItem from '../../components/tickets/TicketItem.jsx';
-import { User, Shield, Ticket, LogOut, Camera, CheckCircle2, AlertCircle } from 'lucide-react';
+import { User, Shield, Ticket, LogOut, Camera, CheckCircle2, AlertCircle, Bell } from 'lucide-react';
 import { QRCodeCanvas } from 'qrcode.react';
 
 function toDateInputValue(value) {
@@ -313,7 +313,7 @@ export default function Profile() {
       )}
 
       <Tabs defaultValue="profile" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 mb-8">
+        <TabsList className="grid w-full grid-cols-4 mb-8">
           <TabsTrigger value="profile" className="flex items-center gap-2">
             <User className="h-4 w-4" /> <span className="hidden sm:inline">Hồ sơ</span>
           </TabsTrigger>
@@ -322,6 +322,9 @@ export default function Profile() {
           </TabsTrigger>
           <TabsTrigger value="security" className="flex items-center gap-2">
             <Shield className="h-4 w-4" /> <span className="hidden sm:inline">Bảo mật</span>
+          </TabsTrigger>
+          <TabsTrigger value="notifications" className="flex items-center gap-2">
+            <Bell className="h-4 w-4" /> <span className="hidden sm:inline">Thông báo</span>
           </TabsTrigger>
         </TabsList>
 
@@ -612,6 +615,24 @@ export default function Profile() {
                   </div>
                 </div>
               )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="notifications" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Thông báo</CardTitle>
+              <CardDescription>Cấu hình và xem lịch sử thông báo của bạn.</CardDescription>
+            </CardHeader>
+            <CardContent className="text-center py-12 space-y-4">
+              <div className="bg-muted w-16 h-16 rounded-full flex items-center justify-center mx-auto">
+                <Bell className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <div className="space-y-1">
+                <p className="font-medium">Tính năng Thông báo đang được phát triển</p>
+                <p className="text-sm text-muted-foreground">Tính năng này sẽ được ra mắt trong thời gian sớm nhất.</p>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

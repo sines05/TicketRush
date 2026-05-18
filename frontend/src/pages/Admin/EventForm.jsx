@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { CalendarClock, Copy, ImagePlus, Layers3, MapPin, Rocket, Save, Sparkles, Ticket, Trash2 } from 'lucide-react';
+import { CalendarClock, Copy, ImagePlus, Layers3, MapPin, Navigation, Rocket, Save, Sparkles, Ticket, Trash2 } from 'lucide-react';
 import Button from '../../components/common/Button.jsx';
 import Input from '../../components/common/Input.jsx';
 import { formatVND } from '../../utils/formatters.js';
@@ -11,6 +11,8 @@ import { CATEGORY_OPTIONS, getCategoryKey } from '../../constants/categories.js'
 import { ShapePalette, readAddZoneActionFromDrop } from '../../components/SeatBuilder/ShapePalette.tsx';
 import { FloorGroup } from '../../components/SeatBuilder/FloorGroup.tsx';
 import { ZoneBlock } from '../../components/SeatBuilder/ZoneBlock.tsx';
+import OSMLocation from '../../components/Maps/OSMLocation';
+import { getProvinces, getWardsByProvinceCode, findProvinceByName } from '../../constants/vietnamLocations.js';
 
 const SHAPE_LABELS = {
   theatre: 'Theatre',
@@ -230,7 +232,12 @@ export default function EventForm() {
   const [loading, setLoading] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [location, setLocation] = useState('');
+  // --- Location fields (4-part) ---
+  const [province, setProvince] = useState('');        // tên tỉnh/thành (maps to event.location)
+  const [provinceCode, setProvinceCode] = useState(null); // mã tỉnh để lookup phường/xã
+  const [ward, setWard] = useState('');                // tên phường/xã
+  const [locationDetail, setLocationDetail] = useState(''); // mô tả địa điểm chi tiết
+  const [locationCoords, setLocationCoords] = useState(null); // { lat, lng }
   const [existingBannerUrl, setExistingBannerUrl] = useState('');
   const [bannerFile, setBannerFile] = useState(null);
   const [startsAt, setStartsAt] = useState('2026-06-01T18:00');
@@ -425,7 +432,32 @@ export default function EventForm() {
 
         setTitle(evt?.title || '');
         setDescription(evt?.description || '');
-        setLocation(evt?.location || '');
+
+        // Restore location fields
+        const savedProvince = evt?.location || '';
+        setProvince(savedProvince);
+        const matchedProvince = findProvinceByName(savedProvince);
+        setProvinceCode(matchedProvince?.code ?? null);
+
+        // address = "<ward> - <detail>" or just detail
+        const savedAddress = evt?.address || '';
+        const dashIdx = savedAddress.indexOf(' - ');
+        if (dashIdx !== -1) {
+          setWard(savedAddress.substring(0, dashIdx));
+          setLocationDetail(savedAddress.substring(dashIdx + 3));
+        } else {
+          setWard('');
+          setLocationDetail(savedAddress);
+        }
+
+        if (typeof evt?.latitude === 'number' && typeof evt?.longitude === 'number') {
+          setLocationCoords({ lat: evt.latitude, lng: evt.longitude });
+        } else if (evt?.latitude != null && evt?.longitude != null) {
+          const lat = parseFloat(evt.latitude);
+          const lng = parseFloat(evt.longitude);
+          if (!isNaN(lat) && !isNaN(lng)) setLocationCoords({ lat, lng });
+        }
+
         setExistingBannerUrl(evt?.banner_url || '');
         setIsPublished(Boolean(evt?.is_published));
         setIsFeatured(Boolean(evt?.is_featured));
@@ -553,10 +585,17 @@ export default function EventForm() {
       return out;
     });
 
+    // Build address: "<ward> - <locationDetail>" or just detail
+    const addressParts = [ward, locationDetail].filter(Boolean);
+    const address = addressParts.join(' - ');
+
     return {
       title,
       description,
-      location,
+      location: province,
+      address,
+      latitude: locationCoords?.lat ?? null,
+      longitude: locationCoords?.lng ?? null,
       banner_url: null,
       category,
       start_time: startsAt ? new Date(startsAt).toISOString() : '',
@@ -565,7 +604,7 @@ export default function EventForm() {
       is_featured: Boolean(isFeatured),
       zones: zonesPayload
     };
-  }, [title, description, location, category, startsAt, endsAt, isPublished, isFeatured, zones]);
+  }, [title, description, province, ward, locationDetail, locationCoords, category, startsAt, endsAt, isPublished, isFeatured, zones]);
 
   function setZoneField(index, patch) {
     setZones((prev) => prev.map((z, i) => (i === index ? { ...z, ...patch } : z)));
@@ -819,18 +858,93 @@ export default function EventForm() {
               className="w-full rounded-2xl border border-teal-700/15 bg-white/78 px-4 py-3 text-[16px] font-semibold text-slate-950 shadow-sm outline-none transition focus:border-teal-500/70 focus:ring-4 focus:ring-teal-500/15 dark:border-white/10 dark:bg-white/[0.08] dark:text-white dark:focus:border-cyan-300/50 dark:focus:ring-cyan-300/15"
             />
           </label>
-          <label className="block">
-            <div className="mb-2 flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.2em] text-teal-800/80 dark:text-cyan-100/80">
-              <MapPin className="h-3.5 w-3.5 text-rose-500 dark:text-rose-300" />
-              Location
+          {/* ── Location: 4-part selector ── */}
+          <div className="md:col-span-2 space-y-4 rounded-[20px] border border-rose-500/20 bg-rose-50/60 p-5 dark:border-rose-300/15 dark:bg-rose-950/20">
+            <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.22em] text-rose-700 dark:text-rose-300">
+              <MapPin className="h-3.5 w-3.5" />
+              Địa điểm tổ chức
             </div>
-            <input
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              placeholder="VD: My Dinh Stadium, Hanoi"
-              className="w-full rounded-2xl border border-teal-700/15 bg-white/78 px-4 py-3 text-[16px] font-semibold text-slate-950 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-teal-500/70 focus:ring-4 focus:ring-teal-500/15 dark:border-white/10 dark:bg-white/[0.08] dark:text-white dark:placeholder:text-slate-500 dark:focus:border-cyan-300/50 dark:focus:ring-cyan-300/15"
-            />
-          </label>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              {/* 1. Tỉnh / Thành phố */}
+              <label className="block">
+                <div className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-600 dark:text-slate-300">
+                  1. Tỉnh / Thành phố
+                </div>
+                <select
+                  id="location-province"
+                  value={provinceCode ?? ''}
+                  onChange={(e) => {
+                    const code = e.target.value ? Number(e.target.value) : null;
+                    setProvinceCode(code);
+                    const found = getProvinces().find((p) => p.code === code);
+                    setProvince(found?.name ?? '');
+                    setWard('');
+                  }}
+                  className="w-full rounded-2xl border border-teal-700/15 bg-white/90 px-4 py-3 text-[15px] font-semibold text-slate-950 shadow-sm outline-none transition focus:border-rose-500/60 focus:ring-4 focus:ring-rose-500/12 dark:border-white/10 dark:bg-slate-900/80 dark:text-white dark:focus:border-rose-300/50"
+                >
+                  <option value="">-- Chọn tỉnh/thành --</option>
+                  {getProvinces().map((p) => (
+                    <option key={p.code} value={p.code}>{p.name}</option>
+                  ))}
+                </select>
+              </label>
+
+              {/* 2. Phường / Xã */}
+              <label className="block">
+                <div className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-600 dark:text-slate-300">
+                  2. Phường / Xã
+                </div>
+                <select
+                  id="location-ward"
+                  value={ward}
+                  onChange={(e) => setWard(e.target.value)}
+                  disabled={!provinceCode}
+                  className="w-full rounded-2xl border border-teal-700/15 bg-white/90 px-4 py-3 text-[15px] font-semibold text-slate-950 shadow-sm outline-none transition focus:border-rose-500/60 focus:ring-4 focus:ring-rose-500/12 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/10 dark:bg-slate-900/80 dark:text-white dark:focus:border-rose-300/50"
+                >
+                  <option value="">-- Chọn phường/xã --</option>
+                  {(provinceCode ? getWardsByProvinceCode(provinceCode) : []).map((w) => (
+                    <option key={w.code} value={w.name}>{w.name}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            {/* 3. Mô tả địa điểm chi tiết */}
+            <label className="block">
+              <div className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-600 dark:text-slate-300">
+                3. Địa chỉ / Mô tả chi tiết
+              </div>
+              <input
+                id="location-detail"
+                value={locationDetail}
+                onChange={(e) => setLocationDetail(e.target.value)}
+                placeholder="VD: Sân vận động Quốc gia Mỹ Đình, số 141 Lê Đức Thọ"
+                className="w-full rounded-2xl border border-teal-700/15 bg-white/90 px-4 py-3 text-[15px] font-semibold text-slate-950 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-rose-500/60 focus:ring-4 focus:ring-rose-500/12 dark:border-white/10 dark:bg-slate-900/80 dark:text-white dark:placeholder:text-slate-500 dark:focus:border-rose-300/50"
+              />
+            </label>
+
+            {/* 4. Vị trí trên bản đồ */}
+            <div>
+              <div className="mb-2 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-600 dark:text-slate-300">
+                <Navigation className="h-3 w-3" />
+                4. Vị trí trên bản đồ (click hoặc kéo ghim để chọn)
+              </div>
+              {locationCoords && (
+                <div className="mb-2 flex items-center gap-2 rounded-xl border border-rose-300/30 bg-white/70 px-3 py-2 text-xs font-mono text-rose-700 dark:border-rose-300/20 dark:bg-slate-900/50 dark:text-rose-300">
+                  <MapPin className="h-3 w-3 shrink-0" />
+                  {locationCoords.lat.toFixed(5)}, {locationCoords.lng.toFixed(5)}
+                </div>
+              )}
+              <div className="h-[320px] w-full overflow-hidden rounded-2xl border border-slate-700/30 dark:border-white/10 relative z-0 isolate shadow-md">
+                <OSMLocation
+                  initialLocation={locationCoords || { lat: 21.0285, lng: 105.8542 }}
+                  onLocationChange={(pos) => setLocationCoords(pos)}
+                  readOnly={false}
+                />
+              </div>
+            </div>
+          </div>
 
           <label className="block md:col-span-2">
             <div className="mb-2 text-[11px] font-black uppercase tracking-[0.2em] text-teal-800/80 dark:text-cyan-100/80">Mô tả</div>

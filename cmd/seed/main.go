@@ -647,6 +647,85 @@ func main() {
 	fmt.Printf("   ✅ Created %d sample reports for carousel\n", len(complaintTemplates))
 
 	// ============================================================
+	// 7. SAMPLE REVIEWS (EVENT REVIEWS)
+	// ============================================================
+	fmt.Println("⭐ Creating sample event reviews...")
+
+	reviewTemplates := []struct {
+		EventIndex int
+		UserEmail  string
+		Rating     int
+		Comment    string
+	}{
+		{
+			EventIndex: 0, // Jack Concert
+			UserEmail:  "linhchi@gmail.com",
+			Rating:     5,
+			Comment:    "Đêm nhạc quá bùng nổ! Jack hát live cực đỉnh, không gian đầy ánh sáng lung linh huyền ảo.",
+		},
+		{
+			EventIndex: 1, // Son Tung Sky Tour
+			UserEmail:  "thuytrang@gmail.com",
+			Rating:     5,
+			Comment:    "Sân khấu Sky Tour hoành tráng mang tầm vóc quốc tế. Sơn Tùng trình diễn quá chuyên nghiệp!",
+		},
+		{
+			EventIndex: 2, // Rap Viet
+			UserEmail:  "minhduc@gmail.com",
+			Rating:     5,
+			Comment:    "Bữa tiệc Hip Hop tuyệt vời nhất từ trước đến nay! Rapper nào diễn cũng cháy hết mình.",
+		},
+		{
+			EventIndex: 3, // BLACKPINK
+			UserEmail:  "ngocanhh@gmail.com",
+			Rating:     5,
+			Comment:    "BORN PINK Hanoi là kỷ niệm không thể nào quên. Âm thanh bùng nổ, 4 cô gái nhảy cực sung!",
+		},
+		{
+			EventIndex: 4, // Ha Anh Tuan
+			UserEmail:  "customer@ticketrush.com",
+			Rating:     5,
+			Comment:    "Sự kết hợp hoàn hảo giữa giọng hát duy mỹ của anh Tuấn và âm nhạc Kitaro giữa Ninh Bình cổ kính.",
+		},
+		{
+			EventIndex: 0, // Jack Concert
+			UserEmail:  "hoangnam@gmail.com",
+			Rating:     4,
+			Comment:    "Tổ chức rất tốt, lối vào phân luồng rõ ràng, âm thanh chất lượng cao. Sẽ tiếp tục ủng hộ!",
+		},
+		{
+			EventIndex: 1, // Son Tung Sky Tour
+			UserEmail:  "quanghai@gmail.com",
+			Rating:     5,
+			Comment:    "Mua vé dễ dàng qua TicketRush, check-in nhanh chóng. MTP hát live hay và tương tác tuyệt vời.",
+		},
+		{
+			EventIndex: 2, // Rap Viet
+			UserEmail:  "thanhhuyen@gmail.com",
+			Rating:     5,
+			Comment:    "Không khí tại sân khấu cực kỳ náo nhiệt. Tốc độ săn vé nhanh giúp mình có vị trí đứng cực đẹp!",
+		},
+	}
+
+	for _, rt := range reviewTemplates {
+		// Find user
+		var user models.User
+		if err := db.Where("email = ?", rt.UserEmail).First(&user).Error; err != nil {
+			continue
+		}
+
+		event := eventSeeds[rt.EventIndex].event
+		review := models.Review{
+			UserID:  user.ID,
+			EventID: event.ID,
+			Rating:  rt.Rating,
+			Comment: rt.Comment,
+		}
+		db.Create(&review)
+	}
+	fmt.Printf("   ✅ Created %d sample reviews for carousel\n", len(reviewTemplates))
+
+	// ============================================================
 	// SUMMARY
 	// ============================================================
 	fmt.Println("\n" + "═══════════════════════════════════════════════")

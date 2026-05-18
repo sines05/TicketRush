@@ -93,8 +93,8 @@ export default function SystemReportCarousel() {
     : [...reports, ...reports];
 
   return (
-    <section className="relative isolate overflow-hidden py-2" aria-labelledby="home-system-report-heading">
-      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <section className="relative isolate overflow-hidden py-8" aria-labelledby="home-system-report-heading">
+      <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="space-y-2">
           <div className="inline-flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-300/12 px-3 py-1 text-xs font-black uppercase tracking-[0.22em] text-amber-700 dark:text-amber-200">
             <MessageCircleHeart className="h-4 w-4" aria-hidden="true" />
@@ -115,10 +115,11 @@ export default function SystemReportCarousel() {
         ))}
       </ul>
 
-      <div className="pointer-events-none absolute inset-y-16 left-0 z-10 w-20 bg-gradient-to-r from-background to-transparent sm:w-32" aria-hidden="true" />
-      <div className="pointer-events-none absolute inset-y-16 right-0 z-10 w-20 bg-gradient-to-l from-background to-transparent sm:w-32" aria-hidden="true" />
-
       <div className="tr-report-rail relative -mx-4 overflow-hidden px-4 py-3 sm:-mx-8 sm:px-8" aria-hidden="true">
+        {/* Sleek edge fading gradient overlays positioned relative to the rail */}
+        <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-20 bg-gradient-to-r from-background to-transparent sm:w-32" aria-hidden="true" />
+        <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-20 bg-gradient-to-l from-background to-transparent sm:w-32" aria-hidden="true" />
+
         <div
           className="tr-report-track flex w-max gap-4"
           style={{ animation: 'tr-report-marquee-ltr 20s linear infinite' }}

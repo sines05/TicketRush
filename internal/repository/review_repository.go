@@ -11,6 +11,7 @@ type ReviewRepository interface {
 	CreateReview(ctx context.Context, review *models.Review) error
 	GetReviewsByEventID(ctx context.Context, eventID uuid.UUID) ([]models.Review, error)
 	GetAverageRating(ctx context.Context, eventID uuid.UUID) (float64, error)
+	GetFeaturedReviews(ctx context.Context, minRating int, limit int) ([]models.Review, error)
 }
 
 type reviewRepo struct {
@@ -35,4 +36,10 @@ func (r *reviewRepo) GetAverageRating(ctx context.Context, eventID uuid.UUID) (f
 	var avg float64
 	err := r.db.Model(&models.Review{}).Where("event_id = ?", eventID).Select("COALESCE(AVG(rating), 0)").Scan(&avg).Error
 	return avg, err
+}
+
+func (r *reviewRepo) GetFeaturedReviews(ctx context.Context, minRating int, limit int) ([]models.Review, error) {
+	var reviews []models.Review
+	err := r.db.Preload("User").Preload("Event").Where("rating >= ?", minRating).Order("created_at DESC").Limit(limit).Find(&reviews).Error
+	return reviews, err
 }

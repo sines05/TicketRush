@@ -6,6 +6,7 @@ import SpecialEvents from '@/components/home/SpecialEvents';
 import TrendingEvents from '@/components/home/TrendingEvents';
 import LocationCards from '@/components/home/LocationCards';
 import SystemReportCarousel from '@/components/home/SystemReportCarousel';
+import EventReviewCarousel from '@/components/home/EventReviewCarousel';
 import EventListWithTabs from '@/components/home/EventListWithTabs';
 import PromotionBanners from '@/components/home/PromotionBanners';
 import { CATEGORY_OPTIONS } from '@/constants/categories';
@@ -65,6 +66,9 @@ export default function Home() {
 
       {/* 4. Featured system reports from complaints */}
       <SystemReportCarousel />
+
+      {/* 4.5. Event reviews carousel */}
+      <EventReviewCarousel />
 
       {/* 5. Categorized Lists - with Weekend/Month tabs */}
       <div className="space-y-20">

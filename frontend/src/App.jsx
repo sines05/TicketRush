@@ -278,7 +278,7 @@ export default function App() {
         </header>
       )}
 
-      {location.pathname === '/' && (
+      {(location.pathname === '/' || location.pathname === '/search') && (
         <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           <div className="mx-auto w-full max-w-[1440px] px-4 md:px-8 lg:px-12">
             <nav className="flex items-center gap-1 overflow-x-auto py-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
@@ -355,7 +355,6 @@ export default function App() {
                 <ul className="mt-4 space-y-2">
                   <li><Link to="/" className="text-sm text-muted-foreground hover:text-primary transition-colors">Sự kiện mới</Link></li>
                   <li><Link to="/" className="text-sm text-muted-foreground hover:text-primary transition-colors">Phổ biến</Link></li>
-                  <li><Link to="/booking/queue" className="text-sm text-muted-foreground hover:text-primary transition-colors">Hàng chờ</Link></li>
                 </ul>
               </div>
               <div>
@@ -372,8 +371,7 @@ export default function App() {
                 © {new Date().getFullYear()} TicketRush. All rights reserved.
               </p>
               <div className="flex space-x-6">
-                <span className="text-xs text-muted-foreground">Demo UI (React)</span>
-                <span className="text-xs text-muted-foreground">Ocean Breeze / Dark Amethyst</span>
+                <span className="text-xs text-muted-foreground">Phát triển bởi: Nguyễn Quế Sơn, Nguyễn Tuấn Đức, Đỗ Ngọc Khánh</span>
               </div>
             </div>
           </div>

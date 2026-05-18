@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"strconv"
 	"time"
 	"ticketrush/internal/dto"
 	"ticketrush/internal/models"
@@ -92,4 +93,26 @@ func (h *ReviewHandler) GetEventReviews(c *gin.Context) {
 		"reviews":        dto.ToReviewResponses(reviews),
 		"average_rating": avg,
 	}, "Reviews fetched successfully")
+}
+
+func (h *ReviewHandler) GetFeaturedReviews(c *gin.Context) {
+	limit := 12
+	if limitParam := c.Query("limit"); limitParam != "" {
+		parsed, err := strconv.Atoi(limitParam)
+		if err == nil && parsed >= 1 {
+			if parsed > 24 {
+				limit = 24
+			} else {
+				limit = parsed
+			}
+		}
+	}
+
+	reviews, err := h.reviewRepo.GetFeaturedReviews(c.Request.Context(), 4, limit)
+	if err != nil {
+		utils.SendError(c, http.StatusInternalServerError, "Failed to fetch featured reviews", "INTERNAL_ERROR")
+		return
+	}
+
+	utils.SendSuccess(c, http.StatusOK, dto.ToReviewResponses(reviews), "Featured reviews fetched successfully")
 }

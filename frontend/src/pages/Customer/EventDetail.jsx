@@ -199,21 +199,53 @@ export default function EventDetail() {
             <OrganizerSection event={mappedEvent} />
 
             {/* Location / Map */}
-            <section className="bg-surface/50 rounded-2xl glass-border p-6 space-y-6">
-              <h2 className="text-xl font-bold text-brand-600">Địa điểm</h2>
-              <div className="space-y-4">
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  {event.address || event.location}
-                </p>
-                {event.latitude && event.longitude && (
-                  <div className="h-[300px] w-full overflow-hidden rounded-xl glass-border">
-                    <OSMLocation
-                      initialLocation={{ lat: event.latitude, lng: event.longitude }}
-                      readOnly={true}
-                    />
-                  </div>
-                )}
-              </div>
+            <section className="bg-surface/50 rounded-2xl glass-border p-6 space-y-4">
+              <h2 className="text-xl font-bold text-brand-600 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                Địa điểm
+              </h2>
+
+              {/* Province badge */}
+              {event.location && (
+                <div className="inline-flex items-center gap-1.5 rounded-full border border-brand-600/30 bg-brand-600/10 px-3 py-1 text-xs font-bold text-brand-600">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+                  {event.location}
+                </div>
+              )}
+
+              {/* Address detail */}
+              {event.address && (
+                <div className="flex gap-2 text-sm text-muted-foreground leading-relaxed">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mt-0.5 shrink-0 text-brand-600/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                  <span>{event.address}</span>
+                </div>
+              )}
+
+              {/* Fallback: only location, no address */}
+              {!event.address && event.location && (
+                <div className="flex gap-2 text-sm text-muted-foreground">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mt-0.5 shrink-0 text-brand-600/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                  <span>{event.location}</span>
+                </div>
+              )}
+
+              {/* GPS coordinates (subtle) */}
+              {event.latitude != null && event.longitude != null && (
+                <div className="flex items-center gap-1.5 rounded-lg border border-text/10 bg-background/40 px-2.5 py-1.5 font-mono text-[10px] text-muted-foreground">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+                  {Number(event.latitude).toFixed(5)}, {Number(event.longitude).toFixed(5)}
+                </div>
+              )}
+
+              {/* Map */}
+              {event.latitude && event.longitude && (
+                <div className="h-[280px] w-full overflow-hidden rounded-xl glass-border relative z-0 isolate shadow-md">
+                  <OSMLocation
+                    initialLocation={{ lat: event.latitude, lng: event.longitude }}
+                    readOnly={true}
+                  />
+                </div>
+              )}
             </section>
           </div>
         </div>

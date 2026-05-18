@@ -20,7 +20,7 @@
     --tr-secondary: 189 58% 52%; /* Ocean Blue */
     --tr-secondary-foreground: 222.2 20% 12%;
 
-    --tr-muted: 215.4 16.3% 46.9%;
+    --tr-muted: 210 40% 96.1%;
     --tr-muted-foreground: 215.4 16.3% 46.9%;
 
     --tr-accent: 171 31% 69%; /* Tide Mint */
@@ -78,8 +78,8 @@
     --tr-secondary: 189 39% 40%; /* Pacific Cyan */
     --tr-secondary-foreground: 354 100% 97%;
 
-    --tr-muted: 148 31% 72%;
-    --tr-muted-foreground: 148 31% 72%;
+    --tr-muted: 263 30% 15%;
+    --tr-muted-foreground: 263 10% 70%;
 
     --tr-accent: 359 75% 84%; /* Powder Blush - Refined saturation < 80% */
     --tr-accent-foreground: 263 30% 8%;
