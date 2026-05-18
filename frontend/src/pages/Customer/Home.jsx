@@ -32,11 +32,20 @@ export default function Home() {
   }, [location.key]);
 
   return (
-    <div className="space-y-20 pb-20">
+    <>
       <Helmet>
         <title>TicketRush | Khám phá sự kiện giải trí hàng đầu</title>
         <meta name="description" content="Săn vé sự kiện, concert, thể thao và kịch nói nhanh chóng, an toàn tại TicketRush." />
       </Helmet>
+
+      <a
+        href="#home-main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-lg focus:bg-background focus:px-4 focus:py-3 focus:text-sm focus:font-bold focus:text-foreground focus:shadow-xl focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+      >
+        Bỏ qua phần điều hướng và đến nội dung chính
+      </a>
+
+      <main id="home-main-content" className="space-y-20 pb-20" aria-label="Trang chủ TicketRush">
 
       {/* 0. Hero Carousel */}
       {!loading && heroEvents.length > 0 && (
@@ -73,9 +82,10 @@ export default function Home() {
         <span className="rounded-full bg-primary/10 px-2 py-0.5 text-primary font-medium">
           Live API
         </span>
-        <span>•</span>
+        <span aria-hidden="true">•</span>
         <span>TicketRush Premium Experience</span>
       </div>
-    </div>
+      </main>
+    </>
   );
 }

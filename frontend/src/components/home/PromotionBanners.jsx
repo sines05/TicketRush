@@ -27,11 +27,11 @@ export default function PromotionBanners() {
   );
 
   return (
-    <section className="container mx-auto space-y-4">
+    <section className="container mx-auto space-y-4" aria-labelledby="home-promotion-heading">
       <div className="flex items-end justify-between gap-4">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.22em] text-primary">Đối tác ưu đãi</p>
-          <h2 className="mt-2 text-2xl font-black tracking-tight text-foreground md:text-3xl">
+          <h2 id="home-promotion-heading" className="mt-2 text-2xl font-black tracking-tight text-foreground md:text-3xl">
             Deal nổi bật cho khán giả TicketRush
           </h2>
         </div>
@@ -39,7 +39,7 @@ export default function PromotionBanners() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="overflow-hidden rounded-[1.75rem] border border-white/50 bg-card/50 shadow-[0_24px_70px_-42px_hsl(var(--tr-primary)/0.45)] transition hover:-translate-y-0.5 hover:shadow-[0_32px_90px_-48px_hsl(var(--tr-primary)/0.58)] dark:border-white/10">
+        <div className="overflow-hidden rounded-[1.75rem] border border-white/50 bg-card/50 shadow-[0_24px_70px_-42px_hsl(var(--tr-primary)/0.45)] transition hover:-translate-y-0.5 hover:shadow-[0_32px_90px_-48px_hsl(var(--tr-primary)/0.58)] dark:border-white/10" aria-live="polite">
           <img
             src={activeBanner.src}
             alt={activeBanner.alt}
@@ -62,6 +62,7 @@ export default function PromotionBanners() {
                 <img
                   src={banner.src}
                   alt=""
+                  aria-hidden="true"
                   className="block aspect-[1440/260] h-full w-full rounded-[0.85rem] object-cover opacity-80 transition group-hover:opacity-100"
                   loading="lazy"
                 />

@@ -139,6 +139,16 @@
   h1, h2, h3, h4, h5, h6 {
     @apply font-semibold tracking-tight text-balance;
   }
+
+  a:focus-visible,
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible,
+  [tabindex]:focus-visible {
+    outline: 3px solid hsl(var(--tr-ring));
+    outline-offset: 3px;
+  }
 }
 
 

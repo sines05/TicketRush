@@ -43,11 +43,13 @@ export default function SpecialEvents() {
 
   if (loading) {
     return (
-      <section className="space-y-4">
+      <section className="space-y-4" aria-labelledby="home-special-events-heading" aria-busy="true">
+        <h2 id="home-special-events-heading" className="sr-only">Sự kiện đặc biệt</h2>
+        <p className="sr-only" role="status">Đang tải sự kiện đặc biệt</p>
         <div className="h-8 w-48 animate-pulse rounded bg-muted" />
         <div className="flex gap-6 overflow-hidden">
           {[1, 2, 3, 4, 5].map((i) => (
-            <Skeleton key={i} className="aspect-[2/3] w-[200px] md:w-[280px] shrink-0 rounded-2xl" />
+            <Skeleton key={i} className="aspect-[2/3] w-[200px] md:w-[280px] shrink-0 rounded-2xl" aria-hidden="true" />
           ))}
         </div>
       </section>
@@ -57,9 +59,9 @@ export default function SpecialEvents() {
   if (error || events.length === 0) return null;
 
   return (
-    <section className="relative space-y-6 group/section">
+    <section className="relative space-y-6 group/section" aria-labelledby="home-special-events-heading">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold tracking-tight text-foreground uppercase">Sự kiện đặc biệt</h2>
+        <h2 id="home-special-events-heading" className="text-2xl font-bold tracking-tight text-foreground uppercase">Sự kiện đặc biệt</h2>
       </div>
 
       <div className="relative">
@@ -72,10 +74,11 @@ export default function SpecialEvents() {
               key={event.id}
               to={`/events/${event.slug || event.id}`}
               className="relative shrink-0 w-[200px] md:w-[280px] aspect-[2/3] snap-start overflow-hidden rounded-2xl shadow-xl transition-all duration-500 hover:scale-[1.02] hover:shadow-2xl active:scale-95 group"
+              aria-label={`Xem chi tiết sự kiện đặc biệt ${event.title}`}
             >
               <img
                 src={resolveMediaUrl(event.banner_url) || bannerFallback}
-                alt={event.title}
+                alt={`Poster sự kiện đặc biệt ${event.title}`}
                 className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
                 loading="lazy"
               />
@@ -86,19 +89,21 @@ export default function SpecialEvents() {
 
         {/* Navigation Arrows */}
         <button
+          type="button"
           onClick={() => scroll('left')}
           className="absolute left-4 top-1/2 z-20 -translate-y-1/2 flex h-12 w-12 items-center justify-center rounded-full bg-card/80 text-foreground backdrop-blur-md border border-border opacity-0 transition-all duration-300 hover:bg-card group-hover/section:opacity-100 shadow-2xl active:scale-90"
-          aria-label="Previous"
+          aria-label="Cuộn danh sách sự kiện đặc biệt sang trái"
         >
-          <ChevronLeft className="h-6 w-6" />
+          <ChevronLeft className="h-6 w-6" aria-hidden="true" />
         </button>
 
         <button
+          type="button"
           onClick={() => scroll('right')}
           className="absolute right-4 top-1/2 z-20 -translate-y-1/2 flex h-12 w-12 items-center justify-center rounded-full bg-card/80 text-foreground backdrop-blur-md border border-border opacity-0 transition-all duration-300 hover:bg-card group-hover/section:opacity-100 shadow-2xl active:scale-90"
-          aria-label="Next"
+          aria-label="Cuộn danh sách sự kiện đặc biệt sang phải"
         >
-          <ChevronRight className="h-6 w-6" />
+          <ChevronRight className="h-6 w-6" aria-hidden="true" />
         </button>
       </div>
     </section>

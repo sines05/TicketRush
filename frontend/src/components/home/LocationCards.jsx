@@ -15,8 +15,8 @@ export default function LocationCards() {
   const mainCities = CITY_OPTIONS.slice(0, 3);
 
   return (
-    <section className="space-y-6">
-      <h2 className="text-2xl font-bold tracking-tight text-foreground uppercase">Điểm đến thú vị</h2>
+    <section className="space-y-6" aria-labelledby="home-locations-heading">
+      <h2 id="home-locations-heading" className="text-2xl font-bold tracking-tight text-foreground uppercase">Điểm đến thú vị</h2>
       
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {mainCities.map((loc) => (
@@ -24,10 +24,11 @@ export default function LocationCards() {
             key={loc.key}
             to={`/search?location=${loc.key}`}
             className="group relative aspect-[4/3] overflow-hidden rounded-2xl shadow-xl transition-all duration-500 hover:-translate-y-1 hover:shadow-2xl"
+            aria-label={`Xem sự kiện tại ${loc.label}`}
           >
             <img
               src={loc.image}
-              alt={loc.label}
+              alt={`Hình ảnh điểm đến ${loc.label}`}
               className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
               loading="lazy"
             />
@@ -46,13 +47,15 @@ export default function LocationCards() {
         <Link
           to="/search?location=other"
           className="group relative aspect-[4/3] overflow-hidden rounded-2xl shadow-xl transition-all duration-500 hover:-translate-y-1 hover:shadow-2xl"
+          aria-label="Xem sự kiện tại các vị trí khác"
         >
           <div className="grid grid-cols-2 grid-rows-2 h-full gap-0.5 bg-white/10">
             {OTHER_THUMBS.map((url, i) => (
               <img
                 key={i}
                 src={url}
-                alt="Other location"
+                alt=""
+                aria-hidden="true"
                 className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
               />
             ))}

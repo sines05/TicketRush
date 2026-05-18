@@ -10,14 +10,18 @@ import { getCategoryLabel } from '@/constants/categories';
 const EventCard = memo(({ event }) => {
   const imageUrl = resolveMediaUrl(event.banner_url) || bannerFallback;
   const isPast = new Date(event.start_time) < new Date();
+  const categoryLabel = getCategoryLabel(event.category) || 'Sự kiện';
+  const formattedPrice = formatVND(event.min_price || 0);
+  const formattedStartTime = formatDateTime(event.start_time);
+  const accessibleLabel = `${event.title}. ${categoryLabel}. Giá từ ${formattedPrice}. Thời gian bắt đầu ${formattedStartTime}.${isPast ? ' Sự kiện đã diễn ra.' : ''} Xem chi tiết sự kiện.`;
 
   return (
-    <Link to={`/events/${event.slug || event.id}`} className="block group">
-      <Card className="flex h-full flex-col overflow-hidden border-none bg-transparent shadow-none">
+    <Link to={`/events/${event.slug || event.id}`} className="block group" aria-label={accessibleLabel}>
+      <Card role="article" className="flex h-full flex-col overflow-hidden border-none bg-transparent shadow-none">
         <div className="relative aspect-[16/9] w-full overflow-hidden rounded-xl">
           <img
             src={imageUrl}
-            alt={event.title}
+            alt={`Ảnh banner sự kiện ${event.title}`}
             className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
             loading="lazy"
           />
@@ -28,7 +32,7 @@ const EventCard = memo(({ event }) => {
           )}
           <div className="absolute top-2 left-2 z-10">
             <span className="bg-white/90 backdrop-blur-md text-black text-[9px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider shadow-sm">
-              {getCategoryLabel(event.category) || 'Sự kiện'}
+              {categoryLabel}
             </span>
           </div>
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -41,12 +45,12 @@ const EventCard = memo(({ event }) => {
           
           <div className="flex flex-col space-y-1">
             <div className="flex items-center gap-2 text-sm font-bold text-primary">
-              <span>Từ {formatVND(event.min_price || 0)}</span>
+              <span>Từ {formattedPrice}</span>
             </div>
             
             <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground/80">
-              <Calendar className="h-3.5 w-3.5" />
-              <span>{formatDateTime(event.start_time)}</span>
+              <Calendar className="h-3.5 w-3.5" aria-hidden="true" />
+              <span>{formattedStartTime}</span>
             </div>
           </div>
         </div>
