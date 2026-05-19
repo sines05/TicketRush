@@ -1,126 +1,143 @@
-import { useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Mail, ShieldCheck, Sparkles, Ticket } from 'lucide-react';
 import Button from '../../components/common/Button.jsx';
-import Input from '../../components/common/Input.jsx';
 import authService from '../../services/authService.js';
+import logoPng from '../../assets/Logo1.png';
+
+const fieldClass = 'h-12 w-full rounded-2xl border border-cyan-700/15 bg-white/70 px-4 text-base font-semibold text-slate-950 shadow-inner shadow-cyan-900/5 outline-none transition placeholder:text-slate-400 focus:border-amber-400/70 focus:bg-white focus:ring-4 focus:ring-amber-300/20 dark:border-white/10 dark:bg-white/10 dark:text-white dark:placeholder:text-white/35 dark:focus:border-cyan-300/70 dark:focus:bg-white/[0.14] dark:focus:ring-cyan-300/15';
+const labelClass = 'mb-1.5 block text-xs font-black uppercase tracking-[0.18em] text-slate-600 dark:text-cyan-100/75';
+
+function AuthField({ label, error, ...props }) {
+  return (
+    <label className="block">
+      <span className={labelClass}>{label}</span>
+      <input
+        className={`${fieldClass} ${error ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500/20 dark:border-rose-500/50' : ''}`}
+        {...props}
+      />
+      {error && <p className="mt-1 text-[10px] font-black uppercase tracking-wider text-rose-500 dark:text-rose-400">{error}</p>}
+    </label>
+  );
+}
+
+function BrandPanel() {
+  return (
+    <section className="relative hidden overflow-hidden rounded-[2rem] border border-white/60 bg-slate-950 p-8 text-white shadow-[0_28px_90px_-45px_rgba(8,47,73,.9)] dark:border-white/10 lg:block">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,rgba(251,191,36,.38),transparent_28%),radial-gradient(circle_at_82%_22%,rgba(20,184,166,.32),transparent_30%),linear-gradient(145deg,rgba(15,23,42,.88),rgba(8,47,73,.78))]" />
+      <div className="absolute -bottom-24 -right-16 h-72 w-72 rounded-full bg-amber-300/25 blur-3xl" />
+      <div className="relative z-10 flex min-h-[560px] flex-col justify-between">
+        <div className="flex items-center gap-3">
+          <div className="grid h-14 w-14 place-items-center rounded-2xl bg-white/14 ring-1 ring-white/20">
+            <Ticket className="h-7 w-7 text-amber-200" />
+          </div>
+          <div>
+            <div className="text-2xl font-black tracking-tight">TicketRush</div>
+            <div className="text-xs font-bold uppercase tracking-[0.24em] text-cyan-100/75">Premium entry desk</div>
+          </div>
+        </div>
+
+        <div className="space-y-6">
+          <div className="inline-flex items-center gap-2 rounded-full border border-amber-200/30 bg-amber-200/12 px-3 py-1 text-xs font-black uppercase tracking-[0.22em] text-amber-100">
+            <Sparkles className="h-4 w-4" />
+            Security first
+          </div>
+          <h2 className="max-w-xl text-5xl font-black leading-[0.95] tracking-tight">
+            Lấy lại quyền truy cập tài khoản của bạn.
+          </h2>
+          <div className="grid grid-cols-3 gap-3">
+            {['Email link', 'Secure băm', 'One-time'].map((item) => (
+              <div key={item} className="rounded-2xl border border-white/12 bg-white/10 p-4 backdrop-blur">
+                <ShieldCheck className="mb-3 h-5 w-5 text-cyan-200" />
+                <div className="text-sm font-black">{item}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
 
 export default function ForgotPassword() {
-  const navigate = useNavigate();
-
   const [email, setEmail] = useState('');
-  const [resetToken, setResetToken] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [info, setInfo] = useState('');
-  const [done, setDone] = useState(false);
+  const [success, setSuccess] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
 
-  const hasToken = useMemo(() => Boolean(String(resetToken || '').trim()), [resetToken]);
+  const validate = () => {
+    const errors = {};
+    if (!email.trim()) {
+      errors.email = 'Email là bắt buộc';
+    } else if (!/\S+@\S+\.\S+/.test(email)) {
+      errors.email = 'Email không hợp lệ';
+    }
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
 
-  async function handleRequest(e) {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!validate()) return;
+
     setLoading(true);
     setError('');
-    setInfo('');
-    setDone(false);
+    setSuccess('');
 
     try {
-      const result = await authService.forgotPassword({ email });
-      if (result?.reset_token) {
-        setResetToken(result.reset_token);
-        setInfo('Token đặt lại mật khẩu đã được tạo (demo).');
-      } else {
-        setInfo('Nếu email tồn tại, hướng dẫn đặt lại mật khẩu đã được gửi.');
-      }
+      await authService.forgotPassword({ email });
+      setSuccess('Nếu tài khoản tồn tại, một email khôi phục đã được gửi!');
     } catch (err) {
-      setError(err?.message || 'Không gửi được yêu cầu');
+      setError(err?.message || 'Có lỗi xảy ra, vui lòng thử lại');
     } finally {
       setLoading(false);
     }
-  }
-
-  async function handleReset(e) {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-    setInfo('');
-
-    try {
-      await authService.resetPassword({ reset_token: resetToken, new_password: newPassword });
-      setDone(true);
-      setInfo('Đặt lại mật khẩu thành công.');
-      setTimeout(() => navigate('/auth/login'), 600);
-    } catch (err) {
-      setError(err?.message || 'Đặt lại mật khẩu thất bại');
-    } finally {
-      setLoading(false);
-    }
-  }
+  };
 
   return (
-    <div className="mx-auto max-w-md">
-      <div className="rounded-2xl border border-text/10 bg-surface p-6">
-        <h1 className="text-lg font-semibold">Quên mật khẩu</h1>
-        <p className="mt-1 text-sm text-muted">
-          Nhập email để tạo yêu cầu đặt lại mật khẩu. (Demo: hệ thống trả về reset token)
-        </p>
+    <div className="min-h-screen w-full overflow-hidden bg-[radial-gradient(circle_at_12%_12%,rgba(251,191,36,.25),transparent_26%),radial-gradient(circle_at_86%_18%,rgba(20,184,166,.24),transparent_28%),linear-gradient(135deg,#f8fafc_0%,#ecfeff_46%,#fff7ed_100%)] px-4 py-10 dark:bg-[radial-gradient(circle_at_10%_12%,rgba(251,191,36,.18),transparent_28%),radial-gradient(circle_at_88%_16%,rgba(45,212,191,.18),transparent_30%),linear-gradient(135deg,#12091f_0%,#082f49_48%,#171717_100%)]">
+      <div className="mx-auto grid min-h-[calc(100vh-5rem)] w-full max-w-6xl items-center gap-8 lg:grid-cols-[1.05fr_.95fr]">
+        <BrandPanel />
 
-        {(error || info) && (
-          <div
-            className={`mt-4 rounded-xl border p-3 text-sm ${
-              error ? 'border-danger/40 bg-danger/10' : 'border-text/10 bg-bg/40'
-            }`}
-          >
-            {error || info}
+        <section className="relative mx-auto w-full max-w-[480px] rounded-[2rem] border border-white/70 bg-white/76 p-6 shadow-[0_24px_90px_-48px_rgba(8,47,73,.9)] backdrop-blur-2xl dark:border-white/10 dark:bg-white/[0.08] sm:p-8">
+          <div className="mb-7 flex flex-col items-center text-center">
+            <div className="relative">
+              <img src={logoPng} alt="TicketRush" className="relative h-24 w-24 object-contain drop-shadow-xl" />
+            </div>
+            <div className="mt-4 text-3xl font-black tracking-tight text-slate-950 dark:text-white">Quên mật khẩu</div>
+            <p className="mt-2 text-sm text-slate-600 dark:text-cyan-100/70">Nhập email của bạn để nhận liên kết đặt lại mật khẩu.</p>
           </div>
-        )}
 
-        <form className="mt-5 space-y-4" onSubmit={handleRequest}>
-          <Input
-            label="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
-            autoComplete="email"
-          />
-          <Button className="w-full" type="submit" disabled={loading}>
-            {loading ? 'Đang gửi...' : 'Gửi yêu cầu'}
-          </Button>
-        </form>
+          {error && (
+            <div className="mb-4 rounded-2xl border border-rose-400/40 bg-rose-400/12 p-3 text-sm font-semibold text-rose-700 dark:text-rose-100">{error}</div>
+          )}
+          {success && (
+            <div className="mb-4 rounded-2xl border border-emerald-400/40 bg-emerald-400/12 p-3 text-sm font-semibold text-emerald-700 dark:text-emerald-100">{success}</div>
+          )}
 
-        <div className="mt-6 border-t border-text/10 pt-5">
-          <div className="text-sm font-semibold">Đặt lại mật khẩu</div>
-          <p className="mt-1 text-sm text-muted">Dán reset token và nhập mật khẩu mới.</p>
-
-          <form className="mt-4 space-y-4" onSubmit={handleReset}>
-            <Input
-              label="Reset token"
-              value={resetToken}
-              onChange={(e) => setResetToken(e.target.value)}
-              placeholder={hasToken ? '' : 'Nhấn "Gửi yêu cầu" để nhận token demo'}
-              autoComplete="off"
-            />
-            <Input
-              label="Mật khẩu mới"
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="••••••••"
-              autoComplete="new-password"
+          <form className="space-y-6" onSubmit={handleSubmit}>
+            <AuthField
+              label="Email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              error={fieldErrors.email}
+              required
             />
 
-            <Button className="w-full" type="submit" disabled={loading || done}>
-              {loading ? 'Đang đặt lại...' : done ? 'Đã xong' : 'Đặt lại mật khẩu'}
+            <Button className="h-12 w-full rounded-2xl bg-gradient-to-r from-cyan-600 via-teal-600 to-amber-500 font-black shadow-lg shadow-cyan-700/20 hover:brightness-110" type="submit" disabled={loading || success}>
+              {loading ? 'Đang gửi...' : 'Gửi yêu cầu'}
             </Button>
           </form>
-        </div>
 
-        <div className="mt-5 text-center">
-          <Link to="/auth/login" className="text-sm text-brand-700 hover:underline">
-            Quay lại đăng nhập
-          </Link>
-        </div>
+          <div className="mt-8 text-center">
+            <Link to="/auth/login" className="text-sm font-bold text-cyan-700 hover:underline dark:text-cyan-200">
+              Quay lại đăng nhập
+            </Link>
+          </div>
+        </section>
       </div>
     </div>
   );

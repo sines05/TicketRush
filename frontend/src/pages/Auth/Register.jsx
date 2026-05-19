@@ -115,7 +115,8 @@ export default function Register() {
         gender,
         date_of_birth: dateOfBirth
       });
-      navigate('/', { replace: true });
+      // Redirect to login because cookies are not set yet
+      navigate('/auth/login', { replace: true, state: { message: 'Đăng ký thành công! Vui lòng đăng nhập.' } });
     } catch (err) {
       if (err?.details) {
         setFieldErrors(err.details);

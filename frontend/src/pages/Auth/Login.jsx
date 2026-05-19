@@ -69,7 +69,8 @@ export default function Login() {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [error, setError] = useState(location.state?.error || '');
+  const [successMessage, setSuccessMessage] = useState(location.state?.message || '');
   const [fieldErrors, setFieldErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
@@ -217,6 +218,10 @@ export default function Login() {
             <div className="mb-4 rounded-2xl border border-rose-400/40 bg-rose-400/12 p-3 text-sm font-semibold text-rose-700 dark:text-rose-100">{error}</div>
           )}
 
+          {successMessage && (
+            <div className="mb-4 rounded-2xl border border-emerald-400/40 bg-emerald-400/12 p-3 text-sm font-semibold text-emerald-700 dark:text-emerald-100">{successMessage}</div>
+          )}
+
           {requires2FA ? (
             <form className="space-y-4" onSubmit={handle2FASubmit}>
               <p className="text-sm text-slate-600 dark:text-cyan-100/70">Vui lòng nhập mã xác thực từ ứng dụng Authenticator của bạn.</p>
@@ -259,6 +264,15 @@ export default function Login() {
                   autoComplete="current-password"
                   error={fieldErrors.password}
                 />
+
+                <div className="flex justify-end">
+                  <Link
+                    to="/auth/forgot-password"
+                    className="text-xs font-bold text-cyan-700 hover:underline dark:text-cyan-200"
+                  >
+                    Quên mật khẩu?
+                  </Link>
+                </div>
 
                 <Button className="h-12 w-full rounded-2xl bg-gradient-to-r from-cyan-600 via-teal-600 to-amber-500 font-black shadow-lg shadow-cyan-700/20 hover:brightness-110" type="submit" disabled={loading}>
                   {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}

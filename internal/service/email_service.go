@@ -14,6 +14,7 @@ type EmailService interface {
 	Send2FACode(to, code string) error
 	SendWelcomeEmail(to, name string) error
 	SendOrderConfirmationEmail(to, orderID string, total float64) error
+	SendPasswordResetEmail(to, resetURL string) error
 }
 
 type emailService struct {
@@ -22,6 +23,37 @@ type emailService struct {
 
 func NewEmailService(cfg *config.Config) EmailService {
 	return &emailService{cfg: cfg}
+}
+
+func (s *emailService) SendPasswordResetEmail(to, resetURL string) error {
+	subject := "Subject: TicketRush - Khôi phục mật khẩu\n"
+	mime := "MIME-version: 1.0;\nContent-Type: text/html; charset=\"UTF-8\";\n\n"
+	body := fmt.Sprintf("<html><body>"+
+		"<h2>Yêu cầu khôi phục mật khẩu</h2>"+
+		"<p>Chào bạn,</p>"+
+		"<p>Bạn nhận được email này vì chúng tôi đã nhận được yêu cầu khôi phục mật khẩu cho tài khoản của bạn.</p>"+
+		"<p>Vui lòng nhấn vào link bên dưới để đặt lại mật khẩu (Link hết hạn sau 15 phút):</p>"+
+		"<p><a href=\"%s\" style=\"background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;\">Đặt lại mật khẩu</a></p>"+
+		"<p>Nếu bạn không yêu cầu điều này, hãy bỏ qua email này.</p>"+
+		"<p>Trân trọng,<br>Đội ngũ TicketRush</p>"+
+		"</body></html>", resetURL)
+
+	msg := []byte(subject + mime + body)
+
+	if s.cfg.SMTPUser == "" {
+		log.Printf("\n[EMAIL SIMULATION] To: %s\nSubject: %s\nBody: %s\n", to, subject, body)
+		return nil
+	}
+
+	auth := smtp.PlainAuth("", s.cfg.SMTPUser, s.cfg.SMTPPass, s.cfg.SMTPHost)
+	addr := fmt.Sprintf("%s:%s", s.cfg.SMTPHost, s.cfg.SMTPPort)
+	err := smtp.SendMail(addr, auth, s.cfg.SMTPFrom, []string{to}, msg)
+	if err != nil {
+		log.Printf("[EMAIL ERROR] Failed to send email to %s via %s: %v", to, addr, err)
+		return err
+	}
+	log.Printf("[EMAIL SUCCESS] Email sent successfully to %s", to)
+	return nil
 }
 
 func (s *emailService) SendWelcomeEmail(to, name string) error {

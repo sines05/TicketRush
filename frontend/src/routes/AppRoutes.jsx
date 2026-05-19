@@ -29,6 +29,7 @@ const UserManagement = lazy(() => import('../pages/Admin/UserManagement.jsx'));
 const Login = lazy(() => import('../pages/Auth/Login.jsx'));
 const Register = lazy(() => import('../pages/Auth/Register.jsx'));
 const ForgotPassword = lazy(() => import('../pages/Auth/ForgotPassword.jsx'));
+const ResetPassword = lazy(() => import('../pages/Auth/ResetPassword.jsx'));
 const OAuthCallback = lazy(() => import('../pages/Auth/OAuthCallback.jsx'));
 
 // Profile Page
@@ -69,6 +70,8 @@ export default function AppRoutes() {
         <Route path="/auth/2fa" element={<Login />} />
         <Route path="/auth/register" element={<Register />} />
         <Route path="/auth/forgot-password" element={<ForgotPassword />} />
+        <Route path="/auth/reset-password" element={<ResetPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/auth/callback" element={<OAuthCallback />} />
 
         <Route element={<ProtectedRoute allowedRoles={[ROLES.ADMIN]} />}>

@@ -12,12 +12,13 @@ import (
 type NotificationType string
 
 const (
-	NotificationEmailTicket NotificationType = "EMAIL_TICKET"
-	NotificationPushTicket  NotificationType = "PUSH_TICKET"
-	NotificationWelcome     NotificationType = "WELCOME"
-	NotificationOrderConf   NotificationType = "ORDER_CONFIRMATION"
-	NotificationSystem      NotificationType = "SYSTEM_MESSAGE"
-	NotificationSecurity    NotificationType = "SECURITY_EVENT"
+	NotificationEmailTicket   NotificationType = "EMAIL_TICKET"
+	NotificationPushTicket    NotificationType = "PUSH_TICKET"
+	NotificationWelcome       NotificationType = "WELCOME"
+	NotificationOrderConf     NotificationType = "ORDER_CONFIRMATION"
+	NotificationSystem        NotificationType = "SYSTEM_MESSAGE"
+	NotificationSecurity      NotificationType = "SECURITY_EVENT"
+	NotificationPasswordReset NotificationType = "PASSWORD_RESET"
 )
 
 type NotificationTask struct {
@@ -41,6 +42,7 @@ type NotificationService interface {
 	SendBroadcastNotification(title, message string, notifType models.NotifType)
 	SendEventReminderNotification(event *models.Event, userIDs []uuid.UUID)
 	SendPaymentReminderNotification(order *models.Order, userID uuid.UUID)
+	NotifyPasswordReset(user *models.User, resetURL string)
 	StartWorker()
 }
 
@@ -76,6 +78,13 @@ func (s *notificationService) processTask(task NotificationTask) {
 	}()
 
 	switch task.Type {
+	case NotificationPasswordReset:
+		email := task.Payload["email"].(string)
+		resetURL := task.Payload["reset_url"].(string)
+		if err := s.emailService.SendPasswordResetEmail(email, resetURL); err != nil {
+			log.Printf("Error sending password reset email: %v", err)
+		}
+
 	case NotificationEmailTicket:
 		email := task.Payload["email"].(string)
 		eventTitle := task.Payload["event_title"].(string)
@@ -115,6 +124,20 @@ func (s *notificationService) processTask(task NotificationTask) {
 		eventName := task.Payload["event_name"].(string)
 		log.Printf("[SECURITY ALERT] Security notification sent to %s: %s detected", email, eventName)
 	}
+}
+
+func (s *notificationService) NotifyPasswordReset(user *models.User, resetURL string) {
+	s.taskChan <- NotificationTask{
+		Type:   NotificationPasswordReset,
+		UserID: user.ID.String(),
+		Payload: map[string]interface{}{
+			"email":     user.Email,
+			"reset_url": resetURL,
+		},
+	}
+
+	// Persist notification
+	s.persistNotification(&user.ID, "Yêu cầu khôi phục mật khẩu 🔑", "Chúng tôi đã nhận được yêu cầu đặt lại mật khẩu của bạn. Vui lòng kiểm tra email.", models.NotifTypeSystem, "", nil)
 }
 
 func (s *notificationService) NotifyWelcome(user *models.User) {
