@@ -4,12 +4,11 @@ import { useLocation } from 'react-router-dom';
 import HeroCarousel from '@/components/home/HeroCarousel';
 import SpecialEvents from '@/components/home/SpecialEvents';
 import TrendingEvents from '@/components/home/TrendingEvents';
+import CategoryEventPreview from '@/components/home/CategoryEventPreview';
 import LocationCards from '@/components/home/LocationCards';
 import SystemReportCarousel from '@/components/home/SystemReportCarousel';
 import EventReviewCarousel from '@/components/home/EventReviewCarousel';
-import EventListWithTabs from '@/components/home/EventListWithTabs';
 import PromotionBanners from '@/components/home/PromotionBanners';
-import { CATEGORY_OPTIONS } from '@/constants/categories';
 import eventService from '@/services/eventService';
 
 export default function Home() {
@@ -61,6 +60,9 @@ export default function Home() {
       {/* 2. Trending Events - teal ranks and fire icon */}
       <TrendingEvents />
 
+      {/* 3. Category previews - four upcoming events per core category */}
+      <CategoryEventPreview />
+
       {/* 3. Location Cards - Points of Interest */}
       <LocationCards />
 
@@ -69,17 +71,6 @@ export default function Home() {
 
       {/* 4.5. Event reviews carousel */}
       <EventReviewCarousel />
-
-      {/* 5. Categorized Lists - with Weekend/Month tabs */}
-      <div className="space-y-20">
-        {CATEGORY_OPTIONS.map((cat) => (
-          <EventListWithTabs 
-            key={cat.key} 
-            categoryKey={cat.key} 
-            title={cat.label} 
-          />
-        ))}
-      </div>
 
       {/* Footer Info */}
       <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground pt-10">

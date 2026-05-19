@@ -180,6 +180,23 @@ body {
     @apply -translate-y-1;
   }
 
+  @media (min-width: 1024px) {
+    .ticket-cutout {
+      -webkit-mask-image:
+        radial-gradient(circle 1.5rem at 53.49% 0, transparent 98%, #000 100%),
+        radial-gradient(circle 1.5rem at 53.49% 100%, transparent 98%, #000 100%);
+      mask-image:
+        radial-gradient(circle 1.5rem at 53.49% 0, transparent 98%, #000 100%),
+        radial-gradient(circle 1.5rem at 53.49% 100%, transparent 98%, #000 100%);
+      -webkit-mask-repeat: no-repeat;
+      mask-repeat: no-repeat;
+      -webkit-mask-size: 100% 100%;
+      mask-size: 100% 100%;
+      -webkit-mask-composite: source-in;
+      mask-composite: intersect;
+    }
+  }
+
   .glass-surface {
     background: hsl(var(--tr-glass-bg));
     backdrop-filter: blur(12px) saturate(180%);

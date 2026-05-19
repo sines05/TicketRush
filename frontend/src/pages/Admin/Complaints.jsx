@@ -96,7 +96,7 @@ export default function AdminComplaints() {
             </div>
             <div>
               <h1 className="text-4xl font-black tracking-tight text-text">Bảng xử lý report từ người dùng</h1>
-              <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">
+              <p className="mt-2 max-w-2xl text-sm font-semibold leading-relaxed text-slate-700 dark:text-cyan-50/85">
                 Theo dõi nội dung khiếu nại, điểm sao hài lòng và cập nhật trạng thái xử lý cho từng report gửi từ trang Hỗ trợ.
               </p>
             </div>
@@ -120,7 +120,7 @@ export default function AdminComplaints() {
 
       <section className="grid gap-4">
         {complaints?.length === 0 ? (
-          <div className="rounded-3xl border border-dashed border-text/15 bg-surface py-16 text-center text-muted">
+          <div className="rounded-3xl border border-dashed border-text/15 bg-surface py-16 text-center font-semibold text-slate-600 dark:text-cyan-50/75">
             <Inbox className="mx-auto mb-3 h-10 w-10 text-cyan-500" />
             Chưa có khiếu nại nào được gửi.
           </div>
@@ -133,7 +133,7 @@ export default function AdminComplaints() {
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                       <h2 className="text-lg font-black text-text">{complaint.title}</h2>
-                      <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted">
+                      <div className="mt-1 flex flex-wrap items-center gap-3 text-xs font-bold text-slate-600 dark:text-cyan-50/75">
                         <span>{formatDateTime(complaint.created_at)}</span>
                         <span>{complaint.user_name || 'Khách hàng'}</span>
                         {complaint.user_email && <span>{complaint.user_email}</span>}
@@ -142,12 +142,12 @@ export default function AdminComplaints() {
                     <StatusBadge status={complaint.status} />
                   </div>
 
-                  <p className="rounded-2xl border border-text/10 bg-bg/60 p-4 text-sm leading-relaxed text-muted/95">
+                  <p className="rounded-2xl border border-slate-900/10 bg-white/75 p-4 text-sm font-semibold leading-relaxed text-slate-700 dark:border-white/10 dark:bg-white/10 dark:text-cyan-50/85">
                     {complaint.content}
                   </p>
 
                   <div className="flex flex-wrap items-center gap-3">
-                    <span className="text-xs font-black uppercase tracking-wider text-muted">Đánh giá</span>
+                    <span className="text-xs font-black uppercase tracking-wider text-slate-600 dark:text-cyan-50/75">Đánh giá</span>
                     <RatingStars value={getComplaintRating(complaint)} />
                     <span className="text-sm font-black text-amber-600 dark:text-amber-200">{getComplaintRating(complaint)}/5</span>
                   </div>
@@ -192,7 +192,7 @@ function Metric({ label, value, tone }) {
   return (
     <div className="rounded-2xl border border-white/60 bg-white/70 p-4 text-center shadow-sm dark:border-white/10 dark:bg-white/10">
       <div className={`text-3xl font-black ${tone}`}>{value}</div>
-      <div className="mt-1 text-xs font-bold text-muted">{label}</div>
+      <div className="mt-1 text-xs font-black uppercase tracking-wide text-slate-600 dark:text-cyan-50/80">{label}</div>
     </div>
   );
 }

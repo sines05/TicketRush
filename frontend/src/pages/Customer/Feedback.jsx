@@ -136,7 +136,7 @@ export default function Feedback() {
               <h1 className="text-4xl font-black tracking-tight text-text md:text-5xl">
                 Hỗ trợ & Khiếu nại
               </h1>
-              <p className="mt-3 max-w-2xl text-base leading-relaxed text-muted">
+              <p className="mt-3 max-w-2xl text-base font-semibold leading-relaxed text-slate-700 dark:text-cyan-50/85">
                 Gửi report về lỗi đặt vé, thanh toán, tài khoản hoặc trải nghiệm dịch vụ. Mỗi phản hồi có điểm sao để đội quản trị ưu tiên xử lý đúng mức độ ảnh hưởng.
               </p>
             </div>
@@ -155,15 +155,15 @@ export default function Feedback() {
           <div className="grid grid-cols-3 gap-3">
             <div className="rounded-2xl border border-white/60 bg-white/70 p-4 text-center shadow-sm dark:border-white/10 dark:bg-white/10">
               <div className="text-3xl font-black text-cyan-700 dark:text-cyan-200">{stats.total}</div>
-              <div className="mt-1 text-xs font-semibold text-muted">Report</div>
+              <div className="mt-1 text-xs font-black uppercase tracking-wide text-slate-600 dark:text-cyan-50/80">Report</div>
             </div>
             <div className="rounded-2xl border border-white/60 bg-white/70 p-4 text-center shadow-sm dark:border-white/10 dark:bg-white/10">
               <div className="text-3xl font-black text-amber-600 dark:text-amber-200">{stats.pending}</div>
-              <div className="mt-1 text-xs font-semibold text-muted">Đang chờ</div>
+              <div className="mt-1 text-xs font-black uppercase tracking-wide text-slate-600 dark:text-cyan-50/80">Đang chờ</div>
             </div>
             <div className="rounded-2xl border border-white/60 bg-white/70 p-4 text-center shadow-sm dark:border-white/10 dark:bg-white/10">
               <div className="text-3xl font-black text-rose-600 dark:text-rose-200">{stats.average}</div>
-              <div className="mt-1 text-xs font-semibold text-muted">Sao TB</div>
+              <div className="mt-1 text-xs font-black uppercase tracking-wide text-slate-600 dark:text-cyan-50/80">Sao TB</div>
             </div>
           </div>
         </div>
@@ -204,7 +204,7 @@ export default function Feedback() {
             <div className="flex flex-col justify-between rounded-2xl border border-amber-300/30 bg-amber-300/10 p-4">
               <div>
                 <div className="text-sm font-black text-text">Đánh giá mức hài lòng</div>
-                <p className="mt-1 text-xs leading-relaxed text-muted">1 sao là rất tệ, 5 sao là tốt. Admin sẽ thấy điểm này trong trang quản trị.</p>
+                <p className="mt-1 text-xs font-semibold leading-relaxed text-slate-600 dark:text-cyan-50/75">1 sao là rất tệ, 5 sao là tốt. Admin sẽ thấy điểm này trong trang quản trị.</p>
                 <div className="mt-4">
                   <RatingStars value={rating} onChange={setRating} size="lg" />
                 </div>
@@ -222,7 +222,7 @@ export default function Feedback() {
       <section className="space-y-4">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-2xl font-black text-text">Lịch sử khiếu nại</h2>
-          <span className="rounded-full bg-text/5 px-3 py-1 text-xs font-bold text-muted">{stats.total} mục</span>
+          <span className="rounded-full bg-slate-900/10 px-3 py-1 text-xs font-black text-slate-700 dark:bg-white/10 dark:text-cyan-50/85">{stats.total} mục</span>
         </div>
         <div className="grid gap-4">
           {complaintsLoading ? (
@@ -230,7 +230,7 @@ export default function Feedback() {
               <div key={index} className="h-36 animate-pulse rounded-3xl bg-surface border border-text/10" />
             ))
           ) : complaints?.length === 0 ? (
-            <div className="rounded-3xl border border-dashed border-cyan-400/40 bg-cyan-300/5 py-14 text-center text-muted">
+            <div className="rounded-3xl border border-dashed border-cyan-400/40 bg-cyan-300/5 py-14 text-center font-semibold text-slate-600 dark:text-cyan-50/75">
               Bạn chưa có khiếu nại nào.
             </div>
           ) : (
@@ -240,7 +240,7 @@ export default function Feedback() {
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div className="space-y-2">
                     <div className="font-black text-text transition-colors group-hover:text-cyan-600 dark:group-hover:text-cyan-200">{complaint.title}</div>
-                    <div className="flex flex-wrap items-center gap-3 text-xs text-muted">
+                    <div className="flex flex-wrap items-center gap-3 text-xs font-bold text-slate-600 dark:text-cyan-50/75">
                       <span>{new Date(complaint.created_at).toLocaleString('vi-VN')}</span>
                       <RatingStars value={getComplaintRating(complaint)} readOnly />
                       <span className="font-bold">{getComplaintRating(complaint)}/5</span>
@@ -248,7 +248,7 @@ export default function Feedback() {
                   </div>
                   <StatusBadge status={complaint.status} />
                 </div>
-                <p className="mt-4 text-sm leading-relaxed text-muted/90">{complaint.content}</p>
+                <p className="mt-4 text-sm font-semibold leading-relaxed text-slate-700 dark:text-cyan-50/80">{complaint.content}</p>
               </article>
             ))
           )}

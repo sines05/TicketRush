@@ -98,7 +98,7 @@ export default function Membership() {
         <h1 className="text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-brand-600 to-indigo-600 dark:from-brand-400 dark:to-purple-400">
           Chương trình Thành viên
         </h1>
-        <p className="text-muted text-lg max-w-2xl mx-auto">
+        <p className="mx-auto max-w-2xl text-lg font-semibold leading-relaxed text-slate-700 dark:text-cyan-50/85">
           Tích lũy điểm từ mỗi tấm vé và thăng hạng để nhận những đặc quyền ưu tiên độc quyền.
         </p>
       </header>
@@ -110,7 +110,7 @@ export default function Membership() {
         <div className="relative grid gap-8 md:grid-cols-2 items-center">
           <div className="space-y-6">
             <div>
-              <div className="text-sm font-semibold uppercase tracking-widest text-muted">Hạng hiện tại</div>
+              <div className="text-sm font-black uppercase tracking-widest text-slate-700 dark:text-cyan-50/85">Hạng hiện tại</div>
               <div className={`mt-2 text-5xl font-black italic tracking-tighter drop-shadow-sm ${currentVisual.title}`}>
                 {memberLoading ? '...' : membership?.tier}
               </div>
@@ -118,8 +118,8 @@ export default function Membership() {
 
             <div className="space-y-2">
               <div className="flex justify-between text-sm font-medium">
-                <span className="text-muted">Tiến trình hạng tiếp theo</span>
-                <span className="text-text">{membership?.points} / {membership?.next_tier_points} pts</span>
+                <span className="text-slate-700 dark:text-cyan-50/85">Tiến trình hạng tiếp theo</span>
+                <span className="text-slate-950 dark:text-white">{membership?.points} / {membership?.next_tier_points} pts</span>
               </div>
               <div className="h-3 w-full overflow-hidden rounded-full bg-text/10">
                 <div
@@ -127,7 +127,7 @@ export default function Membership() {
                   style={{ width: `${progress}%` }}
                 />
               </div>
-              <p className="text-xs text-muted italic">
+              <p className="text-xs font-semibold italic text-slate-700 dark:text-cyan-50/80">
                 {pointsToNext > 0
                   ? `Bạn cần thêm ${pointsToNext} điểm để thăng hạng.`
                   : 'Bạn đang ở mốc hạng cao nhất hiện có.'}
@@ -171,7 +171,7 @@ export default function Membership() {
                     </div>
                   )}
                   <div className={`text-lg font-black ${visual.title}`}>{tier.name}</div>
-                  <div className="mt-2 text-xs text-muted leading-relaxed">{tier.description}</div>
+                  <div className="mt-2 text-xs font-semibold leading-relaxed text-slate-700 dark:text-cyan-50/80">{tier.description}</div>
                   <div className="mt-6 space-y-3">
                     <BenefitItem text="Ưu tiên xếp hàng" active={tier.priority_level >= 1} checkClass={visual.check} />
                     <BenefitItem text="Thông báo sớm" active={tier.priority_level >= 2} checkClass={visual.check} />
@@ -202,9 +202,9 @@ export default function Membership() {
 
 function BenefitItem({ text, active, checkClass }) {
   return (
-    <div className={`flex items-center gap-2 text-xs ${active ? 'text-text font-medium' : 'text-muted/50'}`}>
+    <div className={`flex items-center gap-2 text-xs ${active ? 'font-bold text-slate-950 dark:text-white' : 'font-semibold text-slate-500 dark:text-white/45'}`}>
       <svg
-        className={`h-4 w-4 ${active ? checkClass : 'text-muted/20'}`}
+        className={`h-4 w-4 ${active ? checkClass : 'text-slate-400 dark:text-white/25'}`}
         fill="none"
         stroke="currentColor"
         viewBox="0 0 24 24"
