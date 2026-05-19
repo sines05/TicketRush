@@ -6,10 +6,12 @@ import (
 	"log"
 	"time"
 
+	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 	"ticketrush/internal/models"
 	"ticketrush/internal/queue"
 	"ticketrush/internal/repository"
+	"ticketrush/internal/service"
 	"ticketrush/internal/websocket"
 )
 
@@ -24,15 +26,21 @@ type workerService struct {
 	queueRepo    queue.Repository
 	wsHub        *websocket.Hub
 	orderRepo    repository.OrderRepository
+	notifSvc     service.NotificationService
+	notifRepo    repository.NotificationRepository
+	rdb          *redis.Client
 }
 
-func NewWorkerService(db *gorm.DB, queueService queue.Service, queueRepo queue.Repository, wsHub *websocket.Hub, orderRepo repository.OrderRepository) WorkerService {
+func NewWorkerService(db *gorm.DB, queueService queue.Service, queueRepo queue.Repository, wsHub *websocket.Hub, orderRepo repository.OrderRepository, notifSvc service.NotificationService, notifRepo repository.NotificationRepository, rdb *redis.Client) WorkerService {
 	return &workerService{
 		db:           db,
 		queueService: queueService,
 		queueRepo:    queueRepo,
 		wsHub:        wsHub,
 		orderRepo:    orderRepo,
+		notifSvc:     notifSvc,
+		notifRepo:    notifRepo,
+		rdb:          rdb,
 	}
 }
 
@@ -92,6 +100,22 @@ func (s *workerService) StartWorkers() {
 	go func() {
 		for range tickerSessions.C {
 			s.ReleaseExpiredSessions()
+		}
+	}()
+
+	// Event Reminder Worker — every 30 minutes, check for events starting within 24 hours
+	tickerEventReminder := time.NewTicker(30 * time.Minute)
+	go func() {
+		for range tickerEventReminder.C {
+			s.sendEventReminders()
+		}
+	}()
+
+	// Payment Reminder Worker — every 2 minutes, check for orders expiring within 5 minutes
+	tickerPaymentReminder := time.NewTicker(2 * time.Minute)
+	go func() {
+		for range tickerPaymentReminder.C {
+			s.sendPaymentReminders()
 		}
 	}()
 }
@@ -183,5 +207,78 @@ func (s *workerService) releaseExpiredOrders() {
 			"type":     "SEATS_RELEASED",
 			"seat_ids": seatIDs,
 		})
+	}
+}
+
+// sendEventReminders sends reminder notifications for events starting within 24 hours
+func (s *workerService) sendEventReminders() {
+	ctx := context.Background()
+	now := time.Now().UTC()
+	in24Hours := now.Add(24 * time.Hour)
+
+	var events []models.Event
+	if err := s.db.Where("is_published = ? AND start_time > ? AND start_time <= ?", true, now, in24Hours).
+		Find(&events).Error; err != nil {
+		log.Printf("[EventReminder] Error fetching upcoming events: %v", err)
+		return
+	}
+
+	for _, event := range events {
+		// Check Redis to avoid sending duplicate reminders
+		reminderKey := fmt.Sprintf("reminder_sent:%s", event.ID)
+		exists, err := s.rdb.Exists(ctx, reminderKey).Result()
+		if err != nil {
+			log.Printf("[EventReminder] Redis check error for event %s: %v", event.ID, err)
+			continue
+		}
+		if exists > 0 {
+			continue // Already sent reminder for this event
+		}
+
+		// Find users with tickets for this event
+		userIDs, err := s.notifRepo.FindUsersWithTicketsForEvent(event.ID)
+		if err != nil {
+			log.Printf("[EventReminder] Error finding users for event %s: %v", event.ID, err)
+			continue
+		}
+
+		if len(userIDs) == 0 {
+			continue
+		}
+
+		s.notifSvc.SendEventReminderNotification(&event, userIDs)
+
+		// Mark as sent — expires in 25 hours to prevent re-sending
+		s.rdb.Set(ctx, reminderKey, "1", 25*time.Hour)
+		log.Printf("[EventReminder] Sent reminders to %d users for event '%s'", len(userIDs), event.Title)
+	}
+}
+
+// sendPaymentReminders sends reminder notifications for orders expiring within 5 minutes
+func (s *workerService) sendPaymentReminders() {
+	ctx := context.Background()
+
+	orders, err := s.notifRepo.FindPendingOrdersExpiringSoon(5)
+	if err != nil {
+		log.Printf("[PaymentReminder] Error fetching expiring orders: %v", err)
+		return
+	}
+
+	for _, order := range orders {
+		// Check Redis to avoid duplicate reminders
+		reminderKey := fmt.Sprintf("payment_reminder:%s", order.ID)
+		exists, err := s.rdb.Exists(ctx, reminderKey).Result()
+		if err != nil {
+			continue
+		}
+		if exists > 0 {
+			continue
+		}
+
+		s.notifSvc.SendPaymentReminderNotification(&order, order.UserID)
+
+		// Mark as sent — expires in 15 minutes
+		s.rdb.Set(ctx, reminderKey, "1", 15*time.Minute)
+		log.Printf("[PaymentReminder] Sent payment reminder for order %s to user %s", order.ID, order.UserID)
 	}
 }

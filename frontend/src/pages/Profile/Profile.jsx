@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
+import notificationService from '../../services/notificationService.js';
+import { useNotifications } from '../../context/NotificationContext.jsx';
 import { useAuth } from '../../hooks/useAuth.js';
 import { GENDER } from '../../constants/gender.js';
 import userService from '../../services/userService.js';
@@ -18,7 +20,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Loading from '../../components/common/Loading.jsx';
 import TicketItem from '../../components/tickets/TicketItem.jsx';
-import { User, Shield, Ticket, LogOut, Camera, CheckCircle2, AlertCircle, Bell } from 'lucide-react';
+import { User, Shield, Ticket, LogOut, Camera, CheckCircle2, AlertCircle, Bell, Trash2, Check, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import { QRCodeCanvas } from 'qrcode.react';
 
 function toDateInputValue(value) {
@@ -37,9 +39,35 @@ function toDateInputValue(value) {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+const NOTIF_TYPE_ICONS = {
+  SYSTEM: '🔔', ORDER: '🎫', EVENT_REMINDER: '🎶',
+  PAYMENT_REMINDER: '⏰', PROMOTION: '🎁', ADMIN: '📢',
+};
+
+const NOTIF_TYPE_LABELS = {
+  SYSTEM: 'Hệ thống', ORDER: 'Đơn hàng', EVENT_REMINDER: 'Nhắc sự kiện',
+  PAYMENT_REMINDER: 'Nhắc thanh toán', PROMOTION: 'Khuyến mãi', ADMIN: 'Quản trị',
+};
+
+function formatTimeAgo(dateStr) {
+  const now = new Date();
+  const date = new Date(dateStr);
+  const diffMs = now - date;
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 1) return 'Vừa xong';
+  if (diffMin < 60) return `${diffMin} phút trước`;
+  const diffHours = Math.floor(diffMin / 60);
+  if (diffHours < 24) return `${diffHours} giờ trước`;
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 30) return `${diffDays} ngày trước`;
+  return date.toLocaleDateString('vi-VN');
+}
+
 export default function Profile() {
   const { user, updateUser, logout } = useAuth();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const { refreshAll: refreshNotifContext } = useNotifications();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -72,6 +100,13 @@ export default function Profile() {
   const [tickets, setTickets] = useState([]);
   const [ticketsLoading, setTicketsLoading] = useState(false);
 
+  // Notification state
+  const [notifications, setNotifications] = useState([]);
+  const [notifLoading, setNotifLoading] = useState(false);
+  const [notifPage, setNotifPage] = useState(1);
+  const [notifHasMore, setNotifHasMore] = useState(true);
+  const [notifTotal, setNotifTotal] = useState(0);
+
   const [lastLoaded, setLastLoaded] = useState({
     email: user?.email || '',
     full_name: user?.full_name || '',
@@ -81,6 +116,9 @@ export default function Profile() {
     is_2fa_enabled: user?.is_2fa_enabled || false,
     is_oauth: user?.is_oauth || false
   });
+
+  // Determine initial tab from URL query
+  const initialTab = searchParams.get('tab') || 'profile';
 
   const avatarPreview = useMemo(() => {
     if (avatarFile) return URL.createObjectURL(avatarFile);
@@ -140,6 +178,50 @@ export default function Profile() {
     };
     // Re-fetch on every navigation to this page
   }, [location.key, user?.email, user?.full_name, user?.avatar_url, user?.gender, user?.date_of_birth]);
+
+  const fetchNotifications = useCallback(async (page = 1) => {
+    setNotifLoading(true);
+    try {
+      const data = await notificationService.getNotifications(page, 10);
+      const items = data?.notifications ?? [];
+      setNotifications(items);
+      setNotifTotal(data?.total ?? 0);
+      setNotifHasMore(items.length === 10);
+      setNotifPage(page);
+    } catch {
+      // Silently fail
+    } finally {
+      setNotifLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchNotifications(1);
+  }, [fetchNotifications]);
+
+  async function handleMarkNotifRead(id) {
+    try {
+      await notificationService.markAsRead(id);
+      setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, is_read: true } : n)));
+      refreshNotifContext();
+    } catch { /* ignore */ }
+  }
+
+  async function handleMarkAllNotifsRead() {
+    try {
+      await notificationService.markAllAsRead();
+      setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+      refreshNotifContext();
+    } catch { /* ignore */ }
+  }
+
+  async function handleDeleteNotif(id) {
+    try {
+      await notificationService.deleteNotification(id);
+      setNotifications((prev) => prev.filter((n) => n.id !== id));
+      refreshNotifContext();
+    } catch { /* ignore */ }
+  }
 
   useEffect(() => {
     setTicketsLoading(true);
@@ -312,7 +394,7 @@ export default function Profile() {
         </Alert>
       )}
 
-      <Tabs defaultValue="profile" className="w-full">
+      <Tabs defaultValue={initialTab} className="w-full">
         <TabsList className="grid w-full grid-cols-4 mb-8">
           <TabsTrigger value="profile" className="flex items-center gap-2">
             <User className="h-4 w-4" /> <span className="hidden sm:inline">Hồ sơ</span>
@@ -622,17 +704,107 @@ export default function Profile() {
         <TabsContent value="notifications" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Thông báo</CardTitle>
-              <CardDescription>Cấu hình và xem lịch sử thông báo của bạn.</CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Thông báo</CardTitle>
+                  <CardDescription>Xem và quản lý thông báo của bạn.</CardDescription>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => fetchNotifications(1)}>
+                    <RefreshCw className="h-4 w-4 mr-1" /> Làm mới
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={handleMarkAllNotifsRead}>
+                    <Check className="h-4 w-4 mr-1" /> Đọc tất cả
+                  </Button>
+                </div>
+              </div>
             </CardHeader>
-            <CardContent className="text-center py-12 space-y-4">
-              <div className="bg-muted w-16 h-16 rounded-full flex items-center justify-center mx-auto">
-                <Bell className="h-8 w-8 text-muted-foreground" />
-              </div>
-              <div className="space-y-1">
-                <p className="font-medium">Tính năng Thông báo đang được phát triển</p>
-                <p className="text-sm text-muted-foreground">Tính năng này sẽ được ra mắt trong thời gian sớm nhất.</p>
-              </div>
+            <CardContent>
+              {notifLoading && notifications.length === 0 ? (
+                <div className="flex justify-center py-12">
+                  <Loading title="Đang tải thông báo..." />
+                </div>
+              ) : notifications.length === 0 ? (
+                <div className="text-center py-12 space-y-4">
+                  <div className="bg-muted w-16 h-16 rounded-full flex items-center justify-center mx-auto">
+                    <Bell className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="font-medium">Chưa có thông báo nào</p>
+                    <p className="text-sm text-muted-foreground">Bạn sẽ nhận được thông báo về sự kiện, đơn hàng và chương trình khuyến mãi.</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {notifications.map((notif) => (
+                    <div
+                      key={notif.id}
+                      className={`flex items-start gap-4 p-4 rounded-xl border transition-all ${
+                        notif.is_read
+                          ? 'bg-background border-border/50'
+                          : 'bg-primary/5 border-primary/20 shadow-sm'
+                      }`}
+                    >
+                      <span className="text-2xl mt-0.5 flex-shrink-0">{NOTIF_TYPE_ICONS[notif.type] || '🔔'}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className={`text-sm ${notif.is_read ? 'font-medium' : 'font-bold'}`}>{notif.title}</p>
+                          {!notif.is_read && <span className="h-2 w-2 rounded-full bg-primary flex-shrink-0" />}
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
+                            {NOTIF_TYPE_LABELS[notif.type] || notif.type}
+                          </span>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-1">{notif.message}</p>
+                        <p className="text-xs text-muted-foreground/70 mt-1.5">{formatTimeAgo(notif.created_at)}</p>
+                      </div>
+                      <div className="flex flex-col gap-1 flex-shrink-0">
+                        {!notif.is_read && (
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleMarkNotifRead(notif.id)} title="Đánh dấu đã đọc">
+                            <Check className="h-4 w-4" />
+                          </Button>
+                        )}
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDeleteNotif(notif.id)} title="Xóa">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Premium arrow pagination controls */}
+                  {notifTotal > 0 && (
+                    <div className="flex items-center justify-between border-t border-border/50 pt-6 mt-4">
+                      <div className="text-xs text-muted-foreground">
+                        Hiển thị {notifications.length > 0 ? (notifPage - 1) * 10 + 1 : 0} - {Math.min(notifPage * 10, notifTotal)} trong số {notifTotal} thông báo
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8 rounded-lg"
+                          onClick={() => fetchNotifications(notifPage - 1)}
+                          disabled={notifPage === 1 || notifLoading}
+                          title="Trang trước"
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <span className="text-xs font-semibold px-3 py-1 bg-muted rounded-md min-w-[70px] text-center select-none">
+                          Trang {notifPage} / {Math.ceil(notifTotal / 10) || 1}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8 rounded-lg"
+                          onClick={() => fetchNotifications(notifPage + 1)}
+                          disabled={notifPage >= Math.ceil(notifTotal / 10) || !notifHasMore || notifLoading}
+                          title="Trang sau"
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

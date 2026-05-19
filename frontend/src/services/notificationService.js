@@ -1,4 +1,4 @@
-import { api } from './api.js';
+import { api, unwrap } from './api.js';
 
 async function registerPush() {
   if (!('Notification' in window)) {
@@ -8,11 +8,7 @@ async function registerPush() {
 
   const permission = await window.Notification.requestPermission();
   if (permission === 'granted') {
-    // In a real app with FCM, you'd get the token here
-    // const token = await getToken(messaging, { vapidKey: '...' });
     const token = 'mock-fcm-token-' + Math.random().toString(16).slice(2);
-    
-    // Send token to backend
     await api.post('/users/notification-token', { token });
     return token;
   }
@@ -24,4 +20,49 @@ function showLocalNotification(title, body) {
   }
 }
 
-export default { registerPush, showLocalNotification };
+async function getNotifications(page = 1, limit = 20) {
+  const res = await api.get(`/notifications?page=${page}&limit=${limit}`);
+  return unwrap(res);
+}
+
+async function getUnreadCount() {
+  const res = await api.get('/notifications/unread-count');
+  return unwrap(res);
+}
+
+async function markAsRead(id) {
+  const res = await api.patch(`/notifications/${id}/read`);
+  return unwrap(res);
+}
+
+async function markAllAsRead() {
+  const res = await api.patch('/notifications/read-all');
+  return unwrap(res);
+}
+
+async function deleteNotification(id) {
+  const res = await api.delete(`/notifications/${id}`);
+  return unwrap(res);
+}
+
+async function adminSendNotification(data) {
+  const res = await api.post('/admin/notifications/send', data);
+  return unwrap(res);
+}
+
+async function adminGetNotifications(page = 1, limit = 20) {
+  const res = await api.get(`/admin/notifications?page=${page}&limit=${limit}`);
+  return unwrap(res);
+}
+
+export default {
+  registerPush,
+  showLocalNotification,
+  getNotifications,
+  getUnreadCount,
+  markAsRead,
+  markAllAsRead,
+  deleteNotification,
+  adminSendNotification,
+  adminGetNotifications
+};

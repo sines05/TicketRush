@@ -22,6 +22,7 @@ const EventForm = lazy(() => import('../pages/Admin/EventForm.jsx'));
 const ZoneMapBuilder = lazy(() => import('../pages/Admin/ZoneMapBuilder.jsx'));
 const AdminCheckIn = lazy(() => import('../pages/Admin/CheckIn.jsx'));
 const AdminComplaints = lazy(() => import('../pages/Admin/Complaints.jsx'));
+const AdminNotifications = lazy(() => import('../pages/Admin/Notifications.jsx'));
 const UserManagement = lazy(() => import('../pages/Admin/UserManagement.jsx'));
 
 // Auth Pages
@@ -78,6 +79,7 @@ export default function AppRoutes() {
           <Route path="/admin/events/:eventId/edit" element={<EventForm />} />
           <Route path="/admin/events/zone-map" element={<ZoneMapBuilder />} />
           <Route path="/admin/users" element={<UserManagement />} />
+          <Route path="/admin/notifications" element={<AdminNotifications />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

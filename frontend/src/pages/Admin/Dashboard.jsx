@@ -40,7 +40,8 @@ import {
   Edit,
   MessageSquareWarning,
   Trash2,
-  ExternalLink
+  ExternalLink,
+  Megaphone
 } from 'lucide-react';
 
 const GENDER_COLORS = {
@@ -135,6 +136,9 @@ export default function Dashboard() {
           </Button>
           <Button variant="outline" asChild>
             <Link to="/admin/check-in"><TicketCheck className="mr-2 h-4 w-4" /> Check-in vé</Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link to="/admin/notifications"><Megaphone className="mr-2 h-4 w-4" /> Gửi thông báo</Link>
           </Button>
           <Button asChild>
             <Link to="/admin/events/new"><PlusCircle className="mr-2 h-4 w-4" /> Tạo sự kiện mới</Link>

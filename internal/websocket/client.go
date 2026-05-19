@@ -2,10 +2,12 @@ package websocket
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"ticketrush/internal/service"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
 
@@ -18,9 +20,10 @@ var upgrader = websocket.Upgrader{
 }
 
 type Client struct {
-	Hub  *Hub
-	Conn *websocket.Conn
-	Send chan []byte
+	Hub    *Hub
+	Conn   *websocket.Conn
+	Send   chan []byte
+	UserID uuid.UUID
 }
 
 type clientMessage struct {
@@ -46,7 +49,7 @@ func ServeWs(hub *Hub, authService service.AuthService, w http.ResponseWriter, r
 		return
 	}
 
-	_, _, err = authService.ValidateToken(tokenString)
+	user, _, err := authService.ValidateToken(tokenString)
 	if err != nil {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
@@ -64,8 +67,11 @@ func ServeWs(hub *Hub, authService service.AuthService, w http.ResponseWriter, r
 		log.Printf("Upgrade error: %v", err)
 		return
 	}
-	client := &Client{Hub: hub, Conn: conn, Send: make(chan []byte, 256)}
+	client := &Client{Hub: hub, Conn: conn, Send: make(chan []byte, 256), UserID: user.ID}
 	client.Hub.register <- client
+
+	// Automatically subscribe this authenticated client to their personal channel "user:{userID}"
+	hub.Subscribe(client, fmt.Sprintf("user:%s", user.ID.String()))
 
 	go client.writePump()
 	go client.readPump()

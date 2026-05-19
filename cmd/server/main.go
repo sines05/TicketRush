@@ -52,8 +52,10 @@ func main() {
 	queueService := queue.NewService(queueRepo, userRepo, eventRepo)
 	queueHandler := handler.NewQueueHandler(queueService)
 
+	notifRepo := repository.NewNotificationRepository(db)
+
 	emailService := service.NewEmailService(cfg)
-	notificationService := service.NewNotificationService(emailService)
+	notificationService := service.NewNotificationService(emailService, notifRepo, hub)
 	notificationService.StartWorker()
 	log.Println("Notification service started")
 
@@ -79,12 +81,14 @@ func main() {
 
 	adminUserHandler := handler.NewAdminUserHandler(userRepo, notificationService)
 
+	notificationHandler := handler.NewNotificationHandler(notifRepo, notificationService, userRepo)
+
 	aiProxyService := service.NewAIProxyService(cfg)
 	aiProxyHandler := handler.NewAIProxyHandler(aiProxyService)
 
 	aiInternalHandler := handler.NewAIInternalHandler(userRepo, orderRepo)
 
-	workerService := worker.NewWorkerService(db, queueService, queueRepo, hub, orderRepo)
+	workerService := worker.NewWorkerService(db, queueService, queueRepo, hub, orderRepo, notificationService, notifRepo, rdb)
 	workerService.StartWorkers()
 
 	// 6. Setup Gin
@@ -173,6 +177,13 @@ func main() {
 			protected.POST("/users/change-password", middleware.TwoFactorMiddleware(), authHandler.ChangePassword)
 			protected.POST("/users/notification-token", authHandler.UpdateNotificationToken)
 
+			// Notifications (Customer)
+			protected.GET("/notifications", notificationHandler.GetMyNotifications)
+			protected.GET("/notifications/unread-count", notificationHandler.GetUnreadCount)
+			protected.PATCH("/notifications/:id/read", notificationHandler.MarkAsRead)
+			protected.PATCH("/notifications/read-all", notificationHandler.MarkAllAsRead)
+			protected.DELETE("/notifications/:id", notificationHandler.DeleteNotification)
+
 			// Admin Routes
 			admin := protected.Group("/admin", middleware.RoleMiddleware(models.RoleAdmin), middleware.TwoFactorMiddleware())
 			{
@@ -191,6 +202,10 @@ func main() {
 				admin.PATCH("/users/:id/membership", adminUserHandler.UpdateUserMembership)
 				admin.DELETE("/users/:id", adminUserHandler.DeleteUser)
 				admin.POST("/users/:id/notify", adminUserHandler.NotifyUser)
+
+				// Admin Notifications
+				admin.POST("/notifications/send", notificationHandler.AdminSendNotification)
+				admin.GET("/notifications", notificationHandler.AdminGetNotifications)
 			}
 		}
 	}

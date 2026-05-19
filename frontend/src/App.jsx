@@ -5,8 +5,9 @@ import { resolveMediaUrl } from './utils/media.js';
 import { useAuth } from './hooks/useAuth.js';
 import { ROLES } from './constants/roles.js';
 import logoUrl from './assets/Logo1.png';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import notificationService from './services/notificationService.js';
+import { useNotifications } from './context/NotificationContext.jsx';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -16,13 +17,145 @@ import {
   Moon,
   Sun,
   Menu,
-  X
+  X,
+  Bell,
+  Check,
+  ChevronRight
 } from "lucide-react";
 import ErrorBoundary from './components/common/ErrorBoundary.jsx';
 import SearchOverlay from './components/common/SearchOverlay.jsx';
 import ChatWidget from './components/ChatWidget.jsx';
 
 const THEME_KEY = 'tr_theme';
+
+function formatTimeAgo(dateStr) {
+  const now = new Date();
+  const date = new Date(dateStr);
+  const diffMs = now - date;
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 1) return 'Vừa xong';
+  if (diffMin < 60) return `${diffMin} phút trước`;
+  const diffHours = Math.floor(diffMin / 60);
+  if (diffHours < 24) return `${diffHours} giờ trước`;
+  const diffDays = Math.floor(diffHours / 24);
+  return `${diffDays} ngày trước`;
+}
+
+const NOTIF_TYPE_ICONS = {
+  SYSTEM: '🔔',
+  ORDER: '🎫',
+  EVENT_REMINDER: '🎶',
+  PAYMENT_REMINDER: '⏰',
+  PROMOTION: '🎁',
+  ADMIN: '📢',
+};
+
+function NotificationBell() {
+  const navigate = useNavigate();
+  const { unreadCount, recentNotifications, hasNewNotification, markAsRead, markAllAsRead } = useNotifications();
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => setIsOpen(!isOpen)}
+        className="h-10 w-10 rounded-xl bg-muted/20 hover:bg-muted/40 transition-all relative"
+      >
+        <Bell className={cn(
+          "h-5 w-5 transition-all",
+          unreadCount > 0 ? "text-primary" : "text-muted-foreground",
+          hasNewNotification && "animate-[bell-ring_0.5s_ease-in-out]"
+        )} />
+        {unreadCount > 0 && (
+          <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground shadow-lg shadow-primary/30">
+            {unreadCount > 99 ? '99+' : unreadCount}
+          </span>
+        )}
+      </Button>
+
+      {isOpen && (
+        <div className="absolute right-0 top-full mt-2 w-[380px] rounded-2xl border bg-card shadow-2xl shadow-black/10 dark:shadow-black/30 z-[200] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="flex items-center justify-between px-5 py-4 border-b bg-muted/30">
+            <h3 className="font-bold text-base">Thông báo</h3>
+            <div className="flex items-center gap-2">
+              {unreadCount > 0 && (
+                <button
+                  onClick={() => markAllAsRead()}
+                  className="flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                >
+                  <Check className="h-3 w-3" /> Đọc tất cả
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="max-h-[360px] overflow-y-auto">
+            {recentNotifications.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 space-y-2">
+                <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+                  <Bell className="h-6 w-6 text-muted-foreground" />
+                </div>
+                <p className="text-sm text-muted-foreground">Chưa có thông báo nào</p>
+              </div>
+            ) : (
+              recentNotifications.map((notif) => (
+                <button
+                  key={notif.id}
+                  onClick={() => {
+                    if (!notif.is_read) markAsRead(notif.id);
+                    setIsOpen(false);
+                    navigate('/profile?tab=notifications');
+                  }}
+                  className={cn(
+                    "w-full flex items-start gap-3 px-5 py-3.5 text-left transition-all hover:bg-muted/50 border-b border-border/50 last:border-b-0",
+                    !notif.is_read && "bg-primary/5"
+                  )}
+                >
+                  <span className="text-xl mt-0.5 flex-shrink-0">{NOTIF_TYPE_ICONS[notif.type] || '🔔'}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className={cn("text-sm font-medium truncate", !notif.is_read && "font-bold")}>{notif.title}</p>
+                      {!notif.is_read && (
+                        <span className="h-2 w-2 rounded-full bg-primary flex-shrink-0" />
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{notif.message}</p>
+                    <p className="text-[10px] text-muted-foreground/70 mt-1">{formatTimeAgo(notif.created_at)}</p>
+                  </div>
+                </button>
+              ))
+            )}
+          </div>
+
+          {recentNotifications.length > 0 && (
+            <button
+              onClick={() => {
+                setIsOpen(false);
+                navigate('/profile?tab=notifications');
+              }}
+              className="w-full flex items-center justify-center gap-1 px-5 py-3 text-sm font-medium text-primary border-t hover:bg-muted/30 transition-colors"
+            >
+              Xem tất cả thông báo <ChevronRight className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function App() {
   const location = useLocation();
@@ -165,6 +298,8 @@ export default function App() {
                   {theme === 'dark' ? <Sun className="h-5 w-5 text-yellow-500" /> : <Moon className="h-5 w-5 text-indigo-400" />}
                   <span className="sr-only">Toggle theme</span>
                 </Button>
+
+                {user && <NotificationBell />}
 
                 {!user ? (
                   <Button variant="default" size="sm" onClick={() => navigate('/auth/login')} className="rounded-xl px-6 font-bold shadow-lg shadow-primary/20">

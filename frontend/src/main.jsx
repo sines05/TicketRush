@@ -9,6 +9,7 @@ import 'swiper/css/pagination';
 
 import { AuthProvider } from './context/AuthContext.jsx';
 import { BookingProvider } from './context/BookingContext.jsx';
+import { NotificationProvider } from './context/NotificationContext.jsx';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 const queryClient = new QueryClient({
@@ -45,9 +46,11 @@ ReactDOM.createRoot(document.getElementById('root')).render(
       <BrowserRouter>
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
-            <BookingProvider>
-              <App />
-            </BookingProvider>
+            <NotificationProvider>
+              <BookingProvider>
+                <App />
+              </BookingProvider>
+            </NotificationProvider>
           </AuthProvider>
         </QueryClientProvider>
       </BrowserRouter>

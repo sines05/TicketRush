@@ -726,6 +726,65 @@ func main() {
 	fmt.Printf("   ✅ Created %d sample reviews for carousel\n", len(reviewTemplates))
 
 	// ============================================================
+	// SEED SAMPLE NOTIFICATIONS
+	// ============================================================
+	var allUsers []models.User
+	if err := db.Find(&allUsers).Error; err == nil {
+		// 1. Broadcast System Notification (to everyone)
+		broadcastTitle := "Chào mừng bạn đến với TicketRush!"
+		broadcastMsg := "Khám phá ngay hàng loạt sự kiện âm nhạc, thể thao và giải trí hấp dẫn nhất."
+		for _, u := range allUsers {
+			uCopy := u
+			db.Create(&models.Notification{
+				UserID:      &uCopy.ID,
+				Title:       broadcastTitle,
+				Message:     broadcastMsg,
+				Type:        models.NotifTypeSystem,
+				IsBroadcast: true,
+				IsRead:      false,
+			})
+		}
+
+		// 2. Personal Notifications for the primary customer
+		var targetUser models.User
+		if err := db.Where("email = ?", "customer@ticketrush.com").First(&targetUser).Error; err == nil {
+			// ORDER notification
+			db.Create(&models.Notification{
+				UserID:  &targetUser.ID,
+				Title:   "Đặt vé thành công! 🎉",
+				Message: "Đơn hàng #TR998877 của bạn cho sự kiện 'Sơn Tùng M-TP - Sky Tour' đã được thanh toán thành công.",
+				Type:    models.NotifTypeOrder,
+				IsRead:  false,
+			})
+			// EVENT_REMINDER notification
+			db.Create(&models.Notification{
+				UserID:  &targetUser.ID,
+				Title:   "Sự kiện sắp diễn ra! ⏳",
+				Message: "Đừng quên! Sự kiện 'Rap Việt All-Star Concert' của bạn sẽ diễn ra vào tối mai lúc 19:30 tại SECC.",
+				Type:    models.NotifTypeEventReminder,
+				IsRead:  false,
+			})
+			// PAYMENT_REMINDER notification
+			db.Create(&models.Notification{
+				UserID:  &targetUser.ID,
+				Title:   "Yêu cầu thanh toán giữ chỗ 💳",
+				Message: "Bạn có đơn hàng đang chờ thanh toán cho sự kiện 'Hà Anh Tuấn - Chân Trời Rực Rỡ'. Vui lòng hoàn tất trong vòng 10 phút.",
+				Type:    models.NotifTypePaymentReminder,
+				IsRead:  false,
+			})
+			// PROMOTION notification
+			db.Create(&models.Notification{
+				UserID:  &targetUser.ID,
+				Title:   "Ưu đãi đặc biệt: Giảm 20% cho bạn! 🎁",
+				Message: "Nhập mã TRWELCOME20 để nhận ngay ưu đãi giảm 20% giá vé cho sự kiện Ravolution Music Festival tiếp theo.",
+				Type:    models.NotifTypePromotion,
+				IsRead:  false,
+			})
+		}
+	}
+	fmt.Println("   ✅ Seeded 5 sample notifications of various types")
+
+	// ============================================================
 	// SUMMARY
 	// ============================================================
 	fmt.Println("\n" + "═══════════════════════════════════════════════")
