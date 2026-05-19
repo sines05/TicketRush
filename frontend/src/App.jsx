@@ -7,6 +7,7 @@ import { ROLES } from './constants/roles.js';
 import logoUrl from './assets/Logo1.png';
 import { useEffect, useRef, useState } from 'react';
 import notificationService from './services/notificationService.js';
+import FormattedNotificationMessage from './components/notifications/FormattedNotificationMessage.jsx';
 import { useNotifications } from './context/NotificationContext.jsx';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -132,7 +133,7 @@ function NotificationBell() {
                         <span className="h-2 w-2 rounded-full bg-primary flex-shrink-0" />
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{notif.message}</p>
+                    <FormattedNotificationMessage message={notif.message} className="mt-0.5 line-clamp-2 text-xs text-muted-foreground" />
                     <p className="text-[10px] text-muted-foreground/70 mt-1">{formatTimeAgo(notif.created_at)}</p>
                   </div>
                 </button>

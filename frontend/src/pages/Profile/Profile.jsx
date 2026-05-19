@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import notificationService from '../../services/notificationService.js';
+import FormattedNotificationMessage from '../../components/notifications/FormattedNotificationMessage.jsx';
 import { useNotifications } from '../../context/NotificationContext.jsx';
 import { useAuth } from '../../hooks/useAuth.js';
 import { GENDER } from '../../constants/gender.js';
@@ -754,7 +755,7 @@ export default function Profile() {
                             {NOTIF_TYPE_LABELS[notif.type] || notif.type}
                           </span>
                         </div>
-                        <p className="text-sm text-muted-foreground mt-1">{notif.message}</p>
+                        <FormattedNotificationMessage message={notif.message} className="mt-1 space-y-1 text-sm text-muted-foreground" />
                         <p className="text-xs text-muted-foreground/70 mt-1.5">{formatTimeAgo(notif.created_at)}</p>
                       </div>
                       <div className="flex flex-col gap-1 flex-shrink-0">

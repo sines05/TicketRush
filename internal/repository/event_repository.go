@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"strings"
 	"ticketrush/internal/models"
 	"time"
 
@@ -56,6 +57,45 @@ type EventTrendingTicketStats struct {
 
 type eventRepo struct {
 	db *gorm.DB
+}
+
+var locationFilterAliases = map[string]string{
+	"hcm":         "Hồ Chí Minh",
+	"ho-chi-minh": "Hồ Chí Minh",
+	"hochiminh":   "Hồ Chí Minh",
+	"saigon":      "Hồ Chí Minh",
+	"hanoi":       "Hà Nội",
+	"ha-noi":      "Hà Nội",
+	"danang":      "Đà Nẵng",
+	"da-nang":     "Đà Nẵng",
+	"dalat":       "Đà Lạt",
+	"da-lat":      "Đà Lạt",
+	"nhatrang":    "Nha Trang",
+	"nha-trang":   "Nha Trang",
+	"cantho":      "Cần Thơ",
+	"can-tho":     "Cần Thơ",
+}
+
+var primaryLocationNames = []string{
+	"Hồ Chí Minh",
+	"Hà Nội",
+	"Đà Nẵng",
+	"Cần Thơ",
+	"Đà Lạt",
+	"Nha Trang",
+}
+
+func normalizeLocationFilter(location string) string {
+	normalized := strings.TrimSpace(location)
+	if normalized == "" {
+		return ""
+	}
+
+	if alias, ok := locationFilterAliases[strings.ToLower(normalized)]; ok {
+		return alias
+	}
+
+	return normalized
 }
 
 func NewEventRepository(db *gorm.DB) EventRepository {
@@ -120,10 +160,11 @@ func (r *eventRepo) GetAllEvents(filter EventFilter) ([]EventSearchResult, error
 		query = query.Where("events.title ILIKE ?", "%"+filter.Search+"%")
 	}
 	if filter.Location != "" {
-		if filter.Location == "other" {
-			query = query.Where("events.location NOT IN ('Hồ Chí Minh', 'Hà Nội', 'Đà Nẵng', 'Cần Thơ', 'Đà Lạt', 'Nha Trang')")
+		location := normalizeLocationFilter(filter.Location)
+		if strings.EqualFold(location, "other") {
+			query = query.Where("events.location NOT IN ?", primaryLocationNames)
 		} else {
-			query = query.Where("events.location = ?", filter.Location)
+			query = query.Where("events.location = ?", location)
 		}
 	}
 	if len(filter.Category) > 0 {

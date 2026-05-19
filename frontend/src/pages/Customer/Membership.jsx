@@ -99,7 +99,7 @@ export default function Membership() {
           Chương trình Thành viên
         </h1>
         <p className="mx-auto max-w-2xl text-lg font-semibold leading-relaxed text-slate-700 dark:text-cyan-50/85">
-          Tích lũy điểm từ mỗi tấm vé và thăng hạng để nhận những đặc quyền ưu tiên độc quyền.
+          Tích lũy điểm từ mỗi tấm vé và thăng hạng để nhận những đặc quyền ưu tiên
         </p>
       </header>
 
