@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -64,6 +65,7 @@ type authService struct {
 	googleCfg        *oauth2.Config
 	facebookCfg      *oauth2.Config
 	encryptionKey    []byte
+	cfg              *config.Config
 }
 
 var (
@@ -119,12 +121,14 @@ func NewAuthService(userRepo repository.UserRepository, notificationServ Notific
 		googleCfg:        googleCfg,
 		facebookCfg:      facebookCfg,
 		encryptionKey:    []byte(cfg.EncryptionMasterKey),
+		cfg:              cfg,
 	}
 }
 
 func (s *authService) Register(req RegisterRequest) (*models.User, error) {
+	email := strings.ToLower(strings.TrimSpace(req.Email))
 	// Check if user already exists
-	_, err := s.userRepo.FindByEmail(req.Email)
+	_, err := s.userRepo.FindByEmail(email)
 	if err == nil {
 		return nil, errors.New("email already exists")
 	}
@@ -148,7 +152,7 @@ func (s *authService) Register(req RegisterRequest) (*models.User, error) {
 	}
 
 	user := &models.User{
-		Email:        req.Email,
+		Email:        email,
 		PasswordHash: string(hashedPassword),
 		FullName:     req.FullName,
 		Gender:       req.Gender,
@@ -167,6 +171,7 @@ func (s *authService) Register(req RegisterRequest) (*models.User, error) {
 }
 
 func (s *authService) Login(email, password string) (string, string, string, *models.User, bool, error) {
+	email = strings.ToLower(strings.TrimSpace(email))
 	user, err := s.userRepo.FindByEmail(email)
 	if err != nil {
 		return "", "", "", nil, false, errors.New("invalid email or password")
@@ -392,6 +397,7 @@ func (s *authService) GoogleLoginCallback(code string) (string, string, string, 
 }
 
 func (s *authService) ForgotPassword(email string) error {
+	email = strings.ToLower(strings.TrimSpace(email))
 	user, err := s.userRepo.FindByEmail(email)
 	if err != nil {
 		return errors.New("user not found")
@@ -414,11 +420,9 @@ func (s *authService) ForgotPassword(email string) error {
 		return err
 	}
 
-	// TODO: Send email with resetToken. For now, we just log it or return it if we change the interface.
-	// Since we can't change the interface easily without affecting other files, 
-	// and we can't change notification service, we have a dilemma.
-	// However, the instruction specifically asked to hash it.
-	fmt.Printf("Password reset token for %s: %s\n", email, resetToken)
+	// Send real email with resetURL
+	resetURL := fmt.Sprintf("%s/reset-password?token=%s", s.cfg.FrontendURL, resetToken)
+	s.notificationServ.NotifyPasswordReset(user, resetURL)
 
 	return nil
 }

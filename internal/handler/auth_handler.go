@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -150,7 +151,10 @@ func (h *AuthHandler) ForgotPassword(c *gin.Context) {
 	}
 
 	// Always return success to prevent email enumeration
-	_ = h.authService.ForgotPassword(req.Email)
+	errReq := h.authService.ForgotPassword(req.Email)
+	if errReq != nil {
+		log.Printf("[DEBUG] ForgotPassword error for %s: %v", req.Email, errReq)
+	}
 
 	utils.SendSuccess(c, http.StatusOK, nil, "Yêu cầu khôi phục mật khẩu đã được gửi")
 }

@@ -76,7 +76,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   const login = useCallback(async ({ email, password }) => {
-    const cleanEmail = sanitizeString(email);
+    const cleanEmail = sanitizeString(email).toLowerCase();
     const cleanPassword = sanitizeString(password);
 
     const data = await authService.login({ email: cleanEmail, password: cleanPassword });
@@ -127,7 +127,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   const register = useCallback(async ({ email, password, full_name, gender, date_of_birth }) => {
-    const cleanEmail = sanitizeString(email);
+    const cleanEmail = sanitizeString(email).toLowerCase();
     const cleanPassword = sanitizeString(password);
 
     const data = await authService.register({
@@ -154,9 +154,9 @@ export function AuthProvider({ children }) {
       is_2fa_enabled: data.two_factor_enabled ?? false
     };
 
-    setUser(nextUser);
-    localStorage.setItem(STORAGE_USER, JSON.stringify(nextUser));
-
+    // Note: Backend does NOT set tr_access_token cookie on register.
+    // Setting user state here would cause an unauthorized redirect on the next page.
+    // Instead, we return success and let the register page redirect to login.
     return { user: nextUser };
   }, []);
 
