@@ -96,7 +96,7 @@ export default function ResetPassword() {
     setError('');
     
     try {
-      await authService.resetPassword({ reset_token: token, new_password: newPassword });
+      await authService.resetPassword({ token, new_password: newPassword });
       setSuccess('Đặt lại mật khẩu thành công! Bạn đang được chuyển hướng...');
       setTimeout(() => navigate('/auth/login'), 2000);
     } catch (err) {
@@ -127,13 +127,7 @@ export default function ResetPassword() {
           )}
 
           <form className="space-y-4" onSubmit={handleSubmit}>
-            <AuthField
-              label="Reset Token"
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
-              placeholder="Nhập mã từ email"
-              error={fieldErrors.token}
-            />
+            <input type="hidden" value={token} />
             <AuthField
               label="Mật khẩu mới"
               type="password"

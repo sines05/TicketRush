@@ -27,8 +27,8 @@ async function forgotPassword({ email }) {
   return unwrap(res);
 }
 
-async function resetPassword({ reset_token, new_password }) {
-  const res = await api.post(API_ROUTES.AUTH_RESET_PASSWORD, { reset_token, new_password });
+async function resetPassword({ token, new_password }) {
+  const res = await api.post(API_ROUTES.AUTH_RESET_PASSWORD, { token, new_password });
   return unwrap(res);
 }
 
