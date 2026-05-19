@@ -24,6 +24,13 @@ func NewAIInternalHandler(userRepo repository.UserRepository, orderRepo reposito
 
 func (h *AIInternalHandler) GetUserProfile(c *gin.Context) {
 	userIDStr := c.Query("user_id")
+	trustedUserID := c.GetHeader("X-User-ID")
+
+	if trustedUserID == "" || trustedUserID != userIDStr {
+		utils.SendError(c, http.StatusForbidden, "Cross-user data access forbidden", "FORBIDDEN_ACCESS")
+		return
+	}
+
 	if userIDStr == "" {
 		utils.SendError(c, http.StatusBadRequest, "user_id is required", "MISSING_USER_ID")
 		return
@@ -48,8 +55,8 @@ func (h *AIInternalHandler) GetUserOrders(c *gin.Context) {
 	userIDStr := c.Query("user_id")
 	trustedUserID := c.GetHeader("X-User-ID")
 
-	// Security: If a trusted user ID is provided by the internal proxy, enforce it.
-	if trustedUserID != "" && trustedUserID != userIDStr {
+	// Security: Enforce trusted user ID provided by the internal proxy.
+	if trustedUserID == "" || trustedUserID != userIDStr {
 		utils.SendError(c, http.StatusForbidden, "Cross-user data access forbidden", "FORBIDDEN_ACCESS")
 		return
 	}

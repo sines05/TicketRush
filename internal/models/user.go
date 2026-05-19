@@ -52,7 +52,7 @@ type MembershipTier struct {
 type PasswordReset struct {
 	BaseModel
 	UserID    uuid.UUID `gorm:"type:uuid;not null;index:idx_password_resets_user_id" json:"user_id"`
-	Token     string    `gorm:"type:varchar(255);uniqueIndex:idx_password_resets_token;not null" json:"token"`
+	Token     string    `gorm:"type:varchar(255);uniqueIndex:idx_password_resets_token;not null" json:"token"` // SHA-256 hashed token
 	ExpiresAt time.Time `gorm:"not null" json:"expires_at"`
 	User      User      `gorm:"foreignKey:UserID" json:"user,omitempty"`
 }
