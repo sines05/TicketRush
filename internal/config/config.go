@@ -48,11 +48,11 @@ func LoadConfig() *Config {
 		DBHost:               getEnv("DB_HOST", "localhost"),
 		DBPort:               getEnv("DB_PORT", "5432"),
 		DBUser:               getEnv("DB_USER", "user"),
-		DBPassword:           getEnv("DB_PASSWORD", "password"),
+		DBPassword:           getEnv("DB_PASSWORD", ""),
 		DBName:               getEnv("DB_NAME", "ticketrush"),
 		RedisHost:            getEnv("REDIS_HOST", "localhost"),
 		RedisPort:            getEnv("REDIS_PORT", "6379"),
-		JWTSecret:            getEnv("JWT_SECRET", "super-secret"),
+		JWTSecret:            getEnv("JWT_SECRET", ""),
 		Port:                 getEnv("PORT", "8080"),
 		FrontendURL:          getEnv("FRONTEND_URL", "http://localhost:5173"),
 		GoogleClientID:       getEnv("GOOGLE_CLIENT_ID", ""),
@@ -71,6 +71,13 @@ func LoadConfig() *Config {
 		InternalSecret:       getEnv("X_INTERNAL_SECRET", ""),
 		EncryptionMasterKey:  getEnv("ENCRYPTION_MASTER_KEY", ""),
 		CookieSecure:         isEnabled(getEnv("COOKIE_SECURE", "false")),
+	}
+
+	if cfg.JWTSecret == "" {
+		log.Fatal("FATAL: JWT_SECRET environment variable is required")
+	}
+	if cfg.DBPassword == "" {
+		log.Fatal("FATAL: DB_PASSWORD environment variable is required")
 	}
 
 	if cfg.EnableConfigWarnings && (cfg.GoogleClientID == "" || cfg.GoogleClientSecret == "") {

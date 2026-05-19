@@ -94,7 +94,7 @@ func main() {
 	// 6. Setup Gin
 	r := gin.New()
 	r.Use(gin.Recovery())
-	if err := r.SetTrustedProxies(nil); err != nil {
+	if err := r.SetTrustedProxies([]string{"127.0.0.1"}); err != nil {
 		log.Fatalf("Failed to configure trusted proxies: %v", err)
 	}
 
@@ -106,6 +106,9 @@ func main() {
 		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
 	}))
+
+	// CSRF Protection
+	r.Use(middleware.CSRFMiddleware(cfg))
 
 	// API v1 Group
 	v1 := r.Group("/api/v1")

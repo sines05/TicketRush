@@ -6,9 +6,7 @@ from agent import process_chat_message
 
 app = FastAPI(title="TicketRush AI Agent")
 
-X_INTERNAL_SECRET = os.environ.get("X_INTERNAL_SECRET")
-if not X_INTERNAL_SECRET:
-    print("CRITICAL: X_INTERNAL_SECRET environment variable is not set!")
+X_INTERNAL_SECRET = os.environ["X_INTERNAL_SECRET"]
 
 class ChatRequest(BaseModel):
     message: str

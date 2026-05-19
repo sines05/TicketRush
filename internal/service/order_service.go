@@ -104,6 +104,10 @@ func (s *orderService) Checkout(ctx context.Context, userID uuid.UUID, orderID u
 		return nil, err
 	}
 
+	if order.UserID != userID {
+		return nil, utils.ErrOrderNotFound
+	}
+
 	if !order.Event.EndTime.IsZero() && time.Now().After(order.Event.EndTime) {
 		return nil, utils.ErrEventAlreadyEnded
 	}
