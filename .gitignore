@@ -35,6 +35,8 @@ go.work.sum
 # Custom binaries / built files
 bin/
 main
+seed
+server
 backend/server
 cmd/server/server
 tmp/
