@@ -36,7 +36,6 @@ go.work.sum
 bin/
 main
 seed
-server
 backend/server
 tmp/
 tmp/server
