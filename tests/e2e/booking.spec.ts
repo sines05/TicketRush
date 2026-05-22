@@ -41,12 +41,14 @@ test.describe('Booking Flow & WebSocket Sync', () => {
     await pageA.locator('input[placeholder="you@example.com"]').fill('linhchi@gmail.com');
     await pageA.locator('input[type="password"]').fill('password');
     await pageA.click('button:has-text("Đăng nhập")');
+    await expect(pageA).toHaveURL('/');
 
     // Login B
     await pageB.goto('/auth/login');
     await pageB.locator('input[placeholder="you@example.com"]').fill('minhduc@gmail.com');
     await pageB.locator('input[type="password"]').fill('password');
     await pageB.click('button:has-text("Đăng nhập")');
+    await expect(pageB).toHaveURL('/');
 
     // Page A joins queue and gets to seatmap
     await pageA.goto('/');
@@ -71,8 +73,7 @@ test.describe('Booking Flow & WebSocket Sync', () => {
 
     // Page A clicks an available seat
     const seatToLock = pageA.locator('button[title*="AVAILABLE"]').first();
-    const seatTitle = await seatToLock.getAttribute('title');
-    const seatLabel = seatTitle?.split(' • ')[0]; // e.g. "A-1"
+    const seatId = await seatToLock.getAttribute('data-seat-id');
 
     await seatToLock.click();
 
@@ -88,8 +89,7 @@ test.describe('Booking Flow & WebSocket Sync', () => {
     await expect(pageA).toHaveURL(/\/booking\/checkout/, { timeout: 10000 });
 
     // Verify Page B shows it as LOCKED (WebSocket sync)
-    // The selector for B should find the seat by title starting with the exact label and a space
-    const seatInB = pageB.locator(`button[title^="${seatLabel} •"]`);
+    const seatInB = pageB.locator(`button[data-seat-id="${seatId}"]`);
     await expect(seatInB).toHaveClass(/bg-seat-locked/, { timeout: 10000 });
     
     await contextA.close();
@@ -102,6 +102,7 @@ test.describe('Booking Flow & WebSocket Sync', () => {
     await page.locator('input[placeholder="you@example.com"]').fill('thuytrang@gmail.com');
     await page.locator('input[type="password"]').fill('password');
     await page.click('button:has-text("Đăng nhập")');
+    await expect(page).toHaveURL('/');
 
     // Go to seatmap
     // First, let's get a real event ID by visiting home page

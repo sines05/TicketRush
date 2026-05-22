@@ -203,7 +203,7 @@ export default function Dashboard() {
         <Card className="tr-dashboard-card lg:col-span-4">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle>Phân tích sự kiện</CardTitle>
+              <CardTitle>Nhóm tuổi</CardTitle>
               <CardDescription>Dữ liệu chi tiết theo từng sự kiện.</CardDescription>
             </div>
             <Select value={selectedEventId} onValueChange={setSelectedEventId}>
@@ -357,7 +357,9 @@ export default function Dashboard() {
               ) : (
                 events?.map((e) => (
                   <TableRow key={e.id}>
-                    <TableCell className="font-medium">{e.title}</TableCell>
+                    <TableCell className="font-medium">
+                      <h3 className="text-sm font-semibold inline">{e.title}</h3>
+                    </TableCell>
                     <TableCell className="text-muted-foreground">
                       {new Date(e.start_time).toLocaleString('vi-VN', { dateStyle: 'medium', timeStyle: 'short' })}
                     </TableCell>

@@ -1,7 +1,6 @@
-import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useState, useRef } from 'react';
 import { Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import SeatIcon from '../../components/SeatIcon.tsx';
-import { ZoneShapePreview } from '../../components/SeatBuilder/ZoneBlock.tsx';
 import {
   generateBanquet,
   generateChevron,
@@ -9,7 +8,7 @@ import {
   generateTheatreAuditorium,
 } from '../../components/SeatBuilder/shapeGenerators.ts';
 import { Button } from '../../components/ui/button.jsx';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../../components/ui/card.jsx';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '../../components/ui/card.jsx';
 import Loading from '../../components/common/Loading.jsx';
 import { BookingContext } from '../../context/BookingContext.jsx';
 import eventService from '../../services/eventService.js';
@@ -19,7 +18,22 @@ import { useAuth } from '../../hooks/useAuth.js';
 import { useCountdown, formatCountdown } from '../../hooks/useCountdown.js';
 import { useWebSocket } from '../../hooks/useWebSocket.js';
 import orderService from '../../services/orderService.js';
-import { ArrowLeft, Trash2, X, AlertCircle, Clock, Map as MapIcon, Armchair, Ticket } from 'lucide-react';
+import { 
+  ArrowLeft, 
+  Trash2, 
+  X, 
+  AlertCircle, 
+  Clock, 
+  Armchair, 
+  Ticket, 
+  Plus, 
+  Minus, 
+  Maximize2,
+  Calendar,
+  MapPin,
+  Sun,
+  Moon
+} from 'lucide-react';
 import { cn } from '../../lib/utils';
 import {
   Dialog,
@@ -29,6 +43,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../../components/ui/dialog.jsx";
+import { format } from 'date-fns';
+import { vi } from 'date-fns/locale';
 
 function seatLabel(seat) {
   return `${seat.row_label}-${seat.seat_number}`;
@@ -41,20 +57,8 @@ function seatCoordKey(rowLabel, seatNumber) {
   return `${row}${Math.max(1, Math.floor(n))}`;
 }
 
-const SEAT_UI_COLORS = Object.freeze({
-  available: '#22c55e',
-  locked: '#ec4899',
-  sold: '#ef4444',
-  selected: '#f59e0b',
-});
-
-function getZoneShapeMeta(zone) {
-  const meta = zone?.layout_meta || {};
-  const rawType = meta?.shape_type || meta?.shapeType || zone?.shape_type || zone?.shapeType;
-  const shapeType = rawType === 'semi_circle' ? 'theatre' : typeof rawType === 'string' ? rawType : 'theatre';
-  const seatMode = meta?.seat_type === 'standing' || shapeType === 'standing_block' ? 'standing' : 'seated';
-  return { shapeType, seatMode };
-}
+const CANVAS_WIDTH = 1400;
+const CANVAS_HEIGHT = 1000;
 
 export default function SeatMap() {
   const navigate = useNavigate();
@@ -64,7 +68,99 @@ export default function SeatMap() {
     useContext(BookingContext);
   const { user } = useAuth();
 
+  const [theme, setTheme] = useState(() => {
+    return document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+  });
+
+  const toggleTheme = useCallback(() => {
+    const next = theme === 'dark' ? 'light' : 'dark';
+    setTheme(next);
+    const root = window.document.documentElement;
+    root.classList.remove('light', 'dark');
+    root.classList.add(next);
+    localStorage.setItem('tr_theme', next);
+  }, [theme]);
+
+  const [loading, setLoading] = useState(true);
+  const [event, setEvent] = useState(null);
+  const [seatMap, setSeatMap] = useState(null);
+  const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [allowedAt, setAllowedAt] = useState(location.state?.allowedAt);
+  const [isConflictModalOpen, setIsConflictModalOpen] = useState(false);
+  const [conflictMessage, setConflictMessage] = useState('');
+
   const [selected, setSelected] = useState(() => new Set());
+  const [zoom, setZoom] = useState(0.9);
+
+  // Dragging / Panning State for Seat Canvas
+  const canvasWrapperRef = useRef(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [scrollStart, setScrollStart] = useState({ left: 0, top: 0 });
+
+  const handleMouseDown = useCallback((e) => {
+    // Only drag on left click and not on a button/interactive element
+    if (e.button !== 0) return;
+    if (e.target.closest('button') || e.target.closest('a')) return;
+    setIsDragging(true);
+    setDragStart({ x: e.clientX, y: e.clientY });
+    if (canvasWrapperRef.current) {
+      setScrollStart({
+        left: canvasWrapperRef.current.scrollLeft,
+        top: canvasWrapperRef.current.scrollTop
+      });
+    }
+  }, []);
+
+  const handleMouseMove = useCallback((e) => {
+    if (!isDragging || !canvasWrapperRef.current) return;
+    e.preventDefault();
+    const dx = e.clientX - dragStart.x;
+    const dy = e.clientY - dragStart.y;
+    canvasWrapperRef.current.scrollLeft = scrollStart.left - dx;
+    canvasWrapperRef.current.scrollTop = scrollStart.top - dy;
+  }, [isDragging, dragStart, scrollStart]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  const handleWheel = useCallback((e) => {
+    // Zoom with Ctrl + Wheel
+    if (e.ctrlKey) {
+      e.preventDefault();
+      const delta = -e.deltaY;
+      setZoom((prev) => {
+        const next = prev + (delta > 0 ? 0.05 : -0.05);
+        return Math.max(0.5, Math.min(2.0, next));
+      });
+    }
+  }, []);
+
+  // Center canvas on load
+  useEffect(() => {
+    if (seatMap && canvasWrapperRef.current) {
+      const timer = setTimeout(() => {
+        const wrapper = canvasWrapperRef.current;
+        if (!wrapper) return;
+        
+        const canvasActualWidth = CANVAS_WIDTH * zoom;
+        const canvasActualHeight = CANVAS_HEIGHT * zoom;
+        
+        const scrollX = (canvasActualWidth - wrapper.clientWidth) / 2;
+        const scrollY = (canvasActualHeight - wrapper.clientHeight) / 2;
+        
+        wrapper.scrollLeft = Math.max(0, scrollX);
+        wrapper.scrollTop = Math.max(0, scrollY);
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [seatMap]);
 
   useEffect(() => {
     const next = new Set();
@@ -78,15 +174,6 @@ export default function SeatMap() {
   const eventId = useMemo(() => searchParams.get('eventId') || '', [searchParams]);
   const queueToken = useMemo(() => searchParams.get('queueToken') || '', [searchParams]);
 
-  const [loading, setLoading] = useState(true);
-  const [event, setEvent] = useState(null);
-  const [seatMap, setSeatMap] = useState(null);
-  const [activeZoneId, setActiveZoneId] = useState('');
-  const [error, setError] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [allowedAt, setAllowedAt] = useState(location.state?.allowedAt);
-  const [isConflictModalOpen, setIsConflictModalOpen] = useState(false);
-  const [conflictMessage, setConflictMessage] = useState('');
 
   // Countdown timer logic
   useEffect(() => {
@@ -151,7 +238,6 @@ export default function SeatMap() {
         setSeatMap((prev) => {
           if (!prev) return prev;
           
-          // Optimization: Only update if the target seats are in the current seatMap
           let changed = false;
           const nextZones = prev.zones.map((zone) => {
             let zoneChanged = false;
@@ -203,11 +289,10 @@ export default function SeatMap() {
         if (!mounted) return;
         setEvent(evt);
         setSeatMap(sm);
-        setActiveZoneId(sm?.zones?.[0]?.zone_id ?? '');
       })
       .catch((e) => {
         if (!mounted) return;
-        setError(e?.message || 'Không tải được seat map');
+        setError(e?.message || 'Không tải được sơ đồ ghế');
       })
       .finally(() => {
         if (!mounted) return;
@@ -221,6 +306,7 @@ export default function SeatMap() {
 
   const zones = useMemo(() => seatMap?.zones ?? [], [seatMap]);
 
+  // Position zones inside the canvas using percentage bounds mapped to virtual coordinates
   const getZonePos = useCallback((zone, index, total) => {
     const meta = zone?.layout_meta || {};
     const x = Number(meta?.pos_x);
@@ -229,13 +315,22 @@ export default function SeatMap() {
       return { x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) };
     }
 
-    const t = total > 1 ? index / (total - 1) : 0.5;
-    return { x: 15 + t * 70, y: 52 + (index % 2) * 16 };
-  }, []);
+    // Centered vertical stack layout for fallback (completely symmetric and balanced front-to-back)
+    if (total === 1) {
+      return { x: 50, y: 45 };
+    }
 
-  const activeZone = useMemo(() => {
-    return zones.find((z) => z.zone_id === activeZoneId) || zones[0] || null;
-  }, [zones, activeZoneId]);
+    // For multiple zones, we stack them centered horizontally (x = 50)
+    // and spaced vertically from front (near stage, y ~ 20) to back (y ~ 80).
+    const height = Math.min(65, (total - 1) * 16);
+    const startY = 50 - height / 2;
+    const step = total > 1 ? height / (total - 1) : 0;
+
+    return {
+      x: 50,
+      y: startY + index * step
+    };
+  }, []);
 
   const toggleSelectedSeatId = useCallback((seatId) => {
     if (!seatId) return;
@@ -247,157 +342,145 @@ export default function SeatMap() {
     });
   }, []);
 
-  const activeZoneLayout = useMemo(() => {
-    const meta = activeZone?.layout_meta || {};
-    const align = meta?.align === 'right' || meta?.align === 'left' || meta?.align === 'center' ? meta.align : 'left';
-    const style = meta?.style === 'center_aisle' || meta?.style === 'three_blocks' || meta?.style === 'plain' ? meta.style : 'plain';
-    const aisleSize = Math.max(1, Math.min(6, Number(meta?.aisle_size) || 2));
-    return { align, style, aisleSize };
-  }, [activeZone]);
+  // Precompute layout specifications for ALL zones dynamically
+  const zonesLayouts = useMemo(() => {
+    return zones.map((zone) => {
+      const meta = zone?.layout_meta || {};
+      const rawType = meta?.shape_type || meta?.shapeType || zone?.shape_type || zone?.shapeType;
+      const shapeType = typeof rawType === 'string' ? rawType : '';
+      const rawParams = meta?.shape_params || meta?.shapeParams;
+      const shapeParams = rawParams && typeof rawParams === 'object' ? rawParams : {};
+      
+      const align = meta?.align === 'right' || meta?.align === 'left' || meta?.align === 'center' ? meta.align : 'left';
+      const style = meta?.style === 'center_aisle' || meta?.style === 'three_blocks' || meta?.style === 'plain' ? meta.style : 'plain';
+      const aisleSize = Math.max(1, Math.min(6, Number(meta?.aisle_size) || 2));
+      const gridLayout = { align, style, aisleSize };
 
-  const activeZoneColor = useMemo(() => {
-    const metaColor = activeZone?.layout_meta?.color;
-    return metaColor || activeZone?.color;
-  }, [activeZone]);
+      const color = meta?.color || zone?.color || '#3b82f6';
+      
+      let shapeLayout = null;
+      if (shapeType && shapeType !== 'standing_block') {
+        const seats = zone?.seats ?? [];
+        const byRow = new Map();
+        for (const s of seats) {
+          const key = s?.row_label;
+          if (!key) continue;
+          byRow.set(key, (byRow.get(key) || 0) + 1);
+        }
+        const inferredRows = byRow.size || 1;
+        const inferredMax = Math.max(1, ...Array.from(byRow.values()));
 
-  const activeZoneShape = useMemo(() => {
-    const meta = activeZone?.layout_meta || {};
-    const rawType = meta?.shape_type || meta?.shapeType || activeZone?.shape_type || activeZone?.shapeType;
-    const shapeType = typeof rawType === 'string' ? rawType : '';
-    const rawParams = meta?.shape_params || meta?.shapeParams;
-    const shapeParams = rawParams && typeof rawParams === 'object' ? rawParams : {};
-    return { shapeType, shapeParams };
-  }, [activeZone]);
+        const result = (() => {
+          if (shapeType === 'theatre') {
+            const rows = Number(shapeParams.rows) || inferredRows;
+            const seatsPerRow = Number(shapeParams.seatsPerRow) || inferredMax;
+            return generateTheatreAuditorium(rows, seatsPerRow);
+          }
+          if (shapeType === 'semi_circle') {
+            const rows = Number(shapeParams.rows) || inferredRows;
+            const seatsPerRow = Number(shapeParams.seatsPerRow) || inferredMax;
+            const arcAngle = Number(shapeParams.arcAngle) || 160;
+            return generateSemiCircle(rows, seatsPerRow, arcAngle);
+          }
+          if (shapeType === 'banquet') {
+            const tableCount = Number(shapeParams.tableCount ?? shapeParams.tablesCount) || inferredRows;
+            const seatsPerTable = Number(shapeParams.seatsPerTable) || inferredMax;
+            const tableRadius = Number(shapeParams.tableRadius) || 34;
+            return generateBanquet(tableCount, seatsPerTable, tableRadius);
+          }
+          if (shapeType === 'chevron') {
+            const rows = Number(shapeParams.rows) || inferredRows;
+            const perSide = Number(shapeParams.seatsPerRow) || Math.max(1, Math.floor(inferredMax / 2));
+            const angle = Number(shapeParams.angle) || 30;
+            return generateChevron(rows, perSide, angle);
+          }
+          return null;
+        })();
 
-  const activeZoneGeneratedLayout = useMemo(() => {
-    const zone = activeZone;
-    if (!zone) return null;
-
-    const { shapeType, shapeParams } = activeZoneShape;
-    if (!shapeType) return null;
-
-    // Standing blocks are currently represented as many "seats" in the API;
-    // keep the grid-based rendering for those.
-    if (shapeType === 'standing_block') return null;
-
-    const seats = zone?.seats ?? [];
-    const byRow = new Map();
-    for (const s of seats) {
-      const key = s?.row_label;
-      if (!key) continue;
-      byRow.set(key, (byRow.get(key) || 0) + 1);
-    }
-    const inferredRows = byRow.size || 1;
-    const inferredMax = Math.max(1, ...Array.from(byRow.values()));
-
-    const result = (() => {
-      if (shapeType === 'theatre') {
-        const rows = Number(shapeParams.rows) || inferredRows;
-        const seatsPerRow = Number(shapeParams.seatsPerRow) || inferredMax;
-        return generateTheatreAuditorium(rows, seatsPerRow);
+        if (result) {
+          const coordById = new Map();
+          for (const c of result.seats || []) {
+            coordById.set(c.id, c);
+          }
+          shapeLayout = { shapeType, result, coordById };
+        }
       }
-      if (shapeType === 'semi_circle') {
-        const rows = Number(shapeParams.rows) || inferredRows;
-        const seatsPerRow = Number(shapeParams.seatsPerRow) || inferredMax;
-        const arcAngle = Number(shapeParams.arcAngle) || 160;
-        return generateSemiCircle(rows, seatsPerRow, arcAngle);
+
+      // If it's a grid (or shape generation fallback)
+      let gridRows = [];
+      if (!shapeLayout) {
+        const seats = zone.seats ?? [];
+        const rows = new Map();
+        let maxSeatCount = 0;
+
+        for (const s of seats) {
+          const key = s.row_label;
+          const list = rows.get(key) ?? [];
+          list.push(s);
+          rows.set(key, list);
+        }
+
+        const sortedRowLabels = [...rows.keys()].sort();
+        const sortedRows = sortedRowLabels.map((rowLabel) => {
+          const list = (rows.get(rowLabel) ?? []).slice().sort((a, b) => a.seat_number - b.seat_number);
+          maxSeatCount = Math.max(maxSeatCount, list.length);
+          return { rowLabel, seats: list };
+        });
+
+        gridRows = sortedRows.map((r) => {
+          const seatsInRow = r.seats;
+          const seatCount = seatsInRow.length;
+          const aisleCount = style === 'three_blocks' ? 2 : style === 'center_aisle' ? 1 : 0;
+          const totalCols = Math.max(0, Number(maxSeatCount) || 0) + aisleCount * aisleSize;
+          const baseCols = seatCount + aisleCount * aisleSize;
+          const pad = Math.max(0, totalCols - baseCols);
+          const leftPad = align === 'right' ? pad : align === 'center' ? Math.floor(pad / 2) : 0;
+          const rightPad = pad - leftPad;
+
+          const blocks = (() => {
+            if (style === 'center_aisle') {
+              const left = Math.floor(seatCount / 2);
+              return [left, seatCount - left];
+            }
+            if (style === 'three_blocks') {
+              const base = Math.floor(seatCount / 3);
+              const rem = seatCount - base * 3;
+              const out = [base, base, base];
+              const order = [1, 0, 2];
+              for (let i = 0; i < rem; i++) out[order[i]] += 1;
+              return out;
+            }
+            return [seatCount];
+          })();
+
+          const cells = [];
+          for (let i = 0; i < leftPad; i++) cells.push(null);
+
+          let idx = 0;
+          for (let b = 0; b < blocks.length; b++) {
+            const take = blocks[b];
+            for (let i = 0; i < take; i++) {
+              cells.push(seatsInRow[idx++] || null);
+            }
+            if (b < blocks.length - 1) {
+              for (let i = 0; i < aisleSize; i++) cells.push(null);
+            }
+          }
+
+          for (let i = 0; i < rightPad; i++) cells.push(null);
+          return { rowLabel: r.rowLabel, cells, cols: totalCols };
+        });
       }
-      if (shapeType === 'banquet') {
-        const tableCount = Number(shapeParams.tableCount ?? shapeParams.tablesCount) || inferredRows;
-        const seatsPerTable = Number(shapeParams.seatsPerTable) || inferredMax;
-        const tableRadius = Number(shapeParams.tableRadius) || 34;
-        return generateBanquet(tableCount, seatsPerTable, tableRadius);
-      }
-      if (shapeType === 'chevron') {
-        const rows = Number(shapeParams.rows) || inferredRows;
-        const perSide = Number(shapeParams.seatsPerRow) || Math.max(1, Math.floor(inferredMax / 2));
-        const angle = Number(shapeParams.angle) || 30;
-        return generateChevron(rows, perSide, angle);
-      }
-      return null;
-    })();
 
-    if (!result) return null;
-    const coordById = new Map();
-    for (const c of result.seats || []) {
-      coordById.set(c.id, c);
-    }
-    return { shapeType, result, coordById };
-  }, [activeZone, activeZoneShape]);
-
-  const buildRowCells = useCallback((seatsInRow, maxSeatCount) => {
-    const seats = Array.isArray(seatsInRow) ? seatsInRow : [];
-    const seatCount = seats.length;
-    const { align, style, aisleSize } = activeZoneLayout;
-
-    const aisleCount = style === 'three_blocks' ? 2 : style === 'center_aisle' ? 1 : 0;
-    const totalCols = Math.max(0, Number(maxSeatCount) || 0) + aisleCount * aisleSize;
-    const baseCols = seatCount + aisleCount * aisleSize;
-    const pad = Math.max(0, totalCols - baseCols);
-    const leftPad = align === 'right' ? pad : align === 'center' ? Math.floor(pad / 2) : 0;
-    const rightPad = pad - leftPad;
-
-    const blocks = (() => {
-      if (style === 'center_aisle') {
-        const left = Math.floor(seatCount / 2);
-        return [left, seatCount - left];
-      }
-      if (style === 'three_blocks') {
-        const base = Math.floor(seatCount / 3);
-        const rem = seatCount - base * 3;
-        const out = [base, base, base];
-        const order = [1, 0, 2]; // put remainder into center first
-        for (let i = 0; i < rem; i++) out[order[i]] += 1;
-        return out;
-      }
-      return [seatCount];
-    })();
-
-    const cells = [];
-    for (let i = 0; i < leftPad; i++) cells.push(null);
-
-    let idx = 0;
-    for (let b = 0; b < blocks.length; b++) {
-      const take = blocks[b];
-      for (let i = 0; i < take; i++) {
-        cells.push(seats[idx++] || null);
-      }
-      if (b < blocks.length - 1) {
-        for (let i = 0; i < aisleSize; i++) cells.push(null);
-      }
-    }
-
-    for (let i = 0; i < rightPad; i++) cells.push(null);
-    return { cells, cols: totalCols };
-  }, [activeZoneLayout]);
-
-  const zoneRows = useMemo(() => {
-    const zone = activeZone;
-    if (!zone) return [];
-
-    const seats = zone.seats ?? [];
-    const rows = new Map();
-    let maxSeatCount = 0;
-
-    for (const s of seats) {
-      const key = s.row_label;
-      const list = rows.get(key) ?? [];
-      list.push(s);
-      rows.set(key, list);
-    }
-
-    const sortedRowLabels = [...rows.keys()].sort();
-    const sortedRows = sortedRowLabels.map((rowLabel) => {
-      const list = (rows.get(rowLabel) ?? []).slice().sort((a, b) => a.seat_number - b.seat_number);
-      maxSeatCount = Math.max(maxSeatCount, list.length);
-      return { rowLabel, seats: list };
+      return {
+        zone,
+        color,
+        shapeLayout,
+        gridRows,
+        gridLayout,
+      };
     });
-
-    return sortedRows.map((r) => {
-      const built = buildRowCells(r.seats, maxSeatCount);
-      return { rowLabel: r.rowLabel, cells: built.cells, cols: built.cols };
-    });
-  }, [activeZone, buildRowCells]);
+  }, [zones]);
 
   const total = useMemo(() => {
     return selectedSeats.reduce((sum, s) => sum + (Number(s.price) || 0), 0);
@@ -423,7 +506,7 @@ export default function SeatMap() {
       });
     } catch (e) {
       if (e?.errorCode === 'SEAT_ALREADY_TAKEN') {
-        setConflictMessage(e?.message || 'Một vài ghế bạn chọn không available nữa, vui lòng chọn lại');
+        setConflictMessage(e?.message || 'Một vài ghế bạn chọn không khả dụng nữa, vui lòng chọn lại');
         setIsConflictModalOpen(true);
       } else {
         setError(e?.message || 'Không giữ được ghế.');
@@ -433,42 +516,51 @@ export default function SeatMap() {
     }
   }, [eventId, selectedSeats, queueToken, navigate]);
 
+  // Zoom handlers
+  const handleZoomIn = () => setZoom(prev => Math.min(2.0, prev + 0.15));
+  const handleZoomOut = () => setZoom(prev => Math.max(0.5, prev - 0.15));
+  const handleZoomReset = () => setZoom(1.0);
+
+  // Formatting variables for Sidebar Event Details
+  const formattedDate = useMemo(() => {
+    if (!event?.startTime) return 'Đang cập nhật';
+    return format(new Date(event.startTime), 'EEEE, dd/MM/yyyy', { locale: vi });
+  }, [event]);
+
+  const formattedTime = useMemo(() => {
+    if (!event?.startTime) return 'Đang cập nhật';
+    return format(new Date(event.startTime), 'HH:mm');
+  }, [event]);
+
   if (loading) return <Loading title="Đang tải sơ đồ ghế..." />;
 
-  if (error) {
+  if (error && !event) {
     return (
-      <Card className="max-w-md mx-auto mt-10 border-destructive/50 bg-destructive/5 glass-surface">
-        <CardHeader>
-          <CardTitle className="text-destructive flex items-center gap-2">
-            <AlertCircle className="h-5 w-5" />
-            Không tải được sơ đồ ghế
-          </CardTitle>
-          <CardDescription>{error}</CardDescription>
-        </CardHeader>
-        <CardFooter className="flex gap-2">
-          <Button variant="outline" onClick={() => navigate(-1)}>Quay lại</Button>
-          <Button asChild>
-            <Link to="/">Về Trang chủ</Link>
-          </Button>
-        </CardFooter>
-      </Card>
+      <div className="container mx-auto py-10 px-4">
+        <Card className="max-w-md mx-auto border-destructive/50 bg-destructive/5 glass-surface">
+          <CardHeader>
+            <CardTitle className="text-destructive flex items-center gap-2">
+              <AlertCircle className="h-5 w-5" />
+              Không tải được sơ đồ ghế
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground text-sm">{error}</p>
+          </CardContent>
+          <CardFooter className="flex gap-2">
+            <Button variant="outline" onClick={() => navigate(-1)}>Quay lại</Button>
+            <Button asChild>
+              <Link to="/">Về Trang chủ</Link>
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
     );
   }
 
   return (
-    <div className="container mx-auto py-6">
-      {/* Sticky Countdown Timer */}
-      <div className="sticky top-0 z-30 w-full bg-background/80 backdrop-blur-lg border-b mb-6 -mt-6">
-        <div className="container flex items-center justify-center py-3 gap-3">
-          <Clock className={cn("h-5 w-5", secondsLeft < 60 ? "text-destructive animate-pulse" : "text-primary")} />
-          <span className="text-sm font-medium">
-            Bạn có <span className={cn("font-bold tabular-nums", secondsLeft < 60 ? "text-destructive" : "text-primary")}>
-              {formatCountdown(secondsLeft)}
-            </span> để hoàn tất chọn ghế
-          </span>
-        </div>
-      </div>
-
+    <div className="w-full h-full flex flex-col min-h-0 overflow-hidden bg-background text-foreground">
+      {/* Dialogs */}
       <Dialog open={!!allowedAt && isExpired}>
         <DialogContent className="sm:max-w-md glass-surface">
           <DialogHeader>
@@ -524,328 +616,503 @@ export default function SeatMap() {
         </DialogContent>
       </Dialog>
 
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="rounded-full hover:bg-primary/10">
+      {/* Internal Mini Header */}
+      <header className="h-16 border-b border-border bg-card px-4 md:px-6 flex items-center justify-between shrink-0 z-30">
+        <div className="flex items-center gap-3 min-w-0">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => navigate(-1)} 
+            className="rounded-full text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+          >
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Chọn ghế</h1>
-            <p className="text-muted-foreground text-sm">{event?.title}</p>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <h1 className="text-sm font-black tracking-tight text-foreground uppercase">Chọn ghế</h1>
+              <span className="relative flex h-2 w-2">
+                {wsStatus === 'CONNECTED' && (
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                )}
+                <span className={cn("relative inline-flex rounded-full h-2 w-2", 
+                  wsStatus === 'CONNECTED' ? 'bg-emerald-500' :
+                  wsStatus === 'CONNECTING' ? 'bg-amber-500 animate-pulse' :
+                  'bg-rose-500'
+                )}></span>
+              </span>
+            </div>
+            <p className="text-muted-foreground text-xs font-semibold truncate max-w-[240px] md:max-w-[400px]">{event?.title}</p>
           </div>
         </div>
 
+        {/* Centered Countdown Timer */}
+        <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-background border border-border text-xs font-semibold shadow-inner">
+          <Clock className={cn("h-4 w-4", secondsLeft < 60 ? "text-rose-500 animate-pulse" : "text-primary")} />
+          <span className="text-foreground">
+            Thời gian còn lại: <span className={cn("font-bold tabular-nums", secondsLeft < 60 ? "text-rose-500" : "text-primary")}>{formatCountdown(secondsLeft)}</span>
+          </span>
+        </div>
+
+        {/* Right actions (Theme Toggle and brand name) */}
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 rounded-full bg-muted/50 backdrop-blur-sm border border-border/50 px-3 py-1.5 text-xs font-medium">
-            <span className={cn("h-2 w-2 rounded-full", 
-              wsStatus === 'CONNECTED' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' :
-              wsStatus === 'CONNECTING' ? 'bg-amber-500 animate-pulse' :
-              'bg-destructive'
-            )} />
-            {wsStatus === 'CONNECTED' ? 'Trực tiếp' : wsStatus === 'CONNECTING' ? 'Đang kết nối...' : 'Ngoại tuyến'}
-          </div>
-          <Button variant="outline" size="sm" onClick={() => clearSelection()} className="gap-2 rounded-full border-destructive/20 text-destructive hover:bg-destructive/10 hover:text-destructive">
-            <Trash2 className="h-4 w-4" />
-            Bỏ chọn
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleTheme}
+            className="h-9 w-9 rounded-lg bg-muted/20 hover:bg-muted/40 transition-all shrink-0"
+            title="Đổi giao diện Sáng/Tối"
+          >
+            {theme === 'dark' ? <Sun className="h-4 w-4 text-yellow-500" /> : <Moon className="h-4 w-4 text-indigo-400" />}
+            <span className="sr-only">Toggle theme</span>
           </Button>
+          <div className="hidden sm:block text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">
+            TicketRush Premium
+          </div>
         </div>
-      </div>
+      </header>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-6">
-          <Card className="glass-surface overflow-hidden border-none shadow-2xl">
-            <CardHeader className="bg-primary/5 border-b border-primary/10">
-              <div className="flex items-center gap-2">
-                <MapIcon className="h-5 w-5 text-primary" />
-                <CardTitle className="text-lg">Sơ đồ khu vực</CardTitle>
-              </div>
-              <CardDescription>Chọn một khu vực để xem chi tiết chỗ ngồi</CardDescription>
-            </CardHeader>
-            <CardContent className="pt-6">
-              <div className="relative h-72 w-full rounded-2xl border bg-muted/20 overflow-hidden shadow-inner px-3 pt-3 pb-3">
-                <div className="absolute left-1/2 top-4 -translate-x-1/2 w-1/2 h-2 rounded-full bg-primary/20 blur-[1px]" />
-                <div className="absolute left-1/2 top-8 -translate-x-1/2 text-[10px] font-black text-primary/40 tracking-[0.5em] uppercase">SÂN KHẤU</div>
-                <div className="absolute left-0 right-0 top-14 bottom-3">
-                  {zones.map((z, idx) => {
-                    const pos = getZonePos(z, idx, zones.length);
-                    const active = z.zone_id === activeZoneId;
-                    const zoneShape = getZoneShapeMeta(z);
-                    const zoneColor = z?.layout_meta?.color || z?.color || '#60a5fa';
-                    return (
-                      <button
-                        key={`zone-map-${z.zone_id}`}
-                        type="button"
-                        onClick={() => setActiveZoneId(z.zone_id)}
-                        className={cn(
-                          "absolute h-28 w-40 p-0 transition-transform duration-200 origin-center",
-                          active ? "scale-110 z-20" : "hover:scale-105 z-10"
-                        )}
-                        style={{ left: `${pos.x}%`, top: `${pos.y}%`, transform: 'translate(-50%, -50%)' }}
-                        aria-label={z.name}
-                      >
-                        <div className="h-full w-full flex items-center justify-center">
-                          <ZoneShapePreview
-                            color={zoneColor}
-                            shapeType={zoneShape.shapeType}
-                            seatMode={zoneShape.seatMode}
-                            className="h-full w-full p-1.5"
-                          />
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="mt-8 flex flex-wrap gap-2">
-                {zones.map((z) => (
-                  <Button
-                    key={z.zone_id}
-                    variant={z.zone_id === activeZoneId ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setActiveZoneId(z.zone_id)}
-                    className={cn(
-                      "flex-col h-auto py-2.5 px-5 items-start rounded-xl transition-all",
-                      z.zone_id === activeZoneId ? "shadow-lg shadow-primary/20 scale-105" : "hover:bg-primary/5"
-                    )}
+      {/* Main Content Split Layout */}
+      <div className="flex-1 flex flex-col lg:flex-row min-h-0 w-full overflow-hidden">
+        
+        {/* Left Side: Drag-to-pan Canvas */}
+        <div className="flex-1 relative overflow-hidden flex flex-col min-h-0 bg-seat-canvas border-r border-border">
+          <div 
+            ref={canvasWrapperRef}
+            className="flex-1 overflow-auto select-none custom-scrollbar cursor-grab active:cursor-grabbing p-10 relative flex"
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseLeave}
+            onWheel={handleWheel}
+          >
+            {/* Viewport coordinate cushion */}
+            <div 
+              className="relative origin-top-left transition-transform duration-100 ease-out m-auto shrink-0"
+              style={{
+                width: `${CANVAS_WIDTH * zoom}px`,
+                height: `${CANVAS_HEIGHT * zoom}px`,
+              }}
+            >
+              <div 
+                className="absolute top-0 left-0 w-[1400px] h-[1000px] origin-top-left"
+                style={{
+                  transform: `scale(${zoom})`,
+                }}
+              >
+                {/* Stage */}
+                <div className="absolute top-8 left-1/2 -translate-x-1/2 w-1/3 flex flex-col items-center pointer-events-none z-10">
+                  <div 
+                    className="w-full h-3 rounded-b-[30px] shadow-lg border-b-2"
+                    style={{
+                      borderColor: 'var(--seat-stage-border)',
+                      background: 'var(--seat-stage-bg)',
+                    }}
+                  />
+                  <span 
+                    className="mt-2 text-[9px] font-black tracking-[0.5em] uppercase"
+                    style={{
+                      color: 'var(--seat-stage-text)',
+                    }}
                   >
-                    <span className="text-xs font-black uppercase tracking-tight">{z.name}</span>
-                    <span className="text-[10px] opacity-70 font-medium">{formatVND(z.price)}</span>
-                  </Button>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="glass-surface border-none shadow-2xl">
-            <CardHeader className="pb-0 bg-primary/5 border-b border-primary/10 mb-6">
-              <div className="flex items-center justify-between py-2">
-                <div className="flex items-center gap-2">
-                  <Armchair className="h-5 w-5 text-primary" />
-                  <CardTitle className="text-lg">Chi tiết: {activeZone?.name}</CardTitle>
+                    SÂN KHẤU / STAGE
+                  </span>
                 </div>
-                <div className="px-3 py-1 rounded-full bg-primary/10 text-sm font-bold text-primary border border-primary/20">
-                  {formatVND(activeZone?.price)}
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="pt-6">
-              <div className="mb-12 flex flex-col items-center relative">
-                <div className="w-3/4 h-3 rounded-b-[40px] bg-gradient-to-b from-primary/20 to-primary/40 border-x border-b border-primary/30 shadow-[0_10px_20px_-10px_rgba(var(--tr-primary),0.3)]" />
-                <div className="mt-3 text-[11px] font-black text-primary/60 tracking-[0.4em] uppercase">SÂN KHẤU</div>
-              </div>
 
-              <div className="overflow-auto pb-8 px-2">
-                {activeZoneGeneratedLayout ? (
-                  <div className="flex min-w-full justify-center">
-                    <div className="min-w-max px-4">
-                      <div
-                        className="relative"
-                        style={{
-                          width: Math.max(1, activeZoneGeneratedLayout.result.suggestedWidth || 1),
-                          height: Math.max(1, activeZoneGeneratedLayout.result.suggestedHeight || 1),
-                        }}
-                      >
-                        {activeZoneGeneratedLayout.shapeType === 'banquet' &&
-                          (activeZoneGeneratedLayout.result.tables || []).map((table, index) => (
-                            <div
-                              key={`table-${index}`}
-                              className="absolute rounded-full border border-border/70 bg-muted/30 shadow-inner"
-                              style={{
-                                left: table.cx,
-                                top: table.cy,
-                                width: table.radius * 2,
-                                height: table.radius * 2,
-                                transform: 'translate(-50%, -50%)',
-                              }}
-                            />
-                          ))}
+                {/* Render Zones & Seats */}
+                {zonesLayouts.map(({ zone, color, shapeLayout, gridRows, gridLayout }, idx) => {
+                  const pos = getZonePos(zone, idx, zonesLayouts.length);
+                  const leftPx = 100 + (pos.x / 100) * 1200;
+                  const topPx = 180 + (pos.y / 100) * 740;
 
-                        {(activeZone?.seats ?? []).map((s) => {
-                          const seatId = s.seat_id || s.seatId;
-                          const key = seatCoordKey(s.row_label, s.seat_number);
-                          const coord = key ? activeZoneGeneratedLayout.coordById.get(key) : null;
-                          if (!coord) return null;
+                  return (
+                    <div
+                      key={`zone-wrapper-${zone.zone_id}`}
+                      className="absolute group/zone transition-all duration-300 hover:scale-[1.01] hover:z-20"
+                      style={{
+                        left: `${leftPx}px`,
+                        top: `${topPx}px`,
+                        transform: 'translate(-50%, -50%)',
+                        zIndex: 10,
+                      }}
+                    >
+                      {shapeLayout ? (
+                        <div 
+                          className="relative border border-dashed rounded-2xl transition-colors duration-300"
+                          style={{
+                            borderColor: `${color}4D`,
+                            backgroundColor: `${color}05`,
+                            width: `${shapeLayout.result.suggestedWidth}px`,
+                            height: `${shapeLayout.result.suggestedHeight}px`,
+                          }}
+                        >
+                          {/* Zone Label */}
+                          <div 
+                            className="absolute -top-3 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider shadow-md select-none"
+                            style={{
+                              backgroundColor: color,
+                              color: '#ffffff',
+                            }}
+                          >
+                            {zone.name}
+                          </div>
 
-                          const lockedByMe =
-                            s.status === 'LOCKED' &&
-                            s.locked_by_user_id &&
-                            user?.user_id &&
-                            s.locked_by_user_id === user.user_id;
+                          {shapeLayout.shapeType === 'banquet' &&
+                            (shapeLayout.result.tables || []).map((table, tIdx) => (
+                              <div
+                                key={`table-${zone.zone_id}-${tIdx}`}
+                                className="absolute rounded-full border shadow-inner"
+                                style={{
+                                  left: table.cx,
+                                  top: table.cy,
+                                  width: table.radius * 2,
+                                  height: table.radius * 2,
+                                  transform: 'translate(-50%, -50%)',
+                                  backgroundColor: 'var(--seat-banquet-table-bg)',
+                                  borderColor: 'var(--seat-banquet-table-border)',
+                                }}
+                              />
+                            ))}
 
-                          const seatForSelect = {
-                            ...s,
-                            lockedByMe,
-                            seat_id: seatId,
-                            label: seatLabel(s),
-                            zone_id: activeZone.zone_id,
-                            zone_name: activeZone.name,
-                            price: activeZone.price,
-                          };
+                          {(zone?.seats ?? []).map((s) => {
+                            const seatId = s.seat_id || s.seatId;
+                            const key = seatCoordKey(s.row_label, s.seat_number);
+                            const coord = key ? shapeLayout.coordById.get(key) : null;
+                            if (!coord) return null;
 
-                          const seatState = s.status === 'SOLD'
-                            ? 'sold'
-                            : s.status === 'LOCKED' && !lockedByMe
-                              ? 'locked'
-                              : selected.has(seatId)
-                                ? 'selected'
+                            const lockedByMe = s.status === 'LOCKED' && s.locked_by_user_id && user?.user_id && s.locked_by_user_id === user.user_id;
+
+                            const seatForSelect = {
+                              ...s,
+                              lockedByMe,
+                              seat_id: seatId,
+                              label: seatLabel(s),
+                              zone_id: zone.zone_id,
+                              zone_name: zone.name,
+                              price: zone.price,
+                            };
+
+                            const seatState = s.status === 'SOLD'
+                              ? 'sold'
+                              : s.status === 'LOCKED' && !lockedByMe
+                                ? 'locked'
+                                : selected.has(seatId)
+                                  ? 'selected'
+                                  : 'available';
+
+                            const seatTitleState = s.status === 'SOLD'
+                              ? 'sold'
+                              : s.status === 'LOCKED' && !lockedByMe
+                                ? 'locked'
                                 : 'available';
 
-                          const handleClick = () => {
-                            if (!seatId) return;
-                            toggleSelectedSeatId(seatId);
-                            toggleSeat(seatForSelect);
-                          };
+                            const handleClick = () => {
+                              if (!seatId) return;
+                              toggleSelectedSeatId(seatId);
+                              toggleSeat(seatForSelect);
+                            };
 
-                          return (
-                            <div
-                              key={seatId}
-                              className={cn(
-                                'absolute rounded-md flex items-center justify-center',
-                                (seatState === 'sold' || seatState === 'locked') && !selected.has(seatId) ? 'opacity-85' : 'hover:bg-primary/5'
-                              )}
-                              style={{
-                                left: coord.x,
-                                top: coord.y,
-                                transform: 'translate(-50%, -50%)',
-                                width: 22,
-                                height: 24,
-                              }}
-                            >
-                              <SeatIcon
-                                state={seatState}
-                                rotation={coord.rotation}
-                                color={activeZoneColor}
-                                seatLabel={seatForSelect.label}
+                            return (
+                              <button
+                                type="button"
+                                key={seatId}
+                                data-seat-id={seatId}
+                                title={`${seatForSelect.label} • ${seatTitleState.toUpperCase()}`}
                                 onClick={(seatState === 'sold' || seatState === 'locked') && !selected.has(seatId) ? undefined : handleClick}
-                              />
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex min-w-full justify-center">
-                    <div className="min-w-max space-y-4 px-4">
-                      {zoneRows.map((row) => (
-                        <div key={row.rowLabel} className="flex items-center gap-6">
-                          <div className="w-8 h-8 flex items-center justify-center rounded-full bg-muted/50 text-[10px] font-black text-muted-foreground border border-border/50">
-                            {row.rowLabel}
-                          </div>
-                          <div
-                            className="grid gap-2.5"
-                            style={{ gridTemplateColumns: `repeat(${row.cols}, minmax(0, 1fr))` }}
-                          >
-                            {row.cells.map((s, idx) => {
-                              if (!s) {
-                                return <div key={`${row.rowLabel}-empty-${idx}`} className="h-8 w-8 rounded-md bg-muted/10" />;
-                              }
-
-                              const lockedByMe = s.status === 'LOCKED' && s.locked_by_user_id && user?.user_id && s.locked_by_user_id === user.user_id;
-                              const seatId = s.seat_id || s.seatId;
-                              const seatForSelect = {
-                                ...s,
-                                lockedByMe,
-                                seat_id: seatId,
-                                label: seatLabel(s),
-                                zone_id: activeZone.zone_id,
-                                zone_name: activeZone.name,
-                                price: activeZone.price
-                              };
-
-                              const seatState = s.status === 'SOLD'
-                                ? 'sold'
-                                : s.status === 'LOCKED' && !lockedByMe
-                                  ? 'locked'
-                                  : selected.has(seatId)
-                                    ? 'selected'
-                                    : 'available';
-
-                              const handleClick = () => {
-                                if (!seatId) return;
-                                toggleSelectedSeatId(seatId);
-                                toggleSeat(seatForSelect);
-                              };
-
-                              return (
-                                <div
-                                  key={seatId}
-                                  className={cn(
-                                    'h-8 w-8 rounded-md flex items-center justify-center',
-                                    (seatState === 'sold' || seatState === 'locked') && !selected.has(seatId) ? 'opacity-85' : 'hover:bg-primary/5'
-                                  )}
-                                >
-                                  <SeatIcon
-                                    state={seatState}
-                                    rotation={0}
-                                    color={activeZoneColor}
-                                    seatLabel={seatForSelect.label}
-                                    onClick={(seatState === 'sold' || seatState === 'locked') && !selected.has(seatId) ? undefined : handleClick}
-                                  />
-                                </div>
-                              );
-                            })}
-                          </div>
+                                className={cn(
+                                  'absolute rounded flex items-center justify-center transition-transform duration-100 hover:scale-125 hover:z-30 outline-none focus:outline-none bg-transparent border-0 p-0 cursor-pointer',
+                                  seatState === 'selected' && 'bg-seat-selected',
+                                  seatState === 'locked' && 'bg-seat-locked',
+                                  seatState === 'sold' && 'bg-seat-sold',
+                                  (seatState === 'sold' || seatState === 'locked') && !selected.has(seatId) ? 'opacity-70' : 'hover:bg-white/5'
+                                )}
+                                style={{
+                                  left: coord.x,
+                                  top: coord.y,
+                                  transform: 'translate(-50%, -50%)',
+                                  width: 22,
+                                  height: 24,
+                                }}
+                              >
+                                <SeatIcon
+                                  state={seatState}
+                                  rotation={coord.rotation}
+                                  color={color}
+                                  seatLabel={seatForSelect.label}
+                                />
+                              </button>
+                            );
+                          })}
                         </div>
-                      ))}
+                      ) : (
+                        <div 
+                          className="relative p-6 border border-dashed rounded-2xl flex flex-col items-center gap-3 transition-colors duration-300 w-max"
+                          style={{
+                            borderColor: `${color}4D`,
+                            backgroundColor: `${color}05`,
+                          }}
+                        >
+                          <div 
+                            className="absolute -top-3 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider shadow-md select-none"
+                            style={{
+                              backgroundColor: color,
+                              color: '#ffffff',
+                            }}
+                          >
+                            {zone.name}
+                          </div>
+
+                          {gridRows.map((row) => (
+                            <div key={`grid-row-${zone.zone_id}-${row.rowLabel}`} className="flex items-center gap-3">
+                              <div 
+                                className="w-6 h-6 flex items-center justify-center rounded-full text-[9px] font-black border"
+                                style={{
+                                  backgroundColor: 'var(--seat-grid-label-bg)',
+                                  borderColor: 'var(--seat-grid-label-border)',
+                                  color: 'var(--seat-grid-label-text)',
+                                }}
+                              >
+                                {row.rowLabel}
+                              </div>
+                              <div
+                                className="grid gap-1.5"
+                                style={{ gridTemplateColumns: `repeat(${row.cols}, minmax(0, 1fr))` }}
+                              >
+                                {row.cells.map((s, idx) => {
+                                  if (!s) {
+                                    return <div key={`${row.rowLabel}-empty-${idx}`} className="h-7 w-7 rounded bg-muted/20 border border-transparent" />;
+                                  }
+
+                                  const lockedByMe = s.status === 'LOCKED' && s.locked_by_user_id && user?.user_id && s.locked_by_user_id === user.user_id;
+                                  const seatId = s.seat_id || s.seatId;
+                                  const seatForSelect = {
+                                    ...s,
+                                    lockedByMe,
+                                    seat_id: seatId,
+                                    label: seatLabel(s),
+                                    zone_id: zone.zone_id,
+                                    zone_name: zone.name,
+                                    price: zone.price
+                                  };
+
+                                  const seatState = s.status === 'SOLD'
+                                    ? 'sold'
+                                    : s.status === 'LOCKED' && !lockedByMe
+                                      ? 'locked'
+                                      : selected.has(seatId)
+                                        ? 'selected'
+                                        : 'available';
+
+                                  const seatTitleState = s.status === 'SOLD'
+                                    ? 'sold'
+                                    : s.status === 'LOCKED' && !lockedByMe
+                                      ? 'locked'
+                                      : 'available';
+
+                                  const handleClick = () => {
+                                    if (!seatId) return;
+                                    toggleSelectedSeatId(seatId);
+                                    toggleSeat(seatForSelect);
+                                  };
+
+                                  return (
+                                    <button
+                                      type="button"
+                                      key={seatId}
+                                      data-seat-id={seatId}
+                                      title={`${seatForSelect.label} • ${seatTitleState.toUpperCase()}`}
+                                      onClick={(seatState === 'sold' || seatState === 'locked') && !selected.has(seatId) ? undefined : handleClick}
+                                      className={cn(
+                                        'h-7 w-7 rounded flex items-center justify-center transition-transform duration-100 hover:scale-125 hover:z-30 outline-none focus:outline-none bg-transparent border-0 p-0 cursor-pointer',
+                                        seatState === 'selected' && 'bg-seat-selected',
+                                        seatState === 'locked' && 'bg-seat-locked',
+                                        seatState === 'sold' && 'bg-seat-sold',
+                                        (seatState === 'sold' || seatState === 'locked') && !selected.has(seatId) ? 'opacity-70' : 'hover:bg-white/5'
+                                      )}
+                                    >
+                                      <SeatIcon
+                                        state={seatState}
+                                        rotation={0}
+                                        color={color}
+                                        seatLabel={seatForSelect.label}
+                                      />
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Floating Zoom Controls */}
+          <div 
+            className="absolute bottom-4 right-4 z-20 flex items-center gap-1.5 backdrop-blur bg-seat-zoom-bg border border-seat-zoom-border p-1.5 rounded-xl shadow-lg"
+          >
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-8 w-8 rounded-lg text-seat-zoom-text hover:bg-seat-zoom-hover" 
+              onClick={handleZoomOut} 
+              disabled={zoom <= 0.5}
+              title="Thu nhỏ"
+            >
+              <Minus className="h-4 w-4" />
+            </Button>
+            <span className="text-[11px] font-bold min-w-[36px] text-center text-seat-zoom-text">
+              {Math.round(zoom * 100)}%
+            </span>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-8 w-8 rounded-lg text-seat-zoom-text hover:bg-seat-zoom-hover" 
+              onClick={handleZoomIn} 
+              disabled={zoom >= 2.0}
+              title="Phóng to"
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+            <div className="w-[1px] h-4 mx-1 bg-seat-zoom-border" />
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-8 w-8 rounded-lg text-seat-zoom-text hover:bg-seat-zoom-hover" 
+              onClick={handleZoomReset}
+              title="Về kích thước chuẩn"
+            >
+              <Maximize2 className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Right Side: Sidebar */}
+        <aside className="w-full lg:w-[380px] bg-card border-l border-border flex flex-col h-full shrink-0 min-h-0 overflow-hidden">
+          {/* Event & Location (Fixed top) */}
+          <div className="p-5 border-b border-border shrink-0 space-y-4 bg-card/60">
+            <div className="space-y-1.5">
+              <h2 className="text-base font-bold text-foreground tracking-tight leading-tight line-clamp-2">{event?.title}</h2>
+              <div className="space-y-1 text-xs text-muted-foreground font-semibold">
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-3.5 w-3.5 text-primary shrink-0" />
+                  <span>{formattedTime} - {formattedDate}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <MapPin className="h-3.5 w-3.5 text-primary shrink-0" />
+                  <span className="truncate">{event?.locationName || 'Đang cập nhật'}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Event Zones & Prices */}
+            <div className="space-y-2 pt-2.5 border-t border-border">
+              <h3 className="text-[10px] font-black text-muted-foreground/80 uppercase tracking-wider">Khu vực & Giá vé</h3>
+              <div className="grid grid-cols-2 gap-x-3 gap-y-2 max-h-[90px] overflow-y-auto pr-1 custom-scrollbar">
+                {zones.map((z) => (
+                  <div key={z.zone_id} className="flex items-center gap-2 text-xs">
+                    <span 
+                      className="h-2.5 w-2.5 rounded-full shrink-0 shadow-sm border border-black/10" 
+                      style={{ backgroundColor: z?.layout_meta?.color || z?.color || '#3b82f6' }} 
+                    />
+                    <div className="truncate min-w-0">
+                      <div className="font-bold text-foreground truncate">{z.name}</div>
+                      <div className="text-muted-foreground text-[10px]">{formatVND(z.price)}</div>
                     </div>
                   </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Cart & Legends (Scrollable center) */}
+          <div className="flex-1 overflow-y-auto p-5 space-y-5 custom-scrollbar">
+            {/* Status Legend */}
+            <div className="p-3 rounded-xl border border-border bg-muted/30 space-y-2.5">
+              <h3 className="text-[10px] font-black text-muted-foreground/80 uppercase tracking-wider">Chú thích trạng thái</h3>
+              <div className="grid grid-cols-2 gap-x-2 gap-y-1.5">
+                <div className="flex items-center gap-2 text-xs">
+                  <span 
+                    className="h-3 w-3 rounded border shrink-0 animate-in fade-in duration-200" 
+                    style={{ 
+                      backgroundColor: 'var(--seat-available-fill)', 
+                      borderColor: 'var(--seat-canvas-border)' 
+                    }}
+                  />
+                  <span className="text-muted-foreground text-[10px] font-semibold">Trống (Màu khu)</span>
+                </div>
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="h-3 w-3 rounded bg-[#22c55e] shrink-0" />
+                  <span className="text-muted-foreground text-[10px] font-semibold">Đang chọn</span>
+                </div>
+                <div className="flex items-center gap-2 text-xs">
+                  <span 
+                    className="h-3 w-3 rounded shrink-0" 
+                    style={{ backgroundColor: 'var(--seat-locked-fill)' }}
+                  />
+                  <span className="text-muted-foreground text-[10px] font-semibold">Đang giữ</span>
+                </div>
+                <div className="flex items-center gap-2 text-xs">
+                  <span 
+                    className="h-3 w-3 rounded border shrink-0" 
+                    style={{ 
+                      backgroundColor: 'var(--seat-sold-fill)', 
+                      borderColor: 'var(--seat-sold-stroke)' === 'none' ? 'transparent' : 'var(--seat-sold-stroke)'
+                    }}
+                  />
+                  <span className="text-muted-foreground text-[10px] font-semibold">Đã bán</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Selected Seats Cart */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Ticket className="h-4 w-4 text-primary" />
+                  <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">Ghế đã chọn ({selectedSeats.length})</h3>
+                </div>
+                {selectedSeats.length > 0 && (
+                  <button 
+                    onClick={() => clearSelection()}
+                    className="text-xs font-bold text-rose-400 hover:text-rose-300 hover:underline flex items-center gap-1 transition-all"
+                  >
+                    <Trash2 className="h-3 w-3 shrink-0" />
+                    Xóa tất cả
+                  </button>
                 )}
               </div>
 
-              <div className="mt-8 flex flex-wrap justify-center gap-8 border-t border-border/50 pt-8">
-                <LegendItem label="Trống" colorClass="bg-emerald-500" />
-                <LegendItem label="Đang giữ" colorClass="bg-slate-300" />
-                <LegendItem label="Đã bán" colorClass="bg-muted/30" />
-                <LegendItem label="Đang chọn" colorClass="bg-amber-500" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="space-y-6">
-          <Card className="sticky top-24 glass-surface border-none shadow-2xl overflow-hidden">
-            <CardHeader className="bg-primary/5 border-b border-primary/10">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Ticket className="h-5 w-5 text-primary" />
-                  <CardTitle className="text-lg">Vé đang chọn</CardTitle>
-                </div>
-                <div className="rounded-full bg-primary text-primary-foreground px-3 py-0.5 text-xs font-black">
-                  {selectedSeats.length}
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-6 pt-6">
-              <div className="max-h-[350px] overflow-auto pr-2 -mr-2 space-y-3 custom-scrollbar">
+              <div className="space-y-2.5">
                 {selectedSeats.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground/60">
-                    <div className="mb-4 p-4 rounded-full bg-muted/30">
-                      <Armchair className="h-10 w-10 opacity-20" />
-                    </div>
-                    <p className="text-sm font-medium">Vui lòng chọn ghế trên sơ đồ để tiếp tục.</p>
+                  <div className="flex flex-col items-center justify-center py-10 text-center text-muted-foreground border border-dashed border-border rounded-xl bg-muted/10">
+                    <Armchair className="h-7 w-7 opacity-20 text-muted-foreground mb-2" />
+                    <p className="text-[10px] font-semibold px-4 leading-normal text-muted-foreground">Hãy chọn ghế trống trên sơ đồ phòng vé để đặt vé.</p>
                   </div>
                 ) : (
                   selectedSeats.map((s) => (
                     <div
                       key={s.seat_id || s.seatId}
-                      className="group relative flex items-center justify-between rounded-xl border border-border/50 p-4 transition-all hover:bg-primary/5 hover:border-primary/20 hover:shadow-md"
+                      className="group relative flex items-center justify-between rounded-xl border border-border bg-muted/30 p-2.5 transition-all hover:bg-muted/50 hover:border-accent"
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary font-black text-xs">
+                      <div className="flex items-center gap-2.5">
+                        <div className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center text-primary font-black text-xs">
                           {s.row_label}
                         </div>
-                        <div>
-                          <div className="text-sm font-black uppercase tracking-tight">{s.label || seatLabel(s)}</div>
-                          <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{s.zone_name || activeZone?.name}</div>
+                        <div className="min-w-0">
+                          <div className="text-xs font-black uppercase tracking-tight text-foreground">{s.label || seatLabel(s)}</div>
+                          <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider truncate max-w-[120px]">{s.zone_name}</div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <div className="text-sm font-black text-primary">{formatVND(s.price)}</div>
+                      <div className="flex items-center gap-2">
+                        <div className="text-xs font-black text-primary">{formatVND(s.price)}</div>
                         <button 
                           onClick={() => toggleSeat(s)}
-                          className="rounded-full p-1.5 text-muted-foreground hover:bg-destructive hover:text-destructive-foreground transition-all"
+                          className="rounded-full p-1 text-muted-foreground hover:bg-rose-500/20 hover:text-rose-400 transition-all"
+                          title="Xóa ghế này"
                         >
                           <X className="h-3.5 w-3.5" />
                         </button>
@@ -854,68 +1121,45 @@ export default function SeatMap() {
                   ))
                 )}
               </div>
+            </div>
+          </div>
 
-              <div className="border-t border-border/50 pt-6">
-                <div className="flex items-center justify-between mb-6">
-                  <span className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Tổng cộng</span>
-                  <span className="text-2xl font-black text-primary tracking-tight">{formatVND(total)}</span>
-                </div>
-                
-                {error && (
-                  <div className="mb-6 flex items-center gap-3 rounded-xl bg-destructive/10 border border-destructive/20 p-4 text-xs text-destructive font-medium animate-in fade-in slide-in-from-top-1">
-                    <AlertCircle className="h-5 w-5 shrink-0" />
-                    {error}
-                  </div>
-                )}
-
-                <Button
-                  className="w-full h-12 rounded-xl text-sm font-black uppercase tracking-widest shadow-lg shadow-primary/25 transition-all hover:scale-[1.02] active:scale-[0.98]"
-                  size="lg"
-                  disabled={selectedSeats.length === 0 || submitting}
-                  onClick={handleCreateOrder}
-                >
-                  {submitting ? (
-                    <>
-                      <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                      Đang xử lý...
-                    </>
-                  ) : (
-                    'Tiếp tục thanh toán'
-                  )}
-                </Button>
+          {/* Totals & Actions (Fixed bottom) */}
+          <div className="p-5 border-t border-border bg-card/60 shrink-0 space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Tổng tiền</span>
+              <span className="text-xl font-black text-primary tracking-tight">{formatVND(total)}</span>
+            </div>
+            
+            {error && (
+              <div className="flex items-center gap-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20 p-3 text-xs text-rose-400 font-semibold animate-in fade-in slide-in-from-top-1">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <span>{error}</span>
               </div>
-            </CardContent>
-            <CardFooter className="bg-muted/30 border-t border-border/50 py-4">
-              <p className="text-[10px] text-center w-full text-muted-foreground font-bold uppercase tracking-tighter opacity-60">
-                Ghế sẽ được giữ trong 10 phút sau khi bạn nhấn tiếp tục.
-              </p>
-            </CardFooter>
-          </Card>
-        </div>
+            )}
+
+            <Button
+              className="w-full h-11 rounded-xl text-xs font-black uppercase tracking-widest shadow-lg shadow-primary/25 transition-all hover:scale-[1.02] active:scale-[0.98]"
+              size="lg"
+              disabled={selectedSeats.length === 0 || submitting}
+              onClick={handleCreateOrder}
+            >
+              {submitting ? (
+                <>
+                  <span className="mr-2 h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  Đang xử lý...
+                </>
+              ) : (
+                'Tiếp tục thanh toán'
+              )}
+            </Button>
+            
+            <p className="text-[9px] text-center text-muted-foreground/60 font-semibold uppercase tracking-wider">
+              Lưu ý: Ghế được khóa tạm thời trong 10 phút sau khi bấm tiếp tục.
+            </p>
+          </div>
+        </aside>
       </div>
-    </div>
-  );
-}
-
-function LegendItem({ label, colorClass }) {
-  const color =
-    colorClass === 'bg-emerald-500'
-      ? SEAT_UI_COLORS.available
-      : colorClass === 'bg-slate-300'
-        ? SEAT_UI_COLORS.locked
-        : colorClass === 'bg-muted/30'
-          ? SEAT_UI_COLORS.sold
-          : colorClass === 'bg-amber-500'
-            ? SEAT_UI_COLORS.selected
-            : undefined;
-
-  return (
-    <div className="flex items-center gap-2.5">
-      <span
-        className={cn("h-4 w-4 rounded-md shadow-sm border border-black/5", color ? null : colorClass)}
-        style={color ? { backgroundColor: color } : undefined}
-      />
-      <span className="text-xs font-bold text-muted-foreground uppercase tracking-tight">{label}</span>
     </div>
   );
 }

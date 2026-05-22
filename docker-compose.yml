@@ -70,6 +70,9 @@ services:
       VITE_USE_MOCK: "false"
     ports:
       - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
     networks:
       - ticketrush-net
 

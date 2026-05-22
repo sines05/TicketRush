@@ -53,18 +53,6 @@ function lightenHexColor(hexColor: string, amount: number) {
   });
 }
 
-function getFillColor(state: SeatIconProps['state'], color?: string) {
-  void color;
-  const baseSeatColor = '#22c55e';
-
-  if (state === 'selected') return '#f59e0b';
-  if (state === 'locked') return '#ec4899';
-  if (state === 'sold') return '#ef4444';
-  if (state === 'unavailable') return '#ec4899';
-  if (state === 'hovered') return lightenHexColor(baseSeatColor, 0.15);
-  return baseSeatColor;
-}
-
 export default function SeatIcon({
   size = 18,
   state,
@@ -77,8 +65,29 @@ export default function SeatIcon({
   const width = size;
   const height = (size * 20) / 18;
 
-  const fill = getFillColor(state, color);
+  const zoneColor = color || '#3b82f6';
   const clickable = Boolean(onClick) && !isAdmin;
+
+  let fill = 'var(--seat-available-fill)';
+  let stroke = 'none';
+  let strokeWidth = 0;
+
+  if (state === 'selected') {
+    fill = '#22c55e'; // Xanh lá sáng cho ghế đang chọn
+  } else if (state === 'locked') {
+    fill = 'var(--seat-locked-fill)'; // Xám trung tính/sáng cho ghế đang khóa thanh toán
+  } else if (state === 'sold' || state === 'unavailable') {
+    fill = 'var(--seat-sold-fill)'; // Xám đen tối/sáng cho ghế đã bán
+    stroke = 'var(--seat-sold-stroke)';
+    strokeWidth = 1;
+  } else if (state === 'hovered') {
+    fill = lightenHexColor(zoneColor, 0.25);
+  } else {
+    // Trạng thái 'available' (Trống)
+    fill = 'var(--seat-available-fill)';
+    stroke = zoneColor;
+    strokeWidth = 1.5;
+  }
 
   return (
     <svg
@@ -97,9 +106,9 @@ export default function SeatIcon({
 
       <g transform={`rotate(${rotation}, 9, 10)`}>
         {/* seat base */}
-        <rect x="1" y="6" width="16" height="12" rx="2" fill={fill} />
+        <rect x="1" y="6" width="16" height="12" rx="2" fill={fill} stroke={stroke} strokeWidth={strokeWidth} />
         {/* backrest */}
-        <rect x="1" y="1" width="16" height="6" rx="3" fill={fill} />
+        <rect x="1" y="1" width="16" height="6" rx="3" fill={fill} stroke={stroke} strokeWidth={strokeWidth} />
       </g>
     </svg>
   );

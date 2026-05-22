@@ -1037,7 +1037,9 @@ export default function EventForm() {
                 <div key={z.key} className="rounded-2xl border border-white/15 bg-white/12 p-4 shadow-sm backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/16">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="truncate text-sm font-black text-white">{z.name || `Zone ${idx + 1}`}</div>
+                      <button type="button" className="truncate text-sm font-black text-white bg-transparent border-0 p-0 text-left cursor-default">
+                        {z.name || `Zone ${idx + 1}`}
+                      </button>
                       <div className="mt-1 text-xs font-semibold text-cyan-100/70">{SHAPE_LABELS[getShapeType(z)] || 'Zone'}</div>
                     </div>
                     <div

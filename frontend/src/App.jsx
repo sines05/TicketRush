@@ -200,6 +200,22 @@ export default function App() {
     localStorage.setItem(THEME_KEY, theme);
   }, [theme]);
 
+  // Synchronize theme across components using storage and custom events
+  useEffect(() => {
+    const handleThemeChange = () => {
+      const saved = localStorage.getItem(THEME_KEY);
+      if (saved && saved !== theme) {
+        setTheme(saved);
+      }
+    };
+    window.addEventListener('storage', handleThemeChange);
+    window.addEventListener('theme-change', handleThemeChange);
+    return () => {
+      window.removeEventListener('storage', handleThemeChange);
+      window.removeEventListener('theme-change', handleThemeChange);
+    };
+  }, [theme]);
+
   useEffect(() => {
     setIsMobileMenuOpen(false);
   }, [location.pathname]);
@@ -238,10 +254,15 @@ export default function App() {
 
   const isAuthPage = location.pathname.startsWith('/auth');
   const isZoneMapBuilderPage = location.pathname === '/admin/events/zone-map';
-  const isStandalonePage = isAuthPage || isZoneMapBuilderPage;
+  const isSeatMapPage = location.pathname === '/booking/seats';
+  const isStandalonePage = isAuthPage || isZoneMapBuilderPage || isSeatMapPage;
 
   return (
-    <div className={`min-h-screen flex flex-col text-foreground ${isZoneMapBuilderPage ? 'bg-transparent' : 'bg-background'}`}>
+    <div className={cn(
+      "min-h-screen flex flex-col text-foreground",
+      isSeatMapPage ? "h-screen min-h-0 overflow-hidden bg-background text-foreground" :
+      isZoneMapBuilderPage ? "bg-transparent" : "bg-background"
+    )}>
       <SearchOverlay isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
       {!isStandalonePage && (
         <header className="sticky top-0 z-50 w-full glass-surface glass-border border-b-0 shadow-lg shadow-black/5 backdrop-blur-xl">
@@ -464,8 +485,12 @@ export default function App() {
         </div>
       )}
 
-      <div className="flex-1">
-        <main className={isStandalonePage ? 'w-full min-h-screen' : 'mx-auto w-full max-w-[1440px] px-4 md:px-6 py-12'}>
+      <div className={cn("flex-1", isSeatMapPage && "min-h-0 h-full flex flex-col overflow-hidden")}>
+        <main className={
+          isSeatMapPage ? 'w-full h-full min-h-0 flex flex-col overflow-hidden' :
+          isStandalonePage ? 'w-full min-h-screen' : 
+          'mx-auto w-full max-w-[1440px] px-4 md:px-6 py-12'
+        }>
           <ErrorBoundary>
             <AppRoutes />
           </ErrorBoundary>

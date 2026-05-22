@@ -16,7 +16,7 @@ const EventCard = memo(({ event }) => {
   const accessibleLabel = `${event.title}. ${categoryLabel}. Giá từ ${formattedPrice}. Thời gian bắt đầu ${formattedStartTime}.${isPast ? ' Sự kiện đã diễn ra.' : ''} Xem chi tiết sự kiện.`;
 
   return (
-    <Link to={`/events/${event.slug || event.id}`} className="block group sc-cd3dcefe-0 YoyVJ" aria-label={accessibleLabel}>
+    <div className="block group sc-cd3dcefe-0 YoyVJ tr-event-card relative" aria-label={accessibleLabel}>
       <Card role="article" className="flex h-full flex-col overflow-hidden border-none bg-transparent shadow-none">
         <div className="relative aspect-[16/9] w-full overflow-hidden rounded-xl sc-cd3dcefe-1 eJVcKb">
           <img
@@ -55,7 +55,17 @@ const EventCard = memo(({ event }) => {
           </div>
         </div>
       </Card>
-    </Link>
+      
+      {/* Absolute overlay link to make the entire card clickable, and satisfy Playwright */}
+      <Link 
+        to={`/events/${event.slug || event.id}`} 
+        className="absolute inset-0 z-10 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-black/10 transition-opacity rounded-xl"
+      >
+        <span className="bg-primary text-primary-foreground text-xs font-bold px-3 py-1.5 rounded-lg shadow-md transition-transform duration-300 transform translate-y-2 group-hover:translate-y-0">
+          Xem chi tiết
+        </span>
+      </Link>
+    </div>
   );
 });
 

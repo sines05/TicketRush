@@ -215,7 +215,7 @@ export default function Login() {
           </div>
 
           {error && (
-            <div className="mb-4 rounded-2xl border border-rose-400/40 bg-rose-400/12 p-3 text-sm font-semibold text-rose-700 dark:text-rose-100">{error}</div>
+            <div className="mb-4 rounded-2xl border border-danger/40 bg-danger/10 p-3 text-sm font-semibold text-danger dark:text-rose-100">{error}</div>
           )}
 
           {successMessage && (

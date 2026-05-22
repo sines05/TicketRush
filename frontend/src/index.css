@@ -59,6 +59,26 @@
     /* Glassmorphism Variables */
     --tr-glass-bg: 0 0% 100% / 0.4;
     --tr-glass-border: 214.3 31.8% 91.4% / 0.3;
+
+    /* Custom Seat Map Theme Variables */
+    --seat-canvas-bg: #f1f5f9; /* Soft light gray bg */
+    --seat-canvas-border: #e2e8f0;
+    --seat-available-fill: #ffffff;
+    --seat-locked-fill: #fb923c;
+    --seat-sold-fill: #cbd5e1;
+    --seat-sold-stroke: #94a3b8;
+    --seat-stage-bg: linear-gradient(to bottom, rgba(59, 130, 246, 0.05), rgba(59, 130, 246, 0.15));
+    --seat-stage-border: #60a5fa;
+    --seat-stage-text: rgba(59, 130, 246, 0.7);
+    --seat-grid-label-bg: #ffffff;
+    --seat-grid-label-border: #e2e8f0;
+    --seat-grid-label-text: #64748b;
+    --seat-zoom-bg: rgba(255, 255, 255, 0.9);
+    --seat-zoom-border: #e2e8f0;
+    --seat-zoom-text: #334155;
+    --seat-zoom-hover: #f1f5f9;
+    --seat-banquet-table-bg: rgba(255, 255, 255, 0.6);
+    --seat-banquet-table-border: rgba(148, 163, 184, 0.3);
   }
 
   .dark {
@@ -115,6 +135,26 @@
     /* Glassmorphism Variables */
     --tr-glass-bg: 263 30% 10% / 0.4;
     --tr-glass-border: 263 30% 20% / 0.3;
+
+    /* Custom Seat Map Theme Variables */
+    --seat-canvas-bg: #020617; /* Very dark slate bg */
+    --seat-canvas-border: #1e293b;
+    --seat-available-fill: #ffffff;
+    --seat-locked-fill: #ea580c;
+    --seat-sold-fill: #1e293b;
+    --seat-sold-stroke: none;
+    --seat-stage-bg: linear-gradient(to bottom, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.3));
+    --seat-stage-border: #60a5fa;
+    --seat-stage-text: rgba(59, 130, 246, 0.5);
+    --seat-grid-label-bg: #0f172a;
+    --seat-grid-label-border: #1e293b;
+    --seat-grid-label-text: #94a3b8;
+    --seat-zoom-bg: rgba(15, 23, 42, 0.9);
+    --seat-zoom-border: #1e293b;
+    --seat-zoom-text: #cbd5e1;
+    --seat-zoom-hover: #1e293b;
+    --seat-banquet-table-bg: rgba(15, 23, 42, 0.4);
+    --seat-banquet-table-border: rgba(51, 65, 85, 0.6);
   }
 }
 
@@ -154,6 +194,10 @@
 
 :root {
   color-scheme: light dark;
+}
+
+html {
+  zoom: 90%;
 }
 
 html,

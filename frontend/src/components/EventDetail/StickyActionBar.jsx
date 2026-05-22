@@ -31,18 +31,22 @@ const StickyActionBar = ({ event, isVisible, onBuyTickets, minPrice, isPast }) =
             </p>
           </div>
           
-          <button
-            onClick={onBuyTickets}
-            disabled={isPast}
-            className={cn(
-              "flex-1 sm:flex-none px-8 py-3 bg-brand-600 text-onBrand font-bold rounded-lg transition-all shadow-lg shadow-brand-600/20",
-              isPast 
-                ? "opacity-50 cursor-not-allowed" 
-                : "hover:bg-brand-700 active:scale-95"
-            )}
-          >
-            {isPast ? 'Sự kiện đã kết thúc' : 'Mua vé ngay'}
-          </button>
+          {isVisible ? (
+            <button
+              onClick={onBuyTickets}
+              disabled={isPast}
+              className={cn(
+                "flex-1 sm:flex-none px-8 py-3 bg-brand-600 text-onBrand font-bold rounded-lg transition-all shadow-lg shadow-brand-600/20",
+                isPast 
+                  ? "opacity-50 cursor-not-allowed" 
+                  : "hover:bg-brand-700 active:scale-95"
+              )}
+            >
+              {isPast ? 'Sự kiện đã kết thúc' : 'Mua vé ngay'}
+            </button>
+          ) : (
+            <div className="flex-1 sm:flex-none px-8 py-3 bg-transparent text-transparent pointer-events-none rounded-lg" />
+          )}
         </div>
       </div>
     </div>

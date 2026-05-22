@@ -66,7 +66,13 @@ export default {
           locked: 'rgb(var(--tr-seat-locked) / <alpha-value>)',
           sold: 'rgb(var(--tr-seat-sold) / <alpha-value>)',
           selected: 'rgb(var(--tr-seat-selected) / <alpha-value>)'
-        }
+        },
+        "seat-canvas": "var(--seat-canvas-bg)",
+        "seat-canvas-border": "var(--seat-canvas-border)",
+        "seat-zoom-bg": "var(--seat-zoom-bg)",
+        "seat-zoom-border": "var(--seat-zoom-border)",
+        "seat-zoom-text": "var(--seat-zoom-text)",
+        "seat-zoom-hover": "var(--seat-zoom-hover)",
       },
       borderRadius: {
         lg: "var(--tr-radius)",
