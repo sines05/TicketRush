@@ -70,11 +70,11 @@ export default function CategoryEventPreview() {
         }
 
         return (
-          <section key={category.key} className="space-y-5" aria-labelledby={`home-preview-${category.key}`}>
-            <div className="flex items-center justify-between gap-4 border-b border-border/70 pb-4">
+          <section key={category.key} className="space-y-4" aria-labelledby={`home-preview-${category.key}`}>
+            <div className="flex items-center justify-between gap-4 border-b border-border/50 pb-3">
               <h2
                 id={`home-preview-${category.key}`}
-                className="text-xl font-black uppercase tracking-tight text-foreground md:text-2xl"
+                className="text-xl font-bold tracking-tight text-foreground md:text-3xl"
               >
                 {category.label}
               </h2>

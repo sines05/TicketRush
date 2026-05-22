@@ -38,8 +38,8 @@ const EventCard = memo(({ event }) => {
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
         </div>
         
-        <div className="flex flex-col pt-4 space-y-2">
-          <h3 className="line-clamp-2 font-sans font-bold text-lg leading-snug text-foreground uppercase tracking-tight group-hover:text-primary transition-colors">
+        <div className="flex flex-col pt-3 space-y-1.5">
+          <h3 className="line-clamp-2 font-sans font-bold text-base md:text-lg leading-snug text-foreground tracking-tight group-hover:text-primary transition-colors">
             {event.title}
           </h3>
           

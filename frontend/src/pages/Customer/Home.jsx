@@ -45,7 +45,7 @@ export default function Home() {
         Bỏ qua phần điều hướng và đến nội dung chính
       </a>
 
-      <main id="home-main-content" className="space-y-20 pb-20" aria-label="Trang chủ TicketRush">
+      <main id="home-main-content" className="space-y-16 pb-20" aria-label="Trang chủ TicketRush">
 
       {/* 0. Hero Carousel */}
       {!loading && heroEvents.length > 0 && (

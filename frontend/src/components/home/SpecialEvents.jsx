@@ -47,9 +47,9 @@ export default function SpecialEvents() {
         <h2 id="home-special-events-heading" className="sr-only">Sự kiện đặc biệt</h2>
         <p className="sr-only" role="status">Đang tải sự kiện đặc biệt</p>
         <div className="h-8 w-48 animate-pulse rounded bg-muted" />
-        <div className="flex gap-6 overflow-hidden">
+        <div className="flex gap-8 overflow-hidden">
           {[1, 2, 3, 4, 5].map((i) => (
-            <Skeleton key={i} className="aspect-[2/3] w-[200px] md:w-[280px] shrink-0 rounded-2xl" aria-hidden="true" />
+            <Skeleton key={i} className="aspect-[2/3] w-[280px] md:w-[400px] shrink-0 rounded-xl" aria-hidden="true" />
           ))}
         </div>
       </section>
@@ -61,28 +61,28 @@ export default function SpecialEvents() {
   return (
     <section className="relative space-y-6 group/section" aria-labelledby="home-special-events-heading">
       <div className="flex items-center justify-between">
-        <h2 id="home-special-events-heading" className="text-2xl font-bold tracking-tight text-foreground uppercase">Sự kiện đặc biệt</h2>
+        <h2 id="home-special-events-heading" className="text-xl md:text-3xl font-bold tracking-tight text-foreground">Sự kiện đặc biệt</h2>
       </div>
 
       <div className="relative">
         <div
           ref={scrollRef}
-          className="flex overflow-x-auto scroll-smooth snap-x snap-mandatory gap-6 pb-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+          className="flex overflow-x-auto scroll-smooth snap-x snap-mandatory gap-6 md:gap-8 pb-8 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
         >
           {events.map((event) => (
             <Link
               key={event.id}
               to={`/events/${event.slug || event.id}`}
-              className="relative shrink-0 w-[200px] md:w-[280px] aspect-[2/3] snap-start overflow-hidden rounded-2xl shadow-xl transition-all duration-500 hover:scale-[1.02] hover:shadow-2xl active:scale-95 group"
+              className="relative shrink-0 w-[280px] md:w-[400px] aspect-[2/3] snap-start overflow-hidden rounded-xl shadow-lg transition-all duration-500 hover:scale-[1.03] hover:shadow-2xl active:scale-95 group"
               aria-label={`Xem chi tiết sự kiện đặc biệt ${event.title}`}
             >
               <img
                 src={resolveMediaUrl(event.banner_url) || bannerFallback}
                 alt={`Poster sự kiện đặc biệt ${event.title}`}
-                className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
+                className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
                 loading="lazy"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
             </Link>
           ))}
         </div>
