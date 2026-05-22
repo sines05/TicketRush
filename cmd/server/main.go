@@ -155,8 +155,8 @@ func main() {
 			protected.POST("/orders/lock-seats", middleware.TwoFactorMiddleware(), orderHandler.LockSeats)
 			protected.POST("/orders/checkout", middleware.TwoFactorMiddleware(), orderHandler.Checkout)
 			protected.POST("/orders/cancel", orderHandler.CancelOrder)
-
-			// Tickets
+			protected.GET("/orders/pending", orderHandler.GetPendingOrder)
+			protected.GET("/orders/:id", orderHandler.GetOrder)			// Tickets
 			protected.GET("/tickets/my-tickets", orderHandler.GetMyTickets)
 
 			// 2FA Management

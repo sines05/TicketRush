@@ -265,78 +265,78 @@ export default function App() {
     )}>
       <SearchOverlay isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
       {!isStandalonePage && (
-        <header className="sticky top-0 z-50 w-full glass-surface glass-border border-b-0 shadow-lg shadow-black/5 backdrop-blur-xl">
-          <div className="mx-auto flex h-20 max-w-[1440px] items-center justify-between px-4 md:px-6">
-            <div className="flex items-center gap-4 md:gap-10">
-              <Link to="/" className="flex items-center space-x-3 transition-all hover:scale-[1.03] active:scale-95">
-                <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 shadow-inner">
-                  <img src={logoUrl} alt="TicketRush" className="h-7 w-7 object-contain" />
+        <header className="sticky top-0 z-50 w-full bg-white/80 dark:bg-slate-950/80 border-b border-slate-100 dark:border-white/5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-2xl transition-all duration-300">
+          <div className="mx-auto flex h-20 max-w-[1440px] items-center justify-between px-4 md:px-8">
+            <div className="flex items-center gap-12">
+              <Link to="/" className="flex items-center gap-3.5 transition-all hover:scale-[1.02] active:scale-95 group">
+                <div className="relative flex h-11 w-11 items-center justify-center rounded-[14px] bg-brand-600 shadow-[0_10px_20px_rgba(45,194,117,0.25)] group-hover:rotate-6 transition-transform">
+                  <img src={logoUrl} alt="TicketRush" className="h-7 w-7 object-contain brightness-0 invert" />
                 </div>
                 <div className="flex flex-col">
-                  <span className="font-extrabold text-xl leading-none tracking-tighter bg-gradient-to-br from-primary via-primary to-secondary bg-clip-text text-transparent">
-                    TicketRush
+                  <span className="font-black text-2xl leading-none tracking-tight text-slate-900 dark:text-white">
+                    Ticket<span className="text-brand-600">Rush</span>
                   </span>
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70 leading-none mt-1.5 hidden sm:block">
-                    Premium Ticketing
+                  <span className="text-[9px] font-black uppercase tracking-[0.25em] text-slate-400 leading-none mt-1.5 hidden sm:block">
+                    Elevated Experiences
                   </span>
                 </div>
               </Link>
-              <nav className="hidden md:flex items-center space-x-2 text-sm font-bold">
+              <nav className="hidden lg:flex items-center gap-1 text-sm font-black uppercase tracking-widest">
                 {user && (
                   <>
-                    <Link to="/membership" className={navItemClass(location.pathname === '/membership')}>Thành viên</Link>
-                    <Link to="/my-tickets" className={navItemClass(location.pathname === '/my-tickets')}>Vé của tôi</Link>
-                    <Link to="/feedback" className={navItemClass(location.pathname === '/feedback')}>Hỗ trợ</Link>
+                    <Link to="/membership" className={cn(navItemClass(location.pathname === '/membership'), "px-5 py-2 hover:bg-slate-50 dark:hover:bg-white/5 rounded-full transition-all")}>Thành viên</Link>
+                    <Link to="/my-tickets" className={cn(navItemClass(location.pathname === '/my-tickets'), "px-5 py-2 hover:bg-slate-50 dark:hover:bg-white/5 rounded-full transition-all")}>Vé của tôi</Link>
+                    <Link to="/feedback" className={cn(navItemClass(location.pathname === '/feedback'), "px-5 py-2 hover:bg-slate-50 dark:hover:bg-white/5 rounded-full transition-all")}>Hỗ trợ</Link>
                   </>
                 )}
                 {user?.role === ROLES.ADMIN && (
-                  <Link to="/admin/dashboard" className={navItemClass(location.pathname.startsWith('/admin'))}>
-                    Admin
+                  <Link to="/admin/dashboard" className={cn(navItemClass(location.pathname.startsWith('/admin')), "px-5 py-2 text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/10 rounded-full transition-all")}>
+                    Quản trị
                   </Link>
                 )}
               </nav>
             </div>
 
-            <div className="flex flex-1 items-center justify-end space-x-5">
-              <div className="hidden lg:flex flex-1 items-center justify-center px-4">
+            <div className="flex flex-1 items-center justify-end gap-6">
+              <div className="hidden md:flex flex-1 items-center justify-center px-4 max-w-xl">
                 <button
                   onClick={() => setIsSearchOpen(true)}
-                  className="w-full max-w-[500px] flex items-center bg-white dark:bg-white/10 rounded-full h-11 px-4 shadow-sm border border-black/5 dark:border-white/10 group transition-all hover:shadow-md"
+                  className="w-full flex items-center bg-slate-50 dark:bg-white/5 rounded-2xl h-12 px-5 border border-slate-100 dark:border-white/5 group transition-all hover:bg-white dark:hover:bg-slate-900 hover:shadow-xl hover:shadow-black/5 hover:border-brand-600/30"
                 >
-                  <Search className="h-5 w-5 text-gray-400 dark:text-white/40 mr-3" />
-                  <span className="text-sm text-gray-400 dark:text-white/40 flex-1 text-left">Bạn tìm gì hôm nay?</span>
-                  <div className="h-6 w-[1px] bg-gray-200 dark:bg-white/10 mx-3" />
-                  <span className="text-sm font-bold text-gray-900 dark:text-white/80 group-hover:text-primary transition-colors">Tìm kiếm</span>
+                  <Search className="h-4.5 w-4.5 text-slate-400 group-hover:text-brand-600 transition-colors mr-3" />
+                  <span className="text-sm font-bold text-slate-400 dark:text-white/30 flex-1 text-left">Khám phá các sự kiện bùng nổ...</span>
+                  <div className="hidden sm:flex items-center gap-1 px-2 py-1 rounded-md bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-[10px] font-black text-slate-400">
+                    <span className="text-[12px]">⌘</span> K
+                  </div>
                 </button>
               </div>
 
-              <div className="flex items-center space-x-3">
+              <div className="flex items-center gap-4">
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                  className="h-10 w-10 rounded-xl bg-muted/20 hover:bg-muted/40 transition-all"
+                  className="h-11 w-11 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5 hover:bg-white dark:hover:bg-slate-900 transition-all shadow-sm"
                 >
-                  {theme === 'dark' ? <Sun className="h-5 w-5 text-yellow-500" /> : <Moon className="h-5 w-5 text-indigo-400" />}
-                  <span className="sr-only">Toggle theme</span>
+                  {theme === 'dark' ? <Sun className="h-5 w-5 text-amber-500" /> : <Moon className="h-5 w-5 text-indigo-400" />}
                 </Button>
 
                 {user && <NotificationBell />}
 
                 {!user ? (
-                  <Button variant="default" size="sm" onClick={() => navigate('/auth/login')} className="rounded-xl px-6 font-bold shadow-lg shadow-primary/20">
+                  <Button onClick={() => navigate('/auth/login')} className="h-11 px-8 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-brand-600/20 bg-brand-600 hover:bg-brand-700">
                     Đăng nhập
                   </Button>
                 ) : (
-                  <div className="flex items-center gap-3">
-                    <div className="hidden md:flex flex-col items-end">
-                      <span className="text-xs font-bold leading-none">{user.full_name || user.email.split('@')[0]}</span>
-                      <span className="text-[10px] font-bold text-primary uppercase tracking-tighter leading-none mt-1">{user.role}</span>
+                  <div className="flex items-center gap-4">
+                    <div className="hidden xl:flex flex-col items-end leading-none">
+                      <span className="text-sm font-black text-slate-900 dark:text-white">{user.full_name || user.email.split('@')[0]}</span>
+                      <span className="text-[9px] font-black text-brand-600 uppercase tracking-widest mt-1.5">Membeship VIP</span>
                     </div>
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-10 w-10 rounded-xl border-2 border-primary/10 bg-muted/30 overflow-hidden hover:border-primary/30 transition-all"
+                      className="h-11 w-11 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 overflow-hidden hover:border-brand-600/50 hover:shadow-lg transition-all"
                       onClick={() => navigate('/profile')}
                     >
                       {user.avatar_url && !avatarFailed ? (
@@ -347,13 +347,15 @@ export default function App() {
                           onError={() => setAvatarFailed(true)}
                         />
                       ) : (
-                        <User className="h-5 w-5 text-muted-foreground" />
+                        <div className="h-full w-full bg-gradient-to-br from-brand-600 to-emerald-400 flex items-center justify-center text-white font-black text-sm">
+                          {(user.full_name || 'U').charAt(0).toUpperCase()}
+                        </div>
                       )}
                     </Button>
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-10 w-10 md:hidden rounded-xl bg-muted/20"
+                      className="h-11 w-11 lg:hidden rounded-2xl bg-slate-50 dark:bg-white/5"
                       onClick={() => setIsMobileMenuOpen(true)}
                     >
                       <Menu className="h-6 w-6" />
@@ -485,7 +487,7 @@ export default function App() {
         </div>
       )}
 
-      <div className={cn("flex-1", isSeatMapPage && "min-h-0 h-full flex flex-col overflow-hidden")}>
+      <div className={cn("flex-1 flex flex-col min-h-0", isSeatMapPage && "h-screen overflow-hidden")}>
         <main className={
           isSeatMapPage ? 'w-full h-full min-h-0 flex flex-col overflow-hidden' :
           isStandalonePage ? 'w-full min-h-screen' : 

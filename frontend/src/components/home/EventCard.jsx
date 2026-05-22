@@ -38,18 +38,20 @@ const EventCard = memo(({ event }) => {
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
         </div>
         
-        <div className="flex flex-col pt-3 space-y-1.5">
-          <h3 className="line-clamp-2 font-sans font-bold text-base md:text-lg leading-snug text-foreground tracking-tight group-hover:text-primary transition-colors">
-            {event.title}
-          </h3>
+        <div className="flex flex-1 flex-col pt-3">
+          <div className="min-h-[2.8rem] mb-2">
+            <h3 className="line-clamp-2 font-sans font-bold text-base leading-snug text-foreground tracking-tight group-hover:text-primary transition-colors">
+              {event.title}
+            </h3>
+          </div>
           
-          <div className="flex flex-col space-y-1">
-            <div className="flex items-center gap-2 text-sm font-bold text-primary">
+          <div className="mt-auto flex flex-col space-y-1">
+            <div className="flex items-center gap-2 text-[13px] font-black text-brand-600">
               <span>Từ {formattedPrice}</span>
             </div>
             
-            <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground/80">
-              <Calendar className="h-3.5 w-3.5" aria-hidden="true" />
+            <div className="flex items-center gap-1.5 text-[11px] font-bold text-muted-foreground/60 uppercase tracking-tight">
+              <Calendar className="h-3 w-3" aria-hidden="true" />
               <span>{formattedStartTime}</span>
             </div>
           </div>

@@ -65,6 +65,10 @@ func (s *workerService) StartWorkers() {
 
 			for _, event := range events {
 				ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+				
+				// 1. Lấy chỉ số cũ trước khi xử lý
+				oldIndex, _ := s.queueRepo.GetProcessedIndex(ctx, event.ID)
+				
 				admitted, err := s.queueService.ProcessQueue(ctx, event.ID)
 				if err != nil {
 					log.Printf("Error processing queue for event %s: %v", event.ID, err)
@@ -79,14 +83,14 @@ func (s *workerService) StartWorkers() {
 						})
 					}
 
-					// If anyone was admitted, update positions for everyone else
-					if len(admitted) > 0 {
-						currentIndex, _ := s.queueRepo.GetProcessedIndex(ctx, event.ID)
+					// 2. Lấy chỉ số mới. Nếu có sự thay đổi (có người được bốc vào), phát thông báo cho toàn bộ channel sự kiện
+					newIndex, _ := s.queueRepo.GetProcessedIndex(ctx, event.ID)
+					if newIndex > oldIndex {
 						channelName := fmt.Sprintf("event:%s", event.ID)
 						s.wsHub.Broadcast(channelName, map[string]interface{}{
 							"type":          "QUEUE_UPDATE",
 							"event_id":      event.ID,
-							"current_index": currentIndex,
+							"current_index": newIndex,
 						})
 					}
 				}

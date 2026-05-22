@@ -23,6 +23,8 @@ type OrderService interface {
 	GetMyTickets(userID uuid.UUID) ([]models.Ticket, error)
 	GetTickets(eventID *uuid.UUID) ([]models.Ticket, error)
 	CheckInTicket(ctx context.Context, qrCodeToken string) (*models.Ticket, error)
+	GetPendingOrder(ctx context.Context, userID uuid.UUID, eventID uuid.UUID) (*models.Order, error)
+	GetOrder(ctx context.Context, userID uuid.UUID, orderID uuid.UUID) (*models.Order, error)
 }
 
 type orderService struct {
@@ -172,4 +174,19 @@ func (s *orderService) GetTickets(eventID *uuid.UUID) ([]models.Ticket, error) {
 
 func (s *orderService) CheckInTicket(ctx context.Context, qrCodeToken string) (*models.Ticket, error) {
 	return s.orderRepo.CheckInTicket(ctx, qrCodeToken)
+}
+
+func (s *orderService) GetPendingOrder(ctx context.Context, userID uuid.UUID, eventID uuid.UUID) (*models.Order, error) {
+	return s.orderRepo.FindPendingOrderByUserAndEvent(ctx, userID, eventID)
+}
+
+func (s *orderService) GetOrder(ctx context.Context, userID uuid.UUID, orderID uuid.UUID) (*models.Order, error) {
+	order, err := s.orderRepo.GetOrderByID(orderID)
+	if err != nil {
+		return nil, err
+	}
+	if order.UserID != userID {
+		return nil, utils.ErrOrderNotFound
+	}
+	return order, nil
 }

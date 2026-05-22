@@ -7,6 +7,7 @@ import Button from '../../components/common/Button.jsx';
 import { resolveMediaUrl } from '../../utils/media.js';
 import { formatDateTime, formatVND } from '../../utils/formatters.js';
 import OSMLocation from '../../components/Maps/OSMLocation';
+import { MapPin } from 'lucide-react';
 
 // Modular Sections
 import HeroSection from '../../components/EventDetail/HeroSection.jsx';
@@ -168,27 +169,30 @@ export default function EventDetail() {
           {/* Sidebar Column */}
           <div className="space-y-8">
             {/* Zones & Prices */}
-            <section className="bg-surface/50 rounded-2xl glass-border p-6 space-y-6">
-              <h2 className="text-xl font-bold text-brand-600">Khu vực & Giá</h2>
+            <section className="bg-white dark:bg-slate-900 rounded-[32px] border border-white/60 dark:border-white/10 p-7 space-y-6 shadow-[0_20px_50px_rgba(0,0,0,0.08)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.3)] backdrop-blur-sm">
+              <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-2">
+                <div className="h-2 w-2 rounded-full bg-brand-600" />
+                Khu vực & Giá
+              </h2>
               <div className="space-y-3">
                 {(seatMap?.zones ?? []).map((z) => (
                   <div
                     key={z.zone_id}
-                    className="flex items-center justify-between rounded-xl glass-border bg-background/30 p-4 transition hover:border-brand-600/30"
+                    className="flex items-center justify-between rounded-2xl border border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-white/5 p-4 transition-all hover:border-brand-600/40 hover:translate-x-1"
                   >
                     <div>
-                      <div className="text-sm font-bold">{z.name}</div>
-                      <div className="mt-1 text-[10px] text-muted-foreground uppercase tracking-wider">Sơ đồ ghế</div>
+                      <div className="text-sm font-black text-slate-900 dark:text-white">{z.name}</div>
+                      <div className="mt-1 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Sơ đồ ghế</div>
                     </div>
-                    <div className="text-sm font-bold text-brand-600">{formatVND(z.price)}</div>
+                    <div className="text-base font-black text-brand-600">{formatVND(z.price)}</div>
                   </div>
                 ))}
                 {(seatMap?.zones ?? []).length === 0 && (
-                  <div className="text-sm text-muted-foreground italic">Đang cập nhật giá vé...</div>
+                  <div className="text-sm text-muted-foreground italic text-center py-4">Đang cập nhật giá vé...</div>
                 )}
               </div>
               <Button 
-                className="w-full py-4" 
+                className="w-full h-14 rounded-2xl text-base font-black uppercase tracking-widest shadow-lg shadow-brand-600/20" 
                 onClick={handleBuyTickets}
                 disabled={isPast}
               >
@@ -199,47 +203,33 @@ export default function EventDetail() {
             <OrganizerSection event={mappedEvent} />
 
             {/* Location / Map */}
-            <section className="bg-surface/50 rounded-2xl glass-border p-6 space-y-4">
-              <h2 className="text-xl font-bold text-brand-600 flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+            <section className="bg-white dark:bg-slate-900 rounded-[32px] border border-white/60 dark:border-white/10 p-7 space-y-5 shadow-[0_20px_50px_rgba(0,0,0,0.08)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.3)]">
+              <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-2">
+                <div className="h-2 w-2 rounded-full bg-brand-600" />
                 Địa điểm
               </h2>
 
-              {/* Province badge */}
-              {event.location && (
-                <div className="inline-flex items-center gap-1.5 rounded-full border border-brand-600/30 bg-brand-600/10 px-3 py-1 text-xs font-bold text-brand-600">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
-                  {event.location}
-                </div>
-              )}
+              <div className="space-y-4">
+                {/* Province badge */}
+                {event.location && (
+                  <div className="inline-flex items-center gap-2 rounded-xl border border-brand-600/30 bg-brand-600/10 px-4 py-2 text-xs font-black text-brand-600 uppercase tracking-wider">
+                    <MapPin className="h-3.5 w-3.5" />
+                    {event.location}
+                  </div>
+                )}
 
-              {/* Address detail */}
-              {event.address && (
-                <div className="flex gap-2 text-sm text-muted-foreground leading-relaxed">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mt-0.5 shrink-0 text-brand-600/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
-                  <span>{event.address}</span>
-                </div>
-              )}
-
-              {/* Fallback: only location, no address */}
-              {!event.address && event.location && (
-                <div className="flex gap-2 text-sm text-muted-foreground">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mt-0.5 shrink-0 text-brand-600/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
-                  <span>{event.location}</span>
-                </div>
-              )}
-
-              {/* GPS coordinates (subtle) */}
-              {event.latitude != null && event.longitude != null && (
-                <div className="flex items-center gap-1.5 rounded-lg border border-text/10 bg-background/40 px-2.5 py-1.5 font-mono text-[10px] text-muted-foreground">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
-                  {Number(event.latitude).toFixed(5)}, {Number(event.longitude).toFixed(5)}
-                </div>
-              )}
+                {/* Address detail */}
+                {event.address && (
+                  <div className="flex gap-3 text-sm font-medium text-slate-600 dark:text-slate-400 leading-relaxed bg-slate-50/50 dark:bg-white/5 p-4 rounded-2xl border border-slate-100 dark:border-white/5">
+                    <MapPin className="h-5 w-5 mt-0.5 shrink-0 text-brand-600" />
+                    <span>{event.address}</span>
+                  </div>
+                )}
+              </div>
 
               {/* Map */}
               {event.latitude && event.longitude && (
-                <div className="h-[280px] w-full overflow-hidden rounded-xl glass-border relative z-0 isolate shadow-md">
+                <div className="h-[280px] w-full overflow-hidden rounded-[24px] border border-slate-200 dark:border-white/10 relative z-0 isolate shadow-inner mt-4">
                   <OSMLocation
                     initialLocation={{ lat: event.latitude, lng: event.longitude }}
                     readOnly={true}

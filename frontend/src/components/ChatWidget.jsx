@@ -85,6 +85,18 @@ export default function ChatWidget() {
     }
   };
 
+  const formatAIDialog = (text) => {
+    if (!text) return null;
+    // Split by bold pattern **text**
+    const parts = text.split(/(\*\*.*?\*\*)/g);
+    return parts.map((part, i) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return <strong key={i} className="font-black text-foreground">{part.slice(2, -2)}</strong>;
+      }
+      return part;
+    });
+  };
+
   return (
     <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end pointer-events-none">
       {/* Chat Window */}
@@ -122,15 +134,15 @@ export default function ChatWidget() {
             >
               <div 
                 className={cn(
-                  "max-w-[85%] rounded-2xl px-4 py-2 text-sm",
+                  "max-w-[85%] rounded-2xl px-4 py-2 text-sm whitespace-pre-wrap leading-relaxed shadow-sm",
                   msg.sender === 'user' 
                     ? "bg-primary text-primary-foreground rounded-tr-sm" 
                     : msg.isError
                       ? "bg-destructive/10 text-destructive border border-destructive/20 rounded-tl-sm"
-                      : "bg-muted text-foreground rounded-tl-sm"
+                      : "bg-muted text-foreground rounded-tl-sm font-medium"
                 )}
               >
-                {msg.text}
+                {msg.sender === 'agent' ? formatAIDialog(msg.text) : msg.text}
               </div>
               {msg.ui_components && msg.ui_components.length > 0 && (
                 <div className="w-[85%] mt-1">

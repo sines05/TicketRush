@@ -1,62 +1,103 @@
 import json
 import requests
-from langchain_core.tools import Tool
+import logging
+from langchain_core.tools import tool
 
-def get_events(query: str) -> str:
+# Basic logging configuration
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+BACKEND_URL = "http://backend:8080/api/v1"
+
+@tool
+def SearchEvents(query: str) -> str:
     """
-    Useful for finding events based on a query.
+    Tìm kiếm sự kiện theo từ khóa cụ thể như tên ca sĩ (Sơn Tùng, Jack), thể loại hoặc chủ đề.
+    Dùng tool này KHI VÀ CHỈ KHI người dùng cung cấp một từ khóa cụ thể để tìm kiếm.
     """
     try:
-        url = f"http://backend:8080/api/v1/events?q={query}"
-        response = requests.get(url, timeout=10)
+        logger.info(f"Searching events with query: {query}")
+        url = f"{BACKEND_URL}/events?q={query}"
+        response = requests.get(url, timeout=8)
         response.raise_for_status()
         data = response.json()
         return json.dumps(data.get("data", []))
     except Exception as e:
+        logger.error(f"Error in SearchEvents: {e}")
         return json.dumps({"error": str(e)})
 
-def get_trending_events(_: str = "") -> str:
+@tool
+def GetUpcomingEvents(query: str = "") -> str:
     """
-    Useful for getting trending events.
+    Lấy danh sách các sự kiện mới nhất, sắp tới hoặc sắp diễn ra.
+    Dùng tool này khi người dùng hỏi 'mới nhất', 'sắp tới', 'có show nào mới' hoặc 'có gì hay sắp tới'.
     """
     try:
-        url = "http://backend:8080/api/v1/events/trending"
-        response = requests.get(url, timeout=10)
+        logger.info("Fetching upcoming events")
+        url = f"{BACKEND_URL}/events"
+        response = requests.get(url, timeout=8)
         response.raise_for_status()
         data = response.json()
         return json.dumps(data.get("data", []))
     except Exception as e:
+        logger.error(f"Error in GetUpcomingEvents: {e}")
         return json.dumps({"error": str(e)})
 
-def get_featured_events(_: str = "") -> str:
+@tool
+def GetTrendingEvents(query: str = "") -> str:
     """
-    Useful for getting featured events.
+    Lấy danh sách các sự kiện đang HOT, thịnh hành hoặc phổ biến nhất.
+    Dùng tool này khi người dùng hỏi 'trending', 'hot', 'top events' hoặc 'nhiều người xem'.
     """
     try:
-        url = "http://backend:8080/api/v1/events/featured"
-        response = requests.get(url, timeout=10)
+        logger.info("Fetching trending events")
+        url = f"{BACKEND_URL}/events/trending"
+        response = requests.get(url, timeout=8)
         response.raise_for_status()
         data = response.json()
         return json.dumps(data.get("data", []))
     except Exception as e:
+        logger.error(f"Error in GetTrendingEvents: {e}")
         return json.dumps({"error": str(e)})
 
-def get_event_details(event_id: str) -> str:
+@tool
+def GetFeaturedEvents(query: str = "") -> str:
     """
-    Useful for getting details about a specific event by its ID.
+    Lấy danh sách các sự kiện nổi bật được đề xuất bởi TicketRush.
+    Dùng tool này cho các yêu cầu chung chung như 'đề xuất cho tôi' hoặc 'có gì xem không'.
     """
     try:
-        url = f"http://backend:8080/api/v1/events/{event_id}"
-        response = requests.get(url, timeout=10)
+        logger.info("Fetching featured events")
+        url = f"{BACKEND_URL}/events/featured"
+        response = requests.get(url, timeout=8)
+        response.raise_for_status()
+        data = response.json()
+        return json.dumps(data.get("data", []))
+    except Exception as e:
+        logger.error(f"Error in GetFeaturedEvents: {e}")
+        return json.dumps({"error": str(e)})
+
+@tool
+def GetEventDetails(event_id: str) -> str:
+    """
+    Lấy thông tin chi tiết của một sự kiện cụ thể qua ID.
+    Dùng tool này khi cần biết thêm về giá vé, mô tả chi tiết của một show.
+    """
+    try:
+        logger.info(f"Fetching details for event: {event_id}")
+        url = f"{BACKEND_URL}/events/{event_id}"
+        response = requests.get(url, timeout=8)
         response.raise_for_status()
         data = response.json()
         return json.dumps(data.get("data", {}))
     except Exception as e:
+        logger.error(f"Error in GetEventDetails: {e}")
         return json.dumps({"error": str(e)})
 
-def get_past_events(_: str = "") -> str:
+@tool
+def GetPastEvents(query: str = "") -> str:
     """
-    Useful for getting past events from the last 6 months.
+    Xem lại các sự kiện đã diễn ra trong quá khứ (6 tháng qua).
     """
     try:
         from datetime import datetime, timedelta
@@ -64,38 +105,20 @@ def get_past_events(_: str = "") -> str:
         six_months_ago = (now - timedelta(days=180)).strftime('%Y-%m-%d')
         yesterday = (now - timedelta(days=1)).strftime('%Y-%m-%d')
         
-        url = f"http://backend:8080/api/v1/events?date_from={six_months_ago}&date_to={yesterday}"
-        response = requests.get(url, timeout=10)
+        url = f"{BACKEND_URL}/events?date_from={six_months_ago}&date_to={yesterday}"
+        response = requests.get(url, timeout=8)
         response.raise_for_status()
         data = response.json()
         return json.dumps(data.get("data", []))
     except Exception as e:
+        logger.error(f"Error in GetPastEvents: {e}")
         return json.dumps({"error": str(e)})
 
 tools = [
-    Tool(
-        name="SearchEvents",
-        func=get_events,
-        description="Use this ONLY when the user provides a specific keyword or name to search for. Do not use for generic requests like 'show me events' or 'what is hot'."
-    ),
-    Tool(
-        name="GetTrendingEvents",
-        func=get_trending_events,
-        description="Use this when the user asks for 'hot', 'trending', 'popular', or 'top' events."
-    ),
-    Tool(
-        name="GetFeaturedEvents",
-        func=get_featured_events,
-        description="Use this when the user asks for 'any events', 'recommendations', or generic 'events' without a specific search term."
-    ),
-    Tool(
-        name="GetPastEvents",
-        func=get_past_events,
-        description="Use this when the user asks for 'past events', 'history', 'finished events', or wants to see what happened in the last few months."
-    ),
-    Tool(
-        name="GetEventDetails",
-        func=get_event_details,
-        description="Useful for when you need to get details about a specific event. Input should be the event ID."
-    )
+    SearchEvents,
+    GetUpcomingEvents,
+    GetTrendingEvents,
+    GetFeaturedEvents,
+    GetPastEvents,
+    GetEventDetails
 ]

@@ -61,18 +61,18 @@ export default function SpecialEvents() {
   return (
     <section className="relative space-y-6 group/section sc-76f96852-3 jXikDV" aria-labelledby="home-special-events-heading">
       <div className="flex items-center justify-between">
-        <h2 id="home-special-events-heading" className="sc-76f96852-1 jrVWUy text-xl md:text-3xl font-bold tracking-tight text-foreground">Sự kiện đặc biệt</h2>
+        <h2 id="home-special-events-heading" className="sc-76f96852-1 jrVWUy text-xl md:text-3xl font-black tracking-tight text-slate-900 dark:text-white uppercase">Sự kiện đặc biệt</h2>
       </div>
 
       <div className="relative">
         <div
           ref={scrollRef}
-          className="sc-76f96852-2 jdsHaE flex overflow-x-auto scroll-smooth snap-x snap-mandatory gap-2 md:gap-3 pb-8 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+          className="sc-76f96852-2 jdsHaE flex overflow-x-auto scroll-smooth snap-x snap-mandatory gap-4 md:gap-6 pb-10 px-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
         >
           {events.map((event) => (
             <div
               key={event.id}
-              className="sc-76f96852-0 jwccPd relative shrink-0 w-[200px] md:w-[300px] aspect-[3/4] snap-start overflow-hidden rounded-xl shadow-lg transition-all duration-500 hover:scale-[1.03] hover:shadow-2xl active:scale-95 group"
+              className="sc-76f96852-0 jwccPd relative shrink-0 w-[200px] md:w-[320px] aspect-[3/4.2] snap-start overflow-hidden rounded-[24px] shadow-[0_15px_40px_rgba(0,0,0,0.1)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.3)] transition-all duration-500 hover:-translate-y-2 group"
             >
               <Link
                 to={`/events/${event.slug || event.id}`}
@@ -82,10 +82,15 @@ export default function SpecialEvents() {
                 <img
                   src={resolveMediaUrl(event.banner_url) || bannerFallback}
                   alt={`Poster sự kiện đặc biệt ${event.title}`}
-                  className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                  className="h-full w-full object-cover transition-transform duration-1000 group-hover:scale-110"
                   loading="lazy"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent opacity-60 group-hover:opacity-100 transition-opacity duration-500" />
+                <div className="absolute bottom-6 left-6 right-6 transform translate-y-2 group-hover:translate-y-0 transition-transform duration-500">
+                  <h3 className="text-lg font-black text-white leading-tight line-clamp-2 drop-shadow-md">
+                    {event.title}
+                  </h3>
+                </div>
               </Link>
             </div>
           ))}

@@ -18,10 +18,10 @@ export default function Checkout() {
   const eventId = searchParams.get('eventId') || '';
   const orderId = searchParams.get('orderId') || '';
 
-  const { selectedSeats, clearBooking, clearSelection } = useContext(BookingContext);
+  const { selectedSeats, clearBooking, clearSelection, toggleSeat } = useContext(BookingContext);
 
   const orderFromState = location.state?.order || null;
-  const [order] = useState(orderFromState);
+  const [order, setOrder] = useState(orderFromState);
   const { secondsLeft, isExpired } = useCountdown({ endsAt: order?.expires_at, seconds: 600 });
 
   const [event, setEvent] = useState(null);
@@ -29,6 +29,7 @@ export default function Checkout() {
   const [tickets, setTickets] = useState([]);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [isFetchingOrder, setIsFetchingOrder] = useState(false);
 
   useEffect(() => {
     if (!eventId) return;
@@ -51,9 +52,32 @@ export default function Checkout() {
 
   useEffect(() => {
     if (!order && orderId) {
-      setError('Thiếu thông tin đơn hàng. Vui lòng quay lại chọn ghế để giữ chỗ.');
+      setIsFetchingOrder(true);
+      orderService.getOrder(orderId)
+        .then(res => {
+          if (res) {
+            setOrder(res);
+            // Also sync context selected seats if they are missing
+            if (selectedSeats.length === 0 && res.order_items) {
+               res.order_items.forEach(item => {
+                  if (item.seat) {
+                     toggleSeat({
+                        ...item.seat,
+                        zone_id: item.seat.zone_id,
+                        price: item.price,
+                        label: `${item.seat.row_label}-${item.seat.seat_number}`
+                     });
+                  }
+               });
+            }
+          }
+        })
+        .catch(err => {
+          setError(err?.message || 'Không thể tải thông tin đơn hàng. Vui lòng quay lại chọn ghế.');
+        })
+        .finally(() => setIsFetchingOrder(false));
     }
-  }, [order, orderId]);
+  }, [order, orderId, selectedSeats.length, toggleSeat]);
 
   const total = useMemo(() => {
     return selectedSeats.reduce((sum, s) => sum + (Number(s.price) || 0), 0);
@@ -105,6 +129,8 @@ export default function Checkout() {
       setSubmitting(false);
     }
   }
+
+  if (isFetchingOrder) return <Loading title="Đang khôi phục đơn hàng..." />;
 
   if (!eventId) {
     return (

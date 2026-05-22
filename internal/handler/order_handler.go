@@ -157,6 +157,60 @@ func (h *OrderHandler) GetTickets(c *gin.Context) {
 	utils.SendSuccess(c, http.StatusOK, dto.ToTicketResponses(tickets), "Thành công")
 }
 
+func (h *OrderHandler) GetPendingOrder(c *gin.Context) {
+	eventIDParam := c.Query("event_id")
+	if eventIDParam == "" {
+		utils.SendError(c, http.StatusBadRequest, "event_id is required", "MISSING_EVENT_ID")
+		return
+	}
+
+	eventID, err := uuid.Parse(eventIDParam)
+	if err != nil {
+		utils.SendError(c, http.StatusBadRequest, "invalid event_id", "INVALID_EVENT_ID")
+		return
+	}
+
+	user, _ := c.Get("user")
+	u := user.(*models.User)
+
+	order, err := h.orderService.GetPendingOrder(c.Request.Context(), u.ID, eventID)
+	if err != nil {
+		utils.SendError(c, http.StatusInternalServerError, err.Error(), "FETCH_FAILED")
+		return
+	}
+
+	if order == nil {
+		utils.SendSuccess(c, http.StatusOK, nil, "Không có đơn hàng chờ")
+		return
+	}
+
+	utils.SendSuccess(c, http.StatusOK, dto.ToOrderResponse(*order), "Thành công")
+}
+
+func (h *OrderHandler) GetOrder(c *gin.Context) {
+	orderIDStr := c.Param("id")
+	orderID, err := uuid.Parse(orderIDStr)
+	if err != nil {
+		utils.SendError(c, http.StatusBadRequest, "invalid order_id", "INVALID_ID")
+		return
+	}
+
+	user, _ := c.Get("user")
+	u := user.(*models.User)
+
+	order, err := h.orderService.GetOrder(c.Request.Context(), u.ID, orderID)
+	if err != nil {
+		if errors.Is(err, utils.ErrOrderNotFound) {
+			utils.SendError(c, http.StatusNotFound, err.Error(), "ORDER_NOT_FOUND")
+		} else {
+			utils.SendError(c, http.StatusInternalServerError, err.Error(), "FETCH_FAILED")
+		}
+		return
+	}
+
+	utils.SendSuccess(c, http.StatusOK, dto.ToOrderResponse(*order), "Thành công")
+}
+
 func (h *OrderHandler) CheckInTicket(c *gin.Context) {
 	var req checkInTicketRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

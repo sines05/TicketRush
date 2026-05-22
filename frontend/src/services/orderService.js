@@ -32,4 +32,22 @@ async function cancelOrder({ order_id }) {
   return unwrap(res);
 }
 
-export default { lockSeats, checkout, cancelOrder };
+async function getPendingOrder({ event_id }) {
+  if (!event_id) {
+    throw { success: false, data: null, message: 'Thiếu event_id', errorCode: 'INVALID_REQUEST' };
+  }
+
+  const res = await api.get(API_ROUTES.PENDING_ORDER, { params: { event_id } });
+  return unwrap(res);
+}
+
+async function getOrder(orderId) {
+  if (!orderId) {
+    throw { success: false, data: null, message: 'Thiếu orderId', errorCode: 'INVALID_REQUEST' };
+  }
+
+  const res = await api.get(API_ROUTES.ORDER_DETAIL(orderId));
+  return unwrap(res);
+}
+
+export default { lockSeats, checkout, cancelOrder, getPendingOrder, getOrder };

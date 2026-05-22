@@ -62,7 +62,7 @@ function buildShapeRowSeatCounts(zone) {
   }
 
   if (shapeType === 'standing_block') {
-    const capacity = clampInt(params.capacity, 1, 1000000, Number(zone?.seatsPerRow) || 1);
+    const capacity = clampInt(params.capacity, 1, 1000000, 100);
     return [capacity];
   }
 
@@ -156,8 +156,8 @@ function createDefaultZone() {
     price: 1200000,
     totalRows: 5,
     seatsPerRow: 10,
-    posX: 18,
-    posY: 28,
+    posX: 50,
+    posY: 20,
     color: '#60a5fa',
     seatType: 'seated',
     shapeType: 'theatre',
@@ -175,8 +175,8 @@ function normalizeZone(zone, index = 0) {
     price: Number(zone?.price) || 0,
     totalRows: counts.length || 1,
     seatsPerRow: counts.length ? Math.max(...counts) : 1,
-    posX: clampNumber(zone?.posX, 0, 100, Math.min(85, 18 + index * 16)),
-    posY: clampNumber(zone?.posY, 0, 100, 28 + (index % 2) * 24),
+    posX: clampNumber(zone?.posX, 0, 100, 50),
+    posY: clampNumber(zone?.posY, 0, 100, 20 + index * 40),
     color: zone?.color || '#60a5fa',
     seatType: shapeType === 'standing_block' ? 'standing' : 'seated',
     shapeType,
@@ -342,6 +342,8 @@ export default function ZoneMapBuilder() {
     const candidateBox = getZoneBoxSize(candidate);
     const candidateCenterX = (candidate.posX / 100) * rect.width;
     const candidateCenterY = (candidate.posY / 100) * rect.height;
+    
+    const SAFETY_GAP = 30; // 30px safety buffer between dashed borders
 
     return zones.some((zone, index) => {
       if (index === candidateIndex) return false;
@@ -349,11 +351,12 @@ export default function ZoneMapBuilder() {
       const centerX = ((Number(zone.posX) || 0) / 100) * rect.width;
       const centerY = ((Number(zone.posY) || 0) / 100) * rect.height;
 
+      // Improved collision box including safety gap
       return !(
-        candidateCenterX + candidateBox.width / 2 < centerX - box.width / 2 ||
-        candidateCenterX - candidateBox.width / 2 > centerX + box.width / 2 ||
-        candidateCenterY + candidateBox.height / 2 < centerY - box.height / 2 ||
-        candidateCenterY - candidateBox.height / 2 > centerY + box.height / 2
+        candidateCenterX + candidateBox.width / 2 + SAFETY_GAP < centerX - box.width / 2 ||
+        candidateCenterX - candidateBox.width / 2 - SAFETY_GAP > centerX + box.width / 2 ||
+        candidateCenterY + candidateBox.height / 2 + SAFETY_GAP < centerY - box.height / 2 ||
+        candidateCenterY - candidateBox.height / 2 - SAFETY_GAP > centerY + box.height / 2
       );
     });
   }
@@ -378,8 +381,9 @@ export default function ZoneMapBuilder() {
 
         const clamped = clampPlacement(current, rawX, rawY, rect);
         const nextZone = { ...current, posX: clamped.x, posY: clamped.y };
-        if (checkZoneOverlap(nextZone, dragging.zoneIndex, rect)) return prev;
-
+        
+        // Allow free movement during drag for better UX, 
+        // validation happens via visual cues or on save
         return prev.map((zone, index) => (index === dragging.zoneIndex ? nextZone : zone));
       });
     }
@@ -397,7 +401,13 @@ export default function ZoneMapBuilder() {
   }, [dragging, zones]);
 
   function setZoneField(index, patch) {
-    setZones((prev) => prev.map((zone, zoneIndex) => (zoneIndex === index ? { ...zone, ...patch } : zone)));
+    setZones((prev) => {
+      const current = prev[index];
+      if (!current) return prev;
+      
+      const nextZone = { ...current, ...patch };
+      return prev.map((zone, zoneIndex) => (zoneIndex === index ? nextZone : zone));
+    });
   }
 
   function addZone(shapeType, zoneDefaults, dropPoint = null) {

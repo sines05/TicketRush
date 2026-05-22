@@ -246,6 +246,31 @@ export default function EventForm() {
   const [isFeatured, setIsFeatured] = useState(false);
   const [category, setCategory] = useState('');
 
+  // Auto-geocoding logic when address changes
+  useEffect(() => {
+    // Only fetch if we have at least some address info and NOT in the middle of a reset
+    if (!province && !ward && !locationDetail) return;
+
+    const timer = setTimeout(async () => {
+      try {
+        const fullAddress = `${locationDetail ? locationDetail + ', ' : ''}${ward ? ward + ', ' : ''}${province ? province + ', Việt Nam' : 'Việt Nam'}`;
+        
+        // Use OpenStreetMap Nominatim API for free geocoding
+        const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fullAddress)}&limit=1`);
+        const data = await response.json();
+
+        if (data && data.length > 0) {
+          const { lat, lon } = data[0];
+          setLocationCoords({ lat: parseFloat(lat), lng: parseFloat(lon) });
+        }
+      } catch (err) {
+        console.error('Geocoding error:', err);
+      }
+    }, 1500); // 1.5s debounce to avoid hitting API rate limits while typing
+
+    return () => clearTimeout(timer);
+  }, [province, ward, locationDetail]);
+
   const [zones, setZones] = useState(() => [
     {
       key: 'zone-1',
@@ -374,16 +399,6 @@ export default function EventForm() {
             ? { ...z, posX: clampedX, posY: clampedY }
             : z
         );
-
-        // Check for overlaps and prevent if collision detected
-        const draggingZone = nextZones[dragging.zoneIndex];
-        const hasOverlap = nextZones.some((z, i) =>
-          i !== dragging.zoneIndex && checkZoneOverlap(draggingZone, z)
-        );
-
-        if (hasOverlap) {
-          return prev; // Keep original position
-        }
         return nextZones;
       });
     }
@@ -632,7 +647,7 @@ export default function EventForm() {
           return { totalRows: tableCount, seatsPerRow: seatsPerTable };
         }
         if (normalizedShapeType === 'standing_block') {
-          const cap = Number(defaultShapeParams.capacity) || 300;
+          const cap = Number(defaultShapeParams.capacity) || 100;
           return { totalRows: 1, seatsPerRow: cap };
         }
         if (normalizedShapeType === 'chevron') {
@@ -677,8 +692,8 @@ export default function EventForm() {
         renderAlign: 'left',
         renderStyle: 'plain',
         aisleSize: 2,
-        posX: Math.min(85, 15 + nextIndex * 18),
-        posY: 30 + (nextIndex % 2) * 28,
+        posX: 50,
+        posY: 20 + nextIndex * 40,
         color: defaults?.color || '#60a5fa',
         seatType: isStanding ? 'standing' : 'seated',
 
@@ -998,9 +1013,8 @@ export default function EventForm() {
               onChange={(e) => setIsPublished(e.target.checked)}
               className="h-5 w-5 accent-teal-600"
             />
-            Publish ngay (is_published)
-          </label>
-
+            Publish ngay
+            </label>
           <label className="flex items-center gap-3 rounded-2xl border border-amber-500/20 bg-amber-100/45 px-4 py-3 text-sm font-bold text-amber-900 shadow-sm dark:border-amber-300/15 dark:bg-amber-300/10 dark:text-amber-100">
             <input
               type="checkbox"
@@ -1034,7 +1048,24 @@ export default function EventForm() {
               const counts = buildRowSeatCounts(z);
               const total = counts.reduce((sum, v) => sum + (Number(v) || 0), 0);
               return (
-                <div key={z.key} className="rounded-2xl border border-white/15 bg-white/12 p-4 shadow-sm backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/16">
+                <div key={z.key} className="group relative rounded-2xl border border-white/15 bg-white/12 p-4 shadow-sm backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/16">
+                  {/* Delete Button for each zone card */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (zones.length <= 1) return;
+                      const ok = window.confirm(`Xoá zone "${z.name}"?`);
+                      if (ok) {
+                        setZones(prev => prev.filter((_, i) => i !== idx));
+                        if (activeZoneIndex >= idx) setActiveZoneIndex(Math.max(0, activeZoneIndex - 1));
+                      }
+                    }}
+                    className="absolute -right-1 -top-1 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-rose-500 text-white shadow-lg opacity-0 transition-all group-hover:opacity-100 hover:scale-110 active:scale-95"
+                    title="Xoá zone này"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <button type="button" className="truncate text-sm font-black text-white bg-transparent border-0 p-0 text-left cursor-default">
@@ -1510,13 +1541,9 @@ export default function EventForm() {
             <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-teal-100 text-teal-700 dark:bg-cyan-300/10 dark:text-cyan-200">
               <Rocket className="h-4 w-4" />
             </span>
-            {isEdit ? 'Lưu thay đổi hoặc xoá sự kiện.' : 'Tạo sự kiện trên backend (cần đăng nhập ADMIN).'} 
+            {isEdit ? 'Lưu thay đổi hoặc xoá sự kiện.' : 'Tạo sự kiện mới vào hệ thống.'} 
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Button variant="secondary" onClick={() => navigator.clipboard?.writeText(JSON.stringify(payload, null, 2))}>
-              <Copy className="mr-2 h-4 w-4" />
-              Copy Payload JSON
-            </Button>
             {isEdit && (
               <Button variant="danger" onClick={handleDelete} disabled={submitting}>
                 <Trash2 className="mr-2 h-4 w-4" />
@@ -1525,28 +1552,10 @@ export default function EventForm() {
             )}
             <Button onClick={handleSubmit} disabled={submitting}>
               <Save className="mr-2 h-4 w-4" />
-              {submitting ? (isEdit ? 'Đang lưu...' : 'Đang tạo...') : isEdit ? 'Lưu thay đổi' : 'Tạo trên backend'}
+              {submitting ? (isEdit ? 'Đang lưu...' : 'Đang tạo...') : isEdit ? 'Cập nhật sự kiện' : 'Tạo sự kiện mới'}
             </Button>
           </div>
         </div>
-      </section>
-
-      <section className="overflow-hidden rounded-[28px] border border-teal-500/15 bg-white/75 p-5 shadow-[0_18px_60px_rgba(15,118,110,0.10)] backdrop-blur dark:border-white/10 dark:bg-slate-950/75">
-        <div className="flex items-center gap-2 text-sm font-black uppercase tracking-[0.18em] text-teal-800 dark:text-cyan-100">
-          <Layers3 className="h-4 w-4 text-amber-500" />
-          Dữ liệu sinh ra
-        </div>
-        <pre className="mt-3 max-h-[360px] overflow-auto rounded-2xl border border-teal-700/10 bg-slate-950 p-4 text-xs text-cyan-50 shadow-inner dark:border-white/10">
-          {JSON.stringify(
-            {
-              note: isEdit ? 'PUT /admin/events/:id' : 'POST /admin/events',
-              payload,
-              preview_seats_count: totalSeatsInActiveZone
-            },
-            null,
-            2
-          )}
-        </pre>
       </section>
     </div>
   );

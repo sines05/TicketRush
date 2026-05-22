@@ -29,7 +29,7 @@ openai_api_key = os.environ.get("OPENAI_API_KEY")
 
 if google_api_key:
     llm = ChatGoogleGenerativeAI(
-        model=os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"),
+        model=os.environ.get("GEMINI_MODEL", "gemini-1.5-flash"),
         google_api_key=google_api_key,
     )
 elif openai_api_key:
@@ -79,7 +79,7 @@ def call_model(state: AgentState):
         if isinstance(m, ToolMessage):
             try:
                 data = json.loads(m.content)
-                if m.name in ["SearchEvents", "GetTrendingEvents", "GetFeaturedEvents", "GetPastEvents"]:
+                if m.name in ["SearchEvents", "GetTrendingEvents", "GetFeaturedEvents", "GetPastEvents", "GetUpcomingEvents"]:
                     if isinstance(data, list):
                         for item in data:
                             ui_components.append({

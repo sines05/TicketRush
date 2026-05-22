@@ -25,6 +25,8 @@ export const API_ROUTES = Object.freeze({
   LOCK_SEATS: '/orders/lock-seats',
   CHECKOUT: '/orders/checkout',
   CANCEL_ORDER: '/orders/cancel',
+  PENDING_ORDER: '/orders/pending',
+  ORDER_DETAIL: (orderId) => `/orders/${orderId}`,
 
   MY_TICKETS: '/tickets/my-tickets',
   ADMIN_TICKETS: '/admin/tickets',

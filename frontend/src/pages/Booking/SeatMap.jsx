@@ -89,9 +89,67 @@ export default function SeatMap() {
   const [allowedAt, setAllowedAt] = useState(location.state?.allowedAt);
   const [isConflictModalOpen, setIsConflictModalOpen] = useState(false);
   const [conflictMessage, setConflictMessage] = useState('');
+  const [pendingOrder, setPendingOrder] = useState(null);
+
+  const eventId = useMemo(() => searchParams.get('eventId') || '', [searchParams]);
+  const urlQueueToken = searchParams.get('queueToken') || '';
+  
+  // Persistence: Get token from session storage if missing in URL
+  const queueToken = useMemo(() => {
+    return urlQueueToken || sessionStorage.getItem(`queue_token_${eventId}`) || '';
+  }, [urlQueueToken, eventId]);
+
+  // Recovery: Check for existing pending order on mount
+  useEffect(() => {
+    if (!eventId || !user) return;
+    
+    orderService.getPendingOrder({ event_id: eventId })
+      .then(res => {
+        if (res && res.order_id) {
+          setPendingOrder(res);
+        }
+      })
+      .catch(() => {});
+  }, [eventId, user]);
 
   const [selected, setSelected] = useState(() => new Set());
-  const [zoom, setZoom] = useState(0.9);
+  const [zoom, setZoom] = useState(1.0);
+
+  // Force HTML zoom to 100% for SeatMap page only, then restore to 90% on leave
+  useEffect(() => {
+    const originalZoom = document.documentElement.style.zoom || '90%';
+    document.documentElement.style.zoom = '100%';
+    
+    return () => {
+      document.documentElement.style.zoom = originalZoom;
+    };
+  }, []);
+
+  // Auto-scale on mount and window resize
+  useEffect(() => {
+    const handleResize = () => {
+      if (canvasWrapperRef.current) {
+        const wrapper = canvasWrapperRef.current;
+        const availableWidth = wrapper.clientWidth - 40;
+        const availableHeight = wrapper.clientHeight - 40;
+        
+        // Much more aggressive zoom calculation to avoid the 78% trap
+        const scaleX = availableWidth / 900; // Focus on a tighter 900px wide area
+        const scaleY = availableHeight / 650;
+        const autoZoom = Math.min(scaleX, scaleY, 1.4); 
+        
+        setZoom(Math.max(0.75, autoZoom));
+      }
+    };
+
+    // Initial scale after a short delay to ensure clientWidth/Height are ready
+    const timer = setTimeout(handleResize, 100);
+    window.addEventListener('resize', handleResize);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [loading]); // Run after loading finishes
 
   // Dragging / Panning State for Seat Canvas
   const canvasWrapperRef = useRef(null);
@@ -142,7 +200,7 @@ export default function SeatMap() {
     }
   }, []);
 
-  // Center canvas on load
+  // Center canvas on load and when zoom changes (first time)
   useEffect(() => {
     if (seatMap && canvasWrapperRef.current) {
       const timer = setTimeout(() => {
@@ -157,10 +215,10 @@ export default function SeatMap() {
         
         wrapper.scrollLeft = Math.max(0, scrollX);
         wrapper.scrollTop = Math.max(0, scrollY);
-      }, 100);
+      }, 150); // Slightly longer delay to ensure auto-scale has applied
       return () => clearTimeout(timer);
     }
-  }, [seatMap]);
+  }, [seatMap, zoom]);
 
   useEffect(() => {
     const next = new Set();
@@ -170,10 +228,6 @@ export default function SeatMap() {
     }
     setSelected(next);
   }, [selectedSeats]);
-
-  const eventId = useMemo(() => searchParams.get('eventId') || '', [searchParams]);
-  const queueToken = useMemo(() => searchParams.get('queueToken') || '', [searchParams]);
-
 
   // Countdown timer logic
   useEffect(() => {
@@ -306,6 +360,38 @@ export default function SeatMap() {
 
   const zones = useMemo(() => seatMap?.zones ?? [], [seatMap]);
 
+  // Precompute vertical offsets for zones to prevent overlap
+  const zoneVerticalOffsets = useMemo(() => {
+    let currentY = 120; // Start below the stage
+    const containerGap = 55; // Space between zone boxes to fit the label (-top-7)
+    
+    return zones.map((z) => {
+      const meta = z?.layout_meta || {};
+      if (Number.isFinite(Number(meta?.pos_y))) return null;
+
+      let zoneContentHeight = 0;
+      const seats = z?.seats || [];
+      const rowSet = new Set();
+      seats.forEach(s => rowSet.add(s.row_label));
+      const rowCount = rowSet.size || 1;
+      
+      const rawType = meta?.shape_type || meta?.shapeType || z?.shape_type || z?.shapeType;
+      if (rawType === 'banquet') {
+        const tables = Number(meta?.shape_params?.tableCount || 3);
+        zoneContentHeight = Math.ceil(tables / 3) * 200; 
+      } else if (rawType && rawType !== 'standing_block') {
+        zoneContentHeight = rowCount * 42 + 20; 
+      } else {
+        // Standard Grid Box: Rows*28 + Gaps*12 + Padding(2*24)
+        zoneContentHeight = (rowCount * 28) + ((rowCount - 1) * 12) + 48;
+      }
+
+      const pos = currentY;
+      currentY += zoneContentHeight + containerGap;
+      return pos;
+    });
+  }, [zones]);
+
   // Position zones inside the canvas using percentage bounds mapped to virtual coordinates
   const getZonePos = useCallback((zone, index, total) => {
     const meta = zone?.layout_meta || {};
@@ -315,22 +401,17 @@ export default function SeatMap() {
       return { x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) };
     }
 
-    // Centered vertical stack layout for fallback (completely symmetric and balanced front-to-back)
-    if (total === 1) {
-      return { x: 50, y: 45 };
+    // Use precomputed pixel-based vertical offsets for fallback stacking
+    const pixelY = zoneVerticalOffsets[index];
+    if (pixelY !== null && pixelY !== undefined) {
+      // Map pixel Y back to 0-100 range for the existing logic if needed, 
+      // or just return as is if we change the caller. 
+      // Let's return as a direct pixel indicator by using a high value or negative
+      return { x: 50, y: (pixelY / CANVAS_HEIGHT) * 100 };
     }
 
-    // For multiple zones, we stack them centered horizontally (x = 50)
-    // and spaced vertically from front (near stage, y ~ 20) to back (y ~ 80).
-    const height = Math.min(65, (total - 1) * 16);
-    const startY = 50 - height / 2;
-    const step = total > 1 ? height / (total - 1) : 0;
-
-    return {
-      x: 50,
-      y: startY + index * step
-    };
-  }, []);
+    return { x: 50, y: 15 + index * 25 };
+  }, [zoneVerticalOffsets]);
 
   const toggleSelectedSeatId = useCallback((seatId) => {
     if (!seatId) return;
@@ -358,6 +439,14 @@ export default function SeatMap() {
 
       const color = meta?.color || zone?.color || '#3b82f6';
       
+      let standingInfo = null;
+      if (shapeType === 'standing_block') {
+        const seats = zone?.seats ?? [];
+        const available = seats.filter(s => s.status === 'AVAILABLE').length;
+        const total = seats.length;
+        standingInfo = { available, total, seats };
+      }
+
       let shapeLayout = null;
       if (shapeType && shapeType !== 'standing_block') {
         const seats = zone?.seats ?? [];
@@ -478,6 +567,7 @@ export default function SeatMap() {
         shapeLayout,
         gridRows,
         gridLayout,
+        standingInfo,
       };
     });
   }, [zones]);
@@ -523,13 +613,13 @@ export default function SeatMap() {
 
   // Formatting variables for Sidebar Event Details
   const formattedDate = useMemo(() => {
-    if (!event?.startTime) return 'Đang cập nhật';
-    return format(new Date(event.startTime), 'EEEE, dd/MM/yyyy', { locale: vi });
+    if (!event?.start_time) return 'Đang cập nhật';
+    return format(new Date(event.start_time), 'EEEE, dd/MM/yyyy', { locale: vi });
   }, [event]);
 
   const formattedTime = useMemo(() => {
-    if (!event?.startTime) return 'Đang cập nhật';
-    return format(new Date(event.startTime), 'HH:mm');
+    if (!event?.start_time) return 'Đang cập nhật';
+    return format(new Date(event.start_time), 'HH:mm');
   }, [event]);
 
   if (loading) return <Loading title="Đang tải sơ đồ ghế..." />;
@@ -559,8 +649,52 @@ export default function SeatMap() {
   }
 
   return (
-    <div className="w-full h-full flex flex-col min-h-0 overflow-hidden bg-background text-foreground">
+    <div className="w-full h-screen flex flex-col min-h-0 overflow-y-auto lg:overflow-hidden bg-background text-foreground custom-scrollbar">
       {/* Dialogs */}
+      
+      {/* Recovery Dialog: Pending Order Found */}
+      <Dialog open={!!pendingOrder} onOpenChange={() => setPendingOrder(null)}>
+        <DialogContent className="sm:max-w-md glass-surface">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-primary font-black text-xl">
+              <Clock className="h-6 w-6 animate-pulse" />
+              Khôi phục phiên đặt vé
+            </DialogTitle>
+            <DialogDescription className="pt-3 text-slate-700 dark:text-slate-200 font-bold text-base leading-relaxed">
+              Chào bạn, chúng tôi thấy bạn đang có một đơn hàng chưa hoàn tất cho sự kiện này. 
+              Các ghế của bạn vẫn đang được giữ chỗ an toàn.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 px-1">
+             <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-2">
+                <div className="flex justify-between text-sm">
+                   <span className="font-bold text-muted-foreground uppercase tracking-widest text-[10px]">Đơn hàng</span>
+                   <span className="font-mono text-[10px]">{pendingOrder?.order_id?.substring(0, 8)}...</span>
+                </div>
+                <div className="flex justify-between items-center">
+                   <span className="text-sm font-black text-slate-900 dark:text-white">Tổng cộng</span>
+                   <span className="text-lg font-black text-brand-600">{formatVND(pendingOrder?.total_amount)}</span>
+                </div>
+             </div>
+          </div>
+          <DialogFooter className="flex flex-col sm:flex-row gap-3">
+            <Button variant="outline" className="flex-1 rounded-xl" onClick={() => setPendingOrder(null)}>
+              Bỏ qua
+            </Button>
+            <Button 
+              className="flex-1 rounded-xl shadow-lg shadow-brand-600/20" 
+              onClick={() => {
+                navigate(`/booking/checkout?eventId=${eventId}&orderId=${pendingOrder.order_id}`, {
+                  state: { order: pendingOrder }
+                });
+              }}
+            >
+              Tiếp tục thanh toán
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={!!allowedAt && isExpired}>
         <DialogContent className="sm:max-w-md glass-surface">
           <DialogHeader>
@@ -594,11 +728,11 @@ export default function SeatMap() {
       }}>
         <DialogContent className="sm:max-w-md glass-surface">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-destructive">
-              <AlertCircle className="h-5 w-5" />
-              Ghế đã bị đặt
+            <DialogTitle className="flex items-center gap-2 text-destructive font-black text-xl">
+              <AlertCircle className="h-6 w-6" />
+              Ghế không khả dụng
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="pt-3 text-slate-700 dark:text-slate-200 font-bold text-base leading-relaxed">
               {conflictMessage}
             </DialogDescription>
           </DialogHeader>
@@ -672,13 +806,13 @@ export default function SeatMap() {
       </header>
 
       {/* Main Content Split Layout */}
-      <div className="flex-1 flex flex-col lg:flex-row min-h-0 w-full overflow-hidden">
+      <div className="flex-1 flex flex-col lg:flex-row min-h-0 w-full overflow-visible lg:overflow-hidden bg-background">
         
         {/* Left Side: Drag-to-pan Canvas */}
-        <div className="flex-1 relative overflow-hidden flex flex-col min-h-0 bg-seat-canvas border-r border-border">
+        <div className="flex-1 relative overflow-hidden flex flex-col min-h-[500px] lg:h-full bg-seat-canvas border-r border-border shrink-0">
           <div 
             ref={canvasWrapperRef}
-            className="flex-1 overflow-auto select-none custom-scrollbar cursor-grab active:cursor-grabbing p-10 relative flex"
+            className="flex-1 overflow-auto select-none custom-scrollbar cursor-grab active:cursor-grabbing p-4 md:p-6 relative flex"
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
@@ -719,10 +853,83 @@ export default function SeatMap() {
                 </div>
 
                 {/* Render Zones & Seats */}
-                {zonesLayouts.map(({ zone, color, shapeLayout, gridRows, gridLayout }, idx) => {
+                {zonesLayouts.map(({ zone, color, shapeLayout, gridRows, gridLayout, standingInfo }, idx) => {
                   const pos = getZonePos(zone, idx, zonesLayouts.length);
+                  
+                  // Coordinate calculation
                   const leftPx = 100 + (pos.x / 100) * 1200;
-                  const topPx = 180 + (pos.y / 100) * 740;
+                  const topPx = (pos.y / 100) * CANVAS_HEIGHT;
+
+                  // Special Case: Standing Block (Render as single card)
+                  if (standingInfo) {
+                    const isAllSold = standingInfo.available === 0;
+                    
+                    const handleStandingClick = () => {
+                      if (isAllSold) return;
+                      // Logic: Pick first available seat in this standing zone
+                      const firstAvail = standingInfo.seats.find(s => s.status === 'AVAILABLE' && !selected.has(s.seat_id));
+                      if (firstAvail) {
+                        const seatForSelect = {
+                          ...firstAvail,
+                          lockedByMe: false,
+                          label: `Vé đứng - ${firstAvail.seat_number}`,
+                          zone_id: zone.zone_id,
+                          zone_name: zone.name,
+                          price: zone.price,
+                        };
+                        toggleSelectedSeatId(firstAvail.seat_id);
+                        toggleSeat(seatForSelect);
+                      }
+                    };
+
+                    return (
+                      <div
+                        key={`zone-wrapper-${zone.zone_id}`}
+                        className="absolute group/zone transition-all duration-300 hover:z-20"
+                        style={{
+                          left: `${leftPx}px`,
+                          top: `${topPx}px`,
+                          transform: 'translateX(-50%)',
+                          zIndex: 10,
+                        }}
+                      >
+                         <div 
+                            className="absolute -top-7 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider shadow-md select-none pointer-events-none z-30"
+                            style={{
+                              backgroundColor: color,
+                              color: '#ffffff',
+                            }}
+                          >
+                            {zone.name}
+                          </div>
+                        <button
+                          type="button"
+                          onClick={handleStandingClick}
+                          disabled={isAllSold}
+                          className={cn(
+                            "w-[240px] h-[120px] rounded-3xl border-2 border-dashed flex flex-col items-center justify-center gap-2 transition-all shadow-sm",
+                            isAllSold ? "bg-muted/10 border-muted-foreground/30 cursor-not-allowed opacity-60" : 
+                            "hover:scale-[1.03] hover:shadow-xl cursor-pointer active:scale-95"
+                          )}
+                          style={{
+                            borderColor: isAllSold ? undefined : `${color}80`,
+                            backgroundColor: isAllSold ? undefined : `${color}10`,
+                          }}
+                        >
+                          <Ticket className={cn("h-6 w-6 mb-1", isAllSold ? "text-muted-foreground" : "")} style={{ color: isAllSold ? undefined : color }} />
+                          <div className="flex flex-col items-center leading-none">
+                            <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">Khu vực đứng</span>
+                            <span className="mt-1 text-lg font-black tracking-tight" style={{ color: isAllSold ? undefined : color }}>
+                              {isAllSold ? 'HẾT VÉ' : `${standingInfo.available} Chỗ trống`}
+                            </span>
+                          </div>
+                          <div className="px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-[9px] font-bold uppercase">
+                            Tổng {standingInfo.total} vé
+                          </div>
+                        </button>
+                      </div>
+                    );
+                  }
 
                   return (
                     <div
@@ -731,7 +938,7 @@ export default function SeatMap() {
                       style={{
                         left: `${leftPx}px`,
                         top: `${topPx}px`,
-                        transform: 'translate(-50%, -50%)',
+                        transform: 'translateX(-50%)',
                         zIndex: 10,
                       }}
                     >
@@ -745,9 +952,9 @@ export default function SeatMap() {
                             height: `${shapeLayout.result.suggestedHeight}px`,
                           }}
                         >
-                          {/* Zone Label */}
+                          {/* Zone Label - Positioned ABOVE to avoid overlapping absolute seats */}
                           <div 
-                            className="absolute -top-3 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider shadow-md select-none"
+                            className="absolute -top-7 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider shadow-md select-none pointer-events-none z-30"
                             style={{
                               backgroundColor: color,
                               color: '#ffffff',
@@ -852,7 +1059,7 @@ export default function SeatMap() {
                           }}
                         >
                           <div 
-                            className="absolute -top-3 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider shadow-md select-none"
+                            className="absolute -top-7 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider shadow-md select-none pointer-events-none z-30"
                             style={{
                               backgroundColor: color,
                               color: '#ffffff',
@@ -991,7 +1198,7 @@ export default function SeatMap() {
         </div>
 
         {/* Right Side: Sidebar */}
-        <aside className="w-full lg:w-[380px] bg-card border-l border-border flex flex-col h-full shrink-0 min-h-0 overflow-hidden">
+        <aside className="w-full lg:w-[380px] bg-card border-l border-border flex flex-col shrink-0 overflow-visible lg:overflow-hidden">
           {/* Event & Location (Fixed top) */}
           <div className="p-5 border-b border-border shrink-0 space-y-4 bg-card/60">
             <div className="space-y-1.5">
@@ -1003,7 +1210,7 @@ export default function SeatMap() {
                 </div>
                 <div className="flex items-center gap-2">
                   <MapPin className="h-3.5 w-3.5 text-primary shrink-0" />
-                  <span className="truncate">{event?.locationName || 'Đang cập nhật'}</span>
+                  <span className="truncate">{event?.location || 'Đang cập nhật'}</span>
                 </div>
               </div>
             </div>
