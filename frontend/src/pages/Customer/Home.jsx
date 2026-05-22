@@ -4,6 +4,7 @@ import { useLocation } from 'react-router-dom';
 import HeroCarousel from '@/components/home/HeroCarousel';
 import SpecialEvents from '@/components/home/SpecialEvents';
 import TrendingEvents from '@/components/home/TrendingEvents';
+import EventListWithTabs from '@/components/home/EventListWithTabs';
 import CategoryEventPreview from '@/components/home/CategoryEventPreview';
 import LocationCards from '@/components/home/LocationCards';
 import SystemReportCarousel from '@/components/home/SystemReportCarousel';
@@ -59,6 +60,9 @@ export default function Home() {
 
       {/* 2. Trending Events - teal ranks and fire icon */}
       <TrendingEvents />
+
+      {/* 2.5. Time Filtered Events - Weekend/Month tabs */}
+      <EventListWithTabs title="Lịch sự kiện" />
 
       {/* 3. Category previews - four upcoming events per core category */}
       <CategoryEventPreview />

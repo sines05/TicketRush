@@ -1,7 +1,7 @@
 import React, { memo } from 'react';
 import { Link } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
-import { formatDateTime, formatVND } from '@/utils/formatters';
+import { formatEventDate, formatVND } from '@/utils/formatters';
 import { resolveMediaUrl } from '@/utils/media';
 import bannerFallback from '@/assets/banner-sample.svg';
 import { Calendar } from 'lucide-react';
@@ -12,13 +12,13 @@ const EventCard = memo(({ event }) => {
   const isPast = new Date(event.start_time) < new Date();
   const categoryLabel = getCategoryLabel(event.category) || 'Sự kiện';
   const formattedPrice = formatVND(event.min_price || 0);
-  const formattedStartTime = formatDateTime(event.start_time);
+  const formattedStartTime = formatEventDate(event.start_time);
   const accessibleLabel = `${event.title}. ${categoryLabel}. Giá từ ${formattedPrice}. Thời gian bắt đầu ${formattedStartTime}.${isPast ? ' Sự kiện đã diễn ra.' : ''} Xem chi tiết sự kiện.`;
 
   return (
-    <Link to={`/events/${event.slug || event.id}`} className="block group" aria-label={accessibleLabel}>
+    <Link to={`/events/${event.slug || event.id}`} className="block group sc-cd3dcefe-0 YoyVJ" aria-label={accessibleLabel}>
       <Card role="article" className="flex h-full flex-col overflow-hidden border-none bg-transparent shadow-none">
-        <div className="relative aspect-[16/9] w-full overflow-hidden rounded-xl">
+        <div className="relative aspect-[16/9] w-full overflow-hidden rounded-xl sc-cd3dcefe-1 eJVcKb">
           <img
             src={imageUrl}
             alt={`Ảnh banner sự kiện ${event.title}`}

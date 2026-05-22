@@ -70,7 +70,7 @@ export default function CategoryEventPreview() {
         }
 
         return (
-          <section key={category.key} className="space-y-4" aria-labelledby={`home-preview-${category.key}`}>
+          <section key={category.key} className="sc-cd3dcefe-3 kqjylp" aria-labelledby={`home-preview-${category.key}`}>
             <div className="flex items-center justify-between gap-4 border-b border-border/50 pb-3">
               <h2
                 id={`home-preview-${category.key}`}
@@ -89,10 +89,10 @@ export default function CategoryEventPreview() {
               </Link>
             </div>
 
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="sc-cd3dcefe-4 iXpeWF">
               {loading
                 ? Array.from({ length: 4 }).map((_, index) => (
-                    <div key={index} aria-hidden="true">
+                    <div key={index} className="shrink-0 flex-shrink-0 sc-cd3dcefe-0 YoyVJ" aria-hidden="true">
                       <Skeleton className="mb-4 aspect-[16/9] w-full rounded-xl" />
                       <Skeleton className="mb-2 h-6 w-4/5 rounded" />
                       <Skeleton className="h-4 w-1/2 rounded" />

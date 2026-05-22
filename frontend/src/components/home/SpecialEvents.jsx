@@ -43,13 +43,13 @@ export default function SpecialEvents() {
 
   if (loading) {
     return (
-      <section className="space-y-4" aria-labelledby="home-special-events-heading" aria-busy="true">
+      <section className="space-y-4 sc-76f96852-3 jXikDV" aria-labelledby="home-special-events-heading" aria-busy="true">
         <h2 id="home-special-events-heading" className="sr-only">Sự kiện đặc biệt</h2>
         <p className="sr-only" role="status">Đang tải sự kiện đặc biệt</p>
         <div className="h-8 w-48 animate-pulse rounded bg-muted" />
-        <div className="flex gap-8 overflow-hidden">
+        <div className="flex gap-2 md:gap-3 overflow-hidden sc-76f96852-2 jdsHaE">
           {[1, 2, 3, 4, 5].map((i) => (
-            <Skeleton key={i} className="aspect-[2/3] w-[280px] md:w-[400px] shrink-0 rounded-xl" aria-hidden="true" />
+            <Skeleton key={i} className="aspect-[3/4] w-[200px] md:w-[300px] shrink-0 rounded-xl" aria-hidden="true" />
           ))}
         </div>
       </section>
@@ -59,31 +59,35 @@ export default function SpecialEvents() {
   if (error || events.length === 0) return null;
 
   return (
-    <section className="relative space-y-6 group/section" aria-labelledby="home-special-events-heading">
+    <section className="relative space-y-6 group/section sc-76f96852-3 jXikDV" aria-labelledby="home-special-events-heading">
       <div className="flex items-center justify-between">
-        <h2 id="home-special-events-heading" className="text-xl md:text-3xl font-bold tracking-tight text-foreground">Sự kiện đặc biệt</h2>
+        <h2 id="home-special-events-heading" className="sc-76f96852-1 jrVWUy text-xl md:text-3xl font-bold tracking-tight text-foreground">Sự kiện đặc biệt</h2>
       </div>
 
       <div className="relative">
         <div
           ref={scrollRef}
-          className="flex overflow-x-auto scroll-smooth snap-x snap-mandatory gap-6 md:gap-8 pb-8 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+          className="sc-76f96852-2 jdsHaE flex overflow-x-auto scroll-smooth snap-x snap-mandatory gap-2 md:gap-3 pb-8 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
         >
           {events.map((event) => (
-            <Link
+            <div
               key={event.id}
-              to={`/events/${event.slug || event.id}`}
-              className="relative shrink-0 w-[280px] md:w-[400px] aspect-[2/3] snap-start overflow-hidden rounded-xl shadow-lg transition-all duration-500 hover:scale-[1.03] hover:shadow-2xl active:scale-95 group"
-              aria-label={`Xem chi tiết sự kiện đặc biệt ${event.title}`}
+              className="sc-76f96852-0 jwccPd relative shrink-0 w-[200px] md:w-[300px] aspect-[3/4] snap-start overflow-hidden rounded-xl shadow-lg transition-all duration-500 hover:scale-[1.03] hover:shadow-2xl active:scale-95 group"
             >
-              <img
-                src={resolveMediaUrl(event.banner_url) || bannerFallback}
-                alt={`Poster sự kiện đặc biệt ${event.title}`}
-                className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
-                loading="lazy"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            </Link>
+              <Link
+                to={`/events/${event.slug || event.id}`}
+                className="block h-full w-full"
+                aria-label={`Xem chi tiết sự kiện đặc biệt ${event.title}`}
+              >
+                <img
+                  src={resolveMediaUrl(event.banner_url) || bannerFallback}
+                  alt={`Poster sự kiện đặc biệt ${event.title}`}
+                  className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                  loading="lazy"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              </Link>
+            </div>
           ))}
         </div>
 
@@ -91,7 +95,7 @@ export default function SpecialEvents() {
         <button
           type="button"
           onClick={() => scroll('left')}
-          className="absolute left-4 top-1/2 z-20 -translate-y-1/2 flex h-12 w-12 items-center justify-center rounded-full bg-card/80 text-foreground backdrop-blur-md border border-border opacity-0 transition-all duration-300 hover:bg-card group-hover/section:opacity-100 shadow-2xl active:scale-90"
+          className="absolute -left-6 top-1/2 z-20 -translate-y-1/2 hidden md:flex h-12 w-12 items-center justify-center rounded-full bg-white/95 text-zinc-900 hover:bg-white shadow-lg border border-zinc-200/50 transition-all duration-300 hover:scale-105 active:scale-90"
           aria-label="Cuộn danh sách sự kiện đặc biệt sang trái"
         >
           <ChevronLeft className="h-6 w-6" aria-hidden="true" />
@@ -100,7 +104,7 @@ export default function SpecialEvents() {
         <button
           type="button"
           onClick={() => scroll('right')}
-          className="absolute right-4 top-1/2 z-20 -translate-y-1/2 flex h-12 w-12 items-center justify-center rounded-full bg-card/80 text-foreground backdrop-blur-md border border-border opacity-0 transition-all duration-300 hover:bg-card group-hover/section:opacity-100 shadow-2xl active:scale-90"
+          className="absolute -right-6 top-1/2 z-20 -translate-y-1/2 hidden md:flex h-12 w-12 items-center justify-center rounded-full bg-white/95 text-zinc-900 hover:bg-white shadow-lg border border-zinc-200/50 transition-all duration-300 hover:scale-105 active:scale-90"
           aria-label="Cuộn danh sách sự kiện đặc biệt sang phải"
         >
           <ChevronRight className="h-6 w-6" aria-hidden="true" />

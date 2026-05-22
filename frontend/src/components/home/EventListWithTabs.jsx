@@ -37,11 +37,11 @@ export default function EventListWithTabs({ categoryKey, title }) {
     let mounted = true;
     setLoading(true);
 
+    const params = { ...dateFilter };
+    if (categoryKey) params.category = categoryKey;
+
     eventService
-      .getEvents({
-        category: categoryKey,
-        ...dateFilter
-      })
+      .getEvents(params)
       .then((data) => {
         if (!mounted) return;
         setEvents(Array.isArray(data) ? data : []);
@@ -75,12 +75,12 @@ export default function EventListWithTabs({ categoryKey, title }) {
   const panelId = `home-category-${categoryKey}-panel`;
 
   return (
-    <section className="space-y-6 group/section" aria-labelledby={headingId}>
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-border pb-4">
-        <div className="space-y-4">
-          <h2 id={headingId} className="text-2xl font-bold tracking-tight text-foreground uppercase">{title}</h2>
+    <section className="sc-cd3dcefe-3 kqjylp space-y-6 group/section" aria-labelledby={headingId}>
+      <div className="flex flex-wrap items-center justify-between border-b border-border pb-4 gap-4">
+        <div className="flex flex-wrap items-center gap-6 md:gap-8">
+          <h2 id={headingId} className="text-xl md:text-2xl font-bold tracking-tight text-foreground uppercase">{title}</h2>
           
-          <div className="flex items-center gap-8" role="tablist" aria-label={`Lọc sự kiện ${title} theo thời gian`}>
+          <div className="flex items-center gap-4 md:gap-6" role="tablist" aria-label={`Lọc sự kiện ${title} theo thời gian`}>
             <button
               id={weekendTabId}
               type="button"
@@ -89,13 +89,13 @@ export default function EventListWithTabs({ categoryKey, title }) {
               aria-controls={panelId}
               onClick={() => setActiveTab('weekend')}
               className={cn(
-                "relative pb-2 text-sm font-bold transition-colors uppercase tracking-widest",
-                activeTab === 'weekend' ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+                "relative pb-2 text-sm font-bold transition-colors uppercase tracking-wider",
+                activeTab === 'weekend' ? "text-[#2DC275]" : "text-muted-foreground hover:text-foreground"
               )}
             >
               Cuối tuần này
               {activeTab === 'weekend' && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full animate-in fade-in slide-in-from-left-2" aria-hidden="true" />
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#2DC275] rounded-full animate-in fade-in slide-in-from-left-2" aria-hidden="true" />
               )}
             </button>
             <button
@@ -106,22 +106,22 @@ export default function EventListWithTabs({ categoryKey, title }) {
               aria-controls={panelId}
               onClick={() => setActiveTab('month')}
               className={cn(
-                "relative pb-2 text-sm font-bold transition-colors uppercase tracking-widest",
-                activeTab === 'month' ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+                "relative pb-2 text-sm font-bold transition-colors uppercase tracking-wider",
+                activeTab === 'month' ? "text-[#2DC275]" : "text-muted-foreground hover:text-foreground"
               )}
             >
               Tháng này
               {activeTab === 'month' && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full animate-in fade-in slide-in-from-left-2" aria-hidden="true" />
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#2DC275] rounded-full animate-in fade-in slide-in-from-left-2" aria-hidden="true" />
               )}
             </button>
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 shrink-0">
           <Link
-            to={`/search?category=${categoryKey}`}
-            className="group/link flex items-center gap-1.5 text-sm font-bold text-muted-foreground hover:text-primary transition-colors"
+            to={categoryKey ? `/search?category=${categoryKey}` : '/search'}
+            className="group/link flex items-center gap-1 text-sm font-bold text-muted-foreground hover:text-[#2DC275] transition-colors"
             aria-label={`Xem thêm sự kiện ${title}`}
           >
             Xem thêm
@@ -129,11 +129,11 @@ export default function EventListWithTabs({ categoryKey, title }) {
           </Link>
           
           <div className="hidden md:flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={() => scroll('left')} className="h-8 w-8 rounded-full bg-muted/50 hover:bg-muted text-foreground" aria-label={`Cuộn danh sách ${title} sang trái`}>
-              <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+            <Button variant="ghost" size="icon" onClick={() => scroll('left')} className="h-10 w-10 rounded-full bg-white shadow-md border border-border hover:bg-muted text-foreground" aria-label={`Cuộn danh sách ${title} sang trái`}>
+              <ChevronLeft className="h-5 w-5" aria-hidden="true" />
             </Button>
-            <Button variant="ghost" size="icon" onClick={() => scroll('right')} className="h-8 w-8 rounded-full bg-muted/50 hover:bg-muted text-foreground" aria-label={`Cuộn danh sách ${title} sang phải`}>
-              <ChevronRight className="h-4 w-4" aria-hidden="true" />
+            <Button variant="ghost" size="icon" onClick={() => scroll('right')} className="h-10 w-10 rounded-full bg-white shadow-md border border-border hover:bg-muted text-foreground" aria-label={`Cuộn danh sách ${title} sang phải`}>
+              <ChevronRight className="h-5 w-5" aria-hidden="true" />
             </Button>
           </div>
         </div>
@@ -146,11 +146,11 @@ export default function EventListWithTabs({ categoryKey, title }) {
           aria-labelledby={activeTab === 'weekend' ? weekendTabId : monthTabId}
           aria-busy={loading}
           ref={scrollRef}
-          className="flex overflow-x-auto scroll-smooth snap-x snap-mandatory gap-6 pb-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+          className="sc-cd3dcefe-4 iXpeWF"
         >
           {loading ? (
             Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="shrink-0 w-[280px] md:w-[320px]" aria-hidden="true">
+              <div key={i} className="shrink-0 flex-shrink-0 sc-cd3dcefe-0 YoyVJ" aria-hidden="true">
                 <Skeleton className="aspect-[16/9] w-full rounded-xl mb-4" />
                 <Skeleton className="h-6 w-4/5 rounded mb-2" />
                 <Skeleton className="h-4 w-1/2 rounded" />
@@ -158,9 +158,7 @@ export default function EventListWithTabs({ categoryKey, title }) {
             ))
           ) : (
             events.map((event) => (
-              <div key={event.id} className="shrink-0 w-[280px] md:w-[320px] snap-start">
-                <EventCard event={event} />
-              </div>
+              <EventCard key={event.id} event={event} />
             ))
           )}
         </div>

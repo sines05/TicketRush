@@ -17,3 +17,13 @@ export function formatDateTime(isoString) {
     timeStyle: 'short'
   }).format(date);
 }
+
+export function formatEventDate(isoString) {
+  const date = new Date(isoString);
+  if (Number.isNaN(date.getTime())) return '';
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  return `${day} tháng ${month}, ${year}`;
+}
+

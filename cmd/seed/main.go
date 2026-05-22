@@ -187,16 +187,45 @@ func main() {
 	}
 
 	banners := []string{
-		"https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?auto=format&fit=crop&w=1200&q=80",
-		"https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=1200&q=80",
-		"https://images.unsplash.com/photo-1459749411175-04bf5292ceea?auto=format&fit=crop&w=1200&q=80",
-		"https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=1200&q=80",
-		"https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=1200&q=80",
-		"https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?auto=format&fit=crop&w=1200&q=80",
-		"https://images.unsplash.com/photo-1589394815804-964ed0be2eb5?auto=format&fit=crop&w=1200&q=80",
-		"https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?auto=format&fit=crop&w=1200&q=80",
-		"https://images.unsplash.com/photo-1506157786151-b8491531f063?auto=format&fit=crop&w=1200&q=80",
-		"https://images.unsplash.com/photo-1429962714451-bb934ecdc4ec?auto=format&fit=crop&w=1200&q=80",
+		"/src/assets/banners/042f397fd0424e867906ae2fdfdad2d4.png",
+		"/src/assets/banners/072152800382c4e950314ad8f5488fed.png",
+		"/src/assets/banners/3700a1d51db32056f57ef089fe8751c4.jpg",
+		"/src/assets/banners/3dfd74c8889123e41eda34f1b2a9302b.jpg",
+		"/src/assets/banners/45923ab6ee3ea9abec1652750067f21b.jpg",
+		"/src/assets/banners/475347082406d1b5d195c83c51d2659e.png",
+		"/src/assets/banners/48093f2ebde108ffb8ae51fe702b1fcb.jpg",
+		"/src/assets/banners/48c446a567cf3e05edcc09bac3c43ad9.png",
+		"/src/assets/banners/4e37e6444f448132aaf2b289584e6ee3.jpg",
+		"/src/assets/banners/5e10ddf7047ea811448d51b435006516.jpg",
+		"/src/assets/banners/67749c3705d352b5e08746fda64f299d.png",
+		"/src/assets/banners/6e23e6ee7e6c23f4f952bc60e5dfc32b.png",
+		"/src/assets/banners/740873d9820003b820e79add4a123f48.png",
+		"/src/assets/banners/766ac4b5c8e5607b427c5f8b995c91be.jpg",
+		"/src/assets/banners/7e14777f30d44a0260f0c4882898a423.jpg",
+		"/src/assets/banners/88d78d69ab4d0855e537a3b1836736f2.jpg",
+		"/src/assets/banners/8b5bb5b96ff2c969c5b0b454d1304473.jpg",
+		"/src/assets/banners/93c7026249ffb3bbd0c2500e84c876ae.jpg",
+		"/src/assets/banners/94150397d6df53bbf19d6d3811deda41.png",
+		"/src/assets/banners/9ca0d79544e05f5ad7f747dedb6c5735.jpg",
+		"/src/assets/banners/b1d1904cab66bbd2b7f4ee29bee09c19.jpg",
+		"/src/assets/banners/b4c65d1b19f9815ebfdb50218f9e0983.jpg",
+		"/src/assets/banners/d0f781b1ac26f56b69ca796f5431db88.png",
+		"/src/assets/banners/ded54cf9a59feea258faa22ddf6e1984.jpg",
+		"/src/assets/banners/e972723771651dba16409c5acaf0b417.jpg",
+		"/src/assets/banners/fd36ee9a786509c8c80b66ac4569169d.jpg",
+	}
+
+	trendingBanners := []string{
+		"/src/assets/trending/100b630ce3ebede44858fa1d1c1b78b0.jpg",
+		"/src/assets/trending/1e67ae29799d6a57679534c71d4a69c3.jpg",
+		"/src/assets/trending/33fda1b94cc91acbc25f6dc187e63e91.jpg",
+		"/src/assets/trending/34d70f1cecbd4e29649d745fa9879940.png",
+		"/src/assets/trending/35bec5d69c0733a56eec669faa2a10c6.jpeg",
+		"/src/assets/trending/6da02c3b396bc1b68fc3e487a9cb1fab.png",
+		"/src/assets/trending/8a606b8c2618ab0b7dcb58c020192326.png",
+		"/src/assets/trending/9f5e98495653c70c700e26f0429ee48b.jpg",
+		"/src/assets/trending/c86cf8cf40fbba952fb5c31376e8486b.jpg",
+		"/src/assets/trending/cad71469b6cedf6fcf52d83bf4fb0402.jpg",
 	}
 
 	categories := []string{"music_festival", "sports", "arts_stage", "education_workshop", "experience_entertainment", "other"}
@@ -211,7 +240,7 @@ func main() {
 				event: models.Event{
 					Title:       "Jack - J97 Concert: Đom Đóm In The Stars",
 					Description: "Đêm nhạc hoành tráng của Jack - J97 cùng Đom Đóm Fanclub. Một hành trình âm nhạc đầy cảm xúc với những bản hit triệu view: Hoa Hải Đường, Bạc Phận, Là 1 Thằng Con Trai,... Hãy cùng thắp sáng hàng ngàn đom đóm trong đêm Hà Nội!",
-					BannerURL:   "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?auto=format&fit=crop&w=1200&q=80",
+					BannerURL:   "/src/assets/banners/6e23e6ee7e6c23f4f952bc60e5dfc32b.png",
 					Location:    "Hà Nội",
 					Address:     "Sân vận động Quốc gia Mỹ Đình, Hà Nội",
 					Latitude:    floatPtr(cityCoords["Hà Nội"].Lat),
@@ -236,7 +265,7 @@ func main() {
 				event: models.Event{
 					Title:       "Sơn Tùng M-TP: Sky Tour 2026",
 					Description: "Sky Tour trở lại! Sơn Tùng M-TP mang đến đêm diễn lịch sử tại SVĐ Mỹ Đình với dàn sản xuất đẳng cấp quốc tế. Trải nghiệm những bản hit Chạy Ngay Đi, Hãy Trao Cho Anh, Muộn Rồi Mà Sao Còn,... cùng hiệu ứng ánh sáng mãn nhãn.",
-					BannerURL:   "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=1200&q=80",
+					BannerURL:   "/src/assets/banners/4e37e6444f448132aaf2b289584e6ee3.jpg",
 					Location:    "Hà Nội",
 					Address:     "Sân vận động Quốc gia Mỹ Đình, Hà Nội",
 					Latitude:    floatPtr(cityCoords["Hà Nội"].Lat),
@@ -261,7 +290,7 @@ func main() {
 				event: models.Event{
 					Title:       "Rap Việt All-Star Concert 2026",
 					Description: "Tất cả các ngôi sao Rap Việt hội tụ trong một đêm duy nhất! Với sự góp mặt của Karik, Binz, Rhymastic, Wowy, Double2T, MCK, tlinh và nhiều rapper đình đám khác. Bữa tiệc Hip-Hop lớn nhất Việt Nam!",
-					BannerURL:   "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?auto=format&fit=crop&w=1200&q=80",
+					BannerURL:   "/src/assets/banners/042f397fd0424e867906ae2fdfdad2d4.png",
 					Location:    "Hồ Chí Minh",
 					Address:     "Sân vận động Quân khu 7, TP.HCM",
 					Latitude:    floatPtr(cityCoords["Hồ Chí Minh"].Lat),
@@ -284,7 +313,7 @@ func main() {
 				event: models.Event{
 					Title:       "BLACKPINK: BORN PINK World Tour Hanoi",
 					Description: "Sự kiện âm nhạc lịch sử tại Sân vận động Mỹ Đình. BLACKPINK mang Born Pink World Tour đến Việt Nam với hai đêm diễn bùng nổ. Trải nghiệm những bản hit How You Like That, Kill This Love, Pink Venom,... cùng hàng vạn BLINK.",
-					BannerURL:   "https://images.unsplash.com/photo-1506157786151-b8491531f063?auto=format&fit=crop&w=1200&q=80",
+					BannerURL:   "/src/assets/banners/b4c65d1b19f9815ebfdb50218f9e0983.jpg",
 					Location:    "Hà Nội",
 					Address:     "Sân vận động Quốc gia Mỹ Đình, Hà Nội",
 					Latitude:    floatPtr(cityCoords["Hà Nội"].Lat),
@@ -306,7 +335,7 @@ func main() {
 				event: models.Event{
 					Title:       "Hà Anh Tuấn: Chân Trời Rực Rỡ (The Glorious Horizon)",
 					Description: "Đêm nhạc kết hợp giữa Hà Anh Tuấn và huyền thoại âm nhạc thế giới Kitaro tại Cố đô Hoa Lư, Ninh Bình. Một trải nghiệm âm nhạc tâm linh và duy mỹ giữa không gian di sản hùng vĩ.",
-					BannerURL:   "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?auto=format&fit=crop&w=1200&q=80",
+					BannerURL:   "/src/assets/banners/7e14777f30d44a0260f0c4882898a423.jpg",
 					Location:    "Huế",
 					Address:     "Cố đô Hoa Lư, Ninh Bình",
 					Latitude:    floatPtr(cityCoords["Huế"].Lat),
@@ -329,11 +358,17 @@ func main() {
 			location := locations[rand.Intn(len(locations))]
 			coord := cityCoords[location]
 
+			isFeatured := rand.Intn(100) < 30
+			bannerURL := banners[rand.Intn(len(banners))]
+			if isFeatured {
+				bannerURL = trendingBanners[rand.Intn(len(trendingBanners))]
+			}
+
 			es = eventSeed{
 				event: models.Event{
 					Title:       title,
 					Description: descriptions[rand.Intn(len(descriptions))],
-					BannerURL:   banners[rand.Intn(len(banners))],
+					BannerURL:   bannerURL,
 					Location:    location,
 					Address:     fmt.Sprintf("Địa điểm tổ chức tại %s", location),
 					Latitude:    floatPtr(coord.Lat),
@@ -341,7 +376,7 @@ func main() {
 					StartTime:   startTime,
 					EndTime:     startTime.Add(time.Duration(2+rand.Intn(4)) * time.Hour),
 					IsPublished: rand.Intn(100) < 90,
-					IsFeatured:  rand.Intn(100) < 20,
+					IsFeatured:  isFeatured,
 					IsHero:      rand.Intn(100) < 10,
 					IsQueueMode: rand.Intn(100) < 10,
 					Category:    categories[rand.Intn(len(categories))],
@@ -670,7 +705,7 @@ func main() {
 			Comment:    "Sân khấu Sky Tour hoành tráng mang tầm vóc quốc tế. Sơn Tùng trình diễn quá chuyên nghiệp!",
 		},
 		{
-			EventIndex: 2, // Rap Viet
+			EventIndex: 2, // Rap Việt
 			UserEmail:  "minhduc@gmail.com",
 			Rating:     5,
 			Comment:    "Bữa tiệc Hip Hop tuyệt vời nhất từ trước đến nay! Rapper nào diễn cũng cháy hết mình.",
@@ -685,30 +720,11 @@ func main() {
 			EventIndex: 4, // Ha Anh Tuan
 			UserEmail:  "customer@ticketrush.com",
 			Rating:     5,
-			Comment:    "Sự kết hợp hoàn hảo giữa giọng hát duy mỹ của anh Tuấn và âm nhạc Kitaro giữa Ninh Bình cổ kính.",
-		},
-		{
-			EventIndex: 0, // Jack Concert
-			UserEmail:  "hoangnam@gmail.com",
-			Rating:     4,
-			Comment:    "Tổ chức rất tốt, lối vào phân luồng rõ ràng, âm thanh chất lượng cao. Sẽ tiếp tục ủng hộ!",
-		},
-		{
-			EventIndex: 1, // Son Tung Sky Tour
-			UserEmail:  "quanghai@gmail.com",
-			Rating:     5,
-			Comment:    "Mua vé dễ dàng qua TicketRush, check-in nhanh chóng. MTP hát live hay và tương tác tuyệt vời.",
-		},
-		{
-			EventIndex: 2, // Rap Viet
-			UserEmail:  "thanhhuyen@gmail.com",
-			Rating:     5,
-			Comment:    "Không khí tại sân khấu cực kỳ náo nhiệt. Tốc độ săn vé nhanh giúp mình có vị trí đứng cực đẹp!",
+			Comment:    "Sự kiện kết hợp hoàn hảo giữa giọng hát duy mỹ của anh Tuấn và âm nhạc Kitaro giữa Ninh Bình cổ kính.",
 		},
 	}
 
 	for _, rt := range reviewTemplates {
-		// Find user
 		var user models.User
 		if err := db.Where("email = ?", rt.UserEmail).First(&user).Error; err != nil {
 			continue
@@ -723,108 +739,27 @@ func main() {
 		}
 		db.Create(&review)
 	}
-	fmt.Printf("   ✅ Created %d sample reviews for carousel\n", len(reviewTemplates))
+	fmt.Printf("   ✅ Created %d sample reviews\n", len(reviewTemplates))
 
 	// ============================================================
-	// SEED SAMPLE NOTIFICATIONS
+	// 8. NOTIFICATIONS
 	// ============================================================
-	var allUsers []models.User
-	if err := db.Find(&allUsers).Error; err == nil {
-		// 1. Broadcast System Notification (to everyone)
-		broadcastTitle := "Chào mừng bạn đến với TicketRush!"
-		broadcastMsg := "Khám phá ngay hàng loạt sự kiện âm nhạc, thể thao và giải trí hấp dẫn nhất."
-		for _, u := range allUsers {
-			uCopy := u
-			db.Create(&models.Notification{
-				UserID:      &uCopy.ID,
-				Title:       broadcastTitle,
-				Message:     broadcastMsg,
-				Type:        models.NotifTypeSystem,
-				IsBroadcast: true,
-				IsRead:      false,
-			})
-		}
-
-		// 2. Personal Notifications for the primary customer
-		var targetUser models.User
-		if err := db.Where("email = ?", "customer@ticketrush.com").First(&targetUser).Error; err == nil {
-			// ORDER notification
-			db.Create(&models.Notification{
-				UserID:  &targetUser.ID,
-				Title:   "Đặt vé thành công! 🎉",
-				Message: "Đơn hàng #TR998877 của bạn cho sự kiện 'Sơn Tùng M-TP - Sky Tour' đã được thanh toán thành công.",
-				Type:    models.NotifTypeOrder,
-				IsRead:  false,
-			})
-			// EVENT_REMINDER notification
-			db.Create(&models.Notification{
-				UserID:  &targetUser.ID,
-				Title:   "Sự kiện sắp diễn ra! ⏳",
-				Message: "Đừng quên! Sự kiện 'Rap Việt All-Star Concert' của bạn sẽ diễn ra vào tối mai lúc 19:30 tại SECC.",
-				Type:    models.NotifTypeEventReminder,
-				IsRead:  false,
-			})
-			// PAYMENT_REMINDER notification
-			db.Create(&models.Notification{
-				UserID:  &targetUser.ID,
-				Title:   "Yêu cầu thanh toán giữ chỗ 💳",
-				Message: "Bạn có đơn hàng đang chờ thanh toán cho sự kiện 'Hà Anh Tuấn - Chân Trời Rực Rỡ'. Vui lòng hoàn tất trong vòng 10 phút.",
-				Type:    models.NotifTypePaymentReminder,
-				IsRead:  false,
-			})
-			// PROMOTION notification
-			db.Create(&models.Notification{
-				UserID:  &targetUser.ID,
-				Title:   "Ưu đãi đặc biệt: Giảm 20% cho bạn! 🎁",
-				Message: "Nhập mã TRWELCOME20 để nhận ngay ưu đãi giảm 20% giá vé cho sự kiện Ravolution Music Festival tiếp theo.",
-				Type:    models.NotifTypePromotion,
-				IsRead:  false,
-			})
-		}
+	fmt.Println("🔔 Creating sample notifications...")
+	for _, u := range allUsers(db) {
+		db.Create(&models.Notification{
+			UserID:  &u.ID,
+			Title:   "Chào mừng đến với TicketRush!",
+			Message: "Khám phá hàng ngàn sự kiện hot và săn vé ngay hôm nay.",
+			Type:    models.NotifTypeSystem,
+		})
 	}
-	fmt.Println("   ✅ Seeded 5 sample notifications of various types")
+	fmt.Println("   ✅ Created system notifications for all users")
 
-	// ============================================================
-	// SUMMARY
-	// ============================================================
-	fmt.Println("\n" + "═══════════════════════════════════════════════")
-	fmt.Println("🎉 SEEDING COMPLETED SUCCESSFULLY!")
-	fmt.Println("═══════════════════════════════════════════════")
-	fmt.Println()
-	fmt.Println("📊 Summary:")
-	fmt.Printf("   • Users:  1 admin + %d customers\n", len(customers))
-	publishedCount := 0
-	draftCount := 0
-	for _, es := range eventSeeds {
-		if es.event.IsPublished {
-			publishedCount++
-		} else {
-			draftCount++
-		}
-	}
-	fmt.Printf("   • Events: %d (%d published, %d draft)\n", len(eventSeeds), publishedCount, draftCount)
+	fmt.Println("\n🌱 SEEDING COMPLETED!")
+}
 
-	totalSeats := 0
-	for _, es := range eventSeeds {
-		for _, z := range es.zones {
-			totalSeats += z.TotalRows * z.SeatsPerRow
-		}
-	}
-	fmt.Printf("   • Seats:  %d total\n", totalSeats)
-
-	var orderCount, ticketCount, complaintCount int64
-	db.Model(&models.Order{}).Count(&orderCount)
-	db.Model(&models.Ticket{}).Count(&ticketCount)
-	db.Model(&models.Complaint{}).Count(&complaintCount)
-	fmt.Printf("   • Orders: %d\n", orderCount)
-	fmt.Printf("   • Tickets: %d\n", ticketCount)
-	fmt.Printf("   • Reports: %d\n", complaintCount)
-
-	fmt.Println()
-	fmt.Println("🔑 Login credentials (all passwords: 'password'):")
-	fmt.Println("   Admin:    admin@ticketrush.com")
-	fmt.Println("   Customer: customer@ticketrush.com")
-	fmt.Println("             linhchi@gmail.com")
-	fmt.Println("             minhduc@gmail.com")
-	fmt.Println()
+func allUsers(db *gorm.DB) []models.User {
+	var users []models.User
+	db.Find(&users)
+	return users
 }
