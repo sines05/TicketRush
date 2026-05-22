@@ -74,10 +74,6 @@ export default function Home() {
 
       {/* Footer Info */}
       <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground pt-10">
-        <span className="rounded-full bg-primary/10 px-2 py-0.5 text-primary font-medium">
-          Live API
-        </span>
-        <span aria-hidden="true">•</span>
         <span>TicketRush Premium Experience</span>
       </div>
       </main>

@@ -286,3 +286,78 @@ body {
 * {
   scrollbar-color: hsl(var(--tr-muted)) hsl(var(--tr-background));
 }
+
+/* Ticketbox Interesting Destinations Layout & Animations */
+.sc-f2beda43-1.cALFhf {
+  width: 100%;
+}
+
+.sc-f2beda43-0.jXGXcj {
+  font-size: 1.5rem; /* 24px */
+  font-weight: 700;
+  text-transform: uppercase;
+  color: hsl(var(--tr-foreground));
+  margin-bottom: 1.5rem;
+  letter-spacing: -0.025em;
+}
+
+.sc-f2beda43-2.LLgWH {
+  display: flex;
+  flex-wrap: nowrap;
+  margin-left: -2px;
+  margin-right: -2px;
+  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sc-f2beda43-2.LLgWH > div {
+  flex-shrink: 0;
+  padding-left: 2px;
+  padding-right: 2px;
+  margin-bottom: 24px;
+  box-sizing: border-box;
+}
+
+.sc-d5c279a8-0.fYbeZu {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1.15;
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow: 0 10px 30px -15px rgba(0, 0, 0, 0.3);
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.sc-d5c279a8-0.fYbeZu:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 20px 40px -20px rgba(0, 0, 0, 0.6);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.sc-d5c279a8-0.fYbeZu img {
+  transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sc-d5c279a8-0.fYbeZu:hover img {
+  transform: scale(1.06);
+}
+
+.sc-d5c279a8-1.cTUklV {
+  position: absolute;
+  top: 24px;
+  left: 24px;
+  z-index: 10;
+  font-size: 1.5rem; /* 24px */
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  pointer-events: none;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sc-d5c279a8-0.fYbeZu:hover .sc-d5c279a8-1.cTUklV {
+  transform: translateY(-2px);
+}
+

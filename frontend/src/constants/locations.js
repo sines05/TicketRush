@@ -1,14 +1,14 @@
-import hcmImage from '../assets/locations/hcm.jpg';
-import hanoiImage from '../assets/locations/hanoi.jpg';
-import danangImage from '../assets/locations/danang.jpg';
-import dalatImage from '../assets/locations/dalat.jpg';
-import nhatrangImage from '../assets/locations/nhatrang.jpg';
-import canthoImage from '../assets/locations/cantho.jpg';
+import hcmImage from '../assets/locations/hcm.webp';
+import hanoiImage from '../assets/locations/hanoi.webp';
+import danangImage from '../assets/locations/danang.webp';
+import dalatImage from '../assets/locations/dalat.webp';
+import nhatrangImage from '../assets/locations/nhatrang.webp';
+import canthoImage from '../assets/locations/cantho.webp';
 
 export const CITY_OPTIONS = [
   {
     key: 'hcm',
-    label: 'Hồ Chí Minh',
+    label: 'Tp. Hồ Chí Minh',
     image: hcmImage
   },
   {

@@ -193,7 +193,6 @@ export default function Header({
           </button>
 
           <nav className="flex flex-col space-y-1 flex-1">
-            <Link to="/booking/queue" className="px-4 py-3 text-base font-bold hover:text-primary hover:bg-primary/5 rounded-xl transition-all">Hàng chờ</Link>
             {user && (
               <>
                 <Link to="/membership" className="px-4 py-3 text-base font-bold hover:text-primary hover:bg-primary/5 rounded-xl transition-all">Thành viên</Link>

@@ -16,10 +16,7 @@ import entertainmentImg from '@/assets/categories/entertainment.jpg';
 import communityImg from '@/assets/categories/community.jpg';
 
 // Other City Images
-import other1 from '@/assets/misc/other_1.jpg';
-import other2 from '@/assets/misc/other_2.jpg';
-import other3 from '@/assets/misc/other_3.jpg';
-import other4 from '@/assets/misc/other_4.jpg';
+import otherImage from '@/assets/locations/other.webp';
 
 const RECENT_SEARCHES_KEY = 'tr_recent_searches';
 
@@ -32,7 +29,7 @@ const CATEGORY_IMAGES = {
   community_other: communityImg
 };
 
-const OTHER_CITY_IMAGES = [other1, other2, other3, other4];
+
 
 export default function SearchOverlay({ isOpen, onClose }) {
   const inputRef = useRef(null);
@@ -356,11 +353,11 @@ export default function SearchOverlay({ isOpen, onClose }) {
                     onClick={() => handleSearchAction({ location: 'other' })}
                     className="relative h-32 rounded-2xl overflow-hidden group shadow-lg bg-white/5"
                   >
-                    <div className="absolute inset-0 grid grid-cols-2 grid-rows-2 gap-0.5 p-0.5">
-                      {OTHER_CITY_IMAGES.map((img, i) => (
-                        <img key={i} src={img} className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity" alt="" />
-                      ))}
-                    </div>
+                    <img 
+                      src={otherImage} 
+                      alt="Vị trí khác"
+                      className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 opacity-60 group-hover:opacity-80"
+                    />
                     <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/20 to-transparent" />
                     <div className="absolute top-4 left-4">
                       <span className="text-white font-bold text-base">Vị trí khác</span>
