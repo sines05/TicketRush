@@ -162,20 +162,36 @@ func main() {
 	}
 
 	titles := []string{
-		"Mỹ Tâm Live Concert: Tri Ân",
-		"Sơn Tùng M-TP: Sky Tour 2026",
-		"Đen Vâu: Show của Đen",
-		"Hoàng Thùy Linh: Vietnamese Concert",
-		"V-League 2026: Hà Nội FC vs HAGL",
-		"VBA 2026: Saigon Heat vs Thang Long Warriors",
-		"Workshop: Tương lai của AI trong Nghệ thuật",
-		"Kịch: Ngày Xửa Ngày Xưa",
-		"Triển lãm Nghệ thuật Đương đại",
-		"Lễ hội Ẩm thực Đường phố",
-		"Hà Anh Tuấn: Sketch A Rose",
-		"Rap Việt All-Star Concert",
-		"Ravolution Music Festival",
-		"Phú Quốc Sunset: Acoustic Night",
+		"Mr Siro - Fan Concert - Encore Ai Cũng Giấu Trong Lòng Tảng Băng - HCM",
+		"Những Thành Phố Mơ Màng Summer Tour 2026",
+		"HOLD | DANCENTER ANNUAL SHOW 2026",
+		"SPARK NITE: S.T SƠN THẠCH x NEKO LÊ",
+		"SECRET GARDEN - Khu Vườn Âm Nhạc",
+		"The Dome Show #4: Mini Show Quang Hà - Ngỡ Như Trăm Năm",
+		"Đại tiệc nhạc nước mừng Quốc tế thiếu nhi tại Vạn Phúc City",
+		"K-PULSE HANOI 2026",
+		"[HBSO] Cô bé Lọ Lem CINDERELLA",
+		"PHẬT BẢO NGHIÊM TRẤN - TRIỂN LÃM DI SẢN PHẬT GIÁO ĐỘC BẢN",
+		"Roadtrip to 1900 #70: SPACE 92 | Friday 29.05.2026",
+		"CHUNG KẾT FFWS SEA 2026 SPRING",
+		"INDIAN FOOD FESTIVAL 2026 AT BENARAS HERITAGE",
+		"VBA 2026 - Saigon Heat - Da Nang Dragons",
+		"VinWonders Phú Quốc - Đại tiệc mùa hè",
+		"Sân Khấu Hồng Vân: Vở Kịch Gã Thợ May",
+		"Nhà Hát Kịch IDECAF: Một Ngày Làm VUA",
+		"[SÂN KHẤU THIÊN ĐĂNG]- VỞ KỊCH - LỘ HÀNG (LEAKED)",
+		"Nhà Hát Kịch IDECAF: TẤM CÁM ĐẠI CHIẾN!",
+		"Nhà Hát Kịch IDECAF: NXNX37 - Học Viện Phép Thuật",
+		"[Nhà Hát Bến Thành] Hài kịch: Đảo Hoa Hậu",
+		"[Nhà hát kịch Thanh Niên] Hài kịch: Tung Hoành Pattaya",
+		"[Nhà Hát Kịch Thanh Niên] Hài kịch: Nữ Hoàng Giải Trí",
+		"Cat & Mouse Live Music Night",
+		"[DẾ GARDEN] Terrarium Workshop - Tạo hệ sinh thái thu nhỏ",
+		"ROLLERBALL PERFUME WORKSHOP - TRẢI NGHIỆM LÀM NƯỚC HOA LĂN",
+		"Sự kiện trải nghiệm tiệc cưới Sensation of I DO",
+		"WORKSHOP CANDLE - HỌC LÀM NẾN THƠM",
+		"LUNCH & LEARN: Workshop về Phỏng vấn Ứng viên",
+		"WORKSHOP SOLID PERFUME - NƯỚC HOA KHÔ",
 	}
 
 	descriptions := []string{
@@ -351,8 +367,117 @@ func main() {
 					{Name: "Grass", Price: 1500000, TotalRows: 10, SeatsPerRow: 20},
 				},
 			}
+		} else if i == 5 {
+			coord := cityCoords["Hồ Chí Minh"]
+			es = eventSeed{
+				event: models.Event{
+					Title:       "Lasong Show 2 - Yêu Nhau Nửa Ngày",
+					Description: "Đêm nhạc đặc biệt nằm trong chuỗi hành trình trải nghiệm nghệ thuật đầy cảm xúc. Sự kiện có sự góp mặt của 'ông hoàng kể chuyện' Phan Mạnh Quỳnh và ca sĩ khách mời Vy Vy. Một không gian âm nhạc acoustic lãng mạn, mộc mạc và gần gũi, hứa hẹn mang đến những bản hit tự sự được phối mới hoàn toàn.",
+					BannerURL:   "/src/assets/events/music/35bec5d69c0733a56eec669faa2a10c6.jpeg",
+					Location:    "Hồ Chí Minh",
+					Address:     "Vlasta - Sầm Sơn, Phường Nam Sầm Sơn, Tỉnh Thanh Hóa",
+					Latitude:    floatPtr(coord.Lat),
+					Longitude:   floatPtr(coord.Lon),
+					StartTime:   time.Now().UTC().AddDate(0, 0, 10),
+					EndTime:     time.Now().UTC().AddDate(0, 0, 10).Add(3 * time.Hour),
+					IsPublished: true,
+					IsFeatured:  true,
+					Category:    "music_festival",
+				},
+				zones: []models.EventZone{
+					{Name: "TRI KỶ", Price: 1550000, TotalRows: 3, SeatsPerRow: 10},
+					{Name: "XUÂN THÌ", Price: 1350000, TotalRows: 4, SeatsPerRow: 12},
+					{Name: "ĐẠI DƯƠNG", Price: 1050000, TotalRows: 5, SeatsPerRow: 15},
+					{Name: "CÚC HỌA MI", Price: 550000, TotalRows: 6, SeatsPerRow: 15},
+				},
+			}
+		} else if i == 6 {
+			coord := cityCoords["Hồ Chí Minh"]
+			es = eventSeed{
+				event: models.Event{
+					Title:       "2026 KIM SUNG KYU LIVE [LV4: LEAP to VECTOR]",
+					Description: "Buổi hòa nhạc solo đầu tiên của Kim Sung Kyu – trưởng nhóm nhạc INFINITE tại Việt Nam. Đây là phiên bản thứ 4 trong chuỗi concert 'LV' danh tiếng, mang ý nghĩa về sự bứt phá và định hướng mới trong âm nhạc của nam ca sĩ sau EP solo 'Off the Map'. Cơ hội hiếm có để các INSPIRIT Việt Nam thưởng thức giọng ca nội lực và những màn trình diễn live đẳng cấp.",
+					BannerURL:   "/src/assets/events/music/cad71469b6cedf6fcf52d83bf4fb0402.jpg",
+					Location:    "Hồ Chí Minh",
+					Address:     "Sân khấu C30 Hòa Bình, TP.HCM",
+					Latitude:    floatPtr(coord.Lat),
+					Longitude:   floatPtr(coord.Lon),
+					StartTime:   time.Now().UTC().AddDate(0, 1, 15),
+					EndTime:     time.Now().UTC().AddDate(0, 1, 15).Add(4 * time.Hour),
+					IsPublished: true,
+					IsFeatured:  true,
+					Category:    "music_festival",
+				},
+				zones: []models.EventZone{
+					{Name: "VVIP", Price: 3500000, TotalRows: 3, SeatsPerRow: 12},
+					{Name: "VIP", Price: 2500000, TotalRows: 5, SeatsPerRow: 15},
+					{Name: "Standard", Price: 1500000, TotalRows: 10, SeatsPerRow: 20},
+				},
+			}
+		} else if i == 7 {
+			coord := cityCoords["Hồ Chí Minh"]
+			es = eventSeed{
+				event: models.Event{
+					Title:       "[LEMLAB] Workshop TRẢI NGHIỆM LÀM GỐM TRẺ EM",
+					Description: "Không gian sáng tạo thú vị dành cho các bé, nơi các em được tự do 'lăn xả' cùng đất sét để tạo ra những sản phẩm gốm mang dấu ấn cá nhân. Workshop giúp bé rèn luyện sự khéo léo và kích thích khả năng sáng tạo tự nhiên. Sản phẩm của bé sẽ được LemLab hỗ trợ nung hoàn chỉnh để mang về làm kỷ niệm.",
+					BannerURL:   "/src/assets/events/workshop/9f5e98495653c70c700e26f0429ee48b.jpg",
+					Location:    "Hồ Chí Minh",
+					Address:     "LemLab Pottery Studio - 83F Trần Kế Xương, Phú Nhuận",
+					Latitude:    floatPtr(coord.Lat),
+					Longitude:   floatPtr(coord.Lon),
+					StartTime:   time.Now().UTC().AddDate(0, 0, 5),
+					EndTime:     time.Now().UTC().AddDate(0, 0, 5).Add(2 * time.Hour),
+					IsPublished: true,
+					Category:    "education_workshop",
+				},
+				zones: []models.EventZone{
+					{Name: "Trẻ em", Price: 350000, TotalRows: 4, SeatsPerRow: 8},
+				},
+			}
+		} else if i == 8 {
+			coord := cityCoords["Hồ Chí Minh"]
+			es = eventSeed{
+				event: models.Event{
+					Title:       "ART WORKSHOP \"BLUSH & BERRIES CHARLOTTE\"",
+					Description: "Một buổi sáng thư giãn cuối tuần với màu nước tại Dế Garden Art. Bạn sẽ được hướng dẫn các kỹ thuật vẽ cơ bản để hoàn thành bức tranh chủ đề trái cây và hoa cỏ tinh tế. Không gian studio nhỏ xinh, nhiều cây xanh sẽ là nguồn cảm hứng tuyệt vời cho những tâm hồn yêu nghệ thuật.",
+					BannerURL:   "/src/assets/events/workshop/100b630ce3ebede44858fa1d1c1b78b0.jpg",
+					Location:    "Hồ Chí Minh",
+					Address:     "Dế Garden Art, Quận 3, TP.HCM",
+					Latitude:    floatPtr(coord.Lat),
+					Longitude:   floatPtr(coord.Lon),
+					StartTime:   time.Now().UTC().AddDate(0, 0, 12),
+					EndTime:     time.Now().UTC().AddDate(0, 0, 12).Add(3 * time.Hour),
+					IsPublished: true,
+					Category:    "education_workshop",
+				},
+				zones: []models.EventZone{
+					{Name: "Người lớn", Price: 420000, TotalRows: 5, SeatsPerRow: 10},
+				},
+			}
+		} else if i == 9 {
+			coord := cityCoords["Hồ Chí Minh"]
+			es = eventSeed{
+				event: models.Event{
+					Title:       "SKNT TRƯƠNG HÙNG MINH : NGĂN LẠNH SỐ 44",
+					Description: "Vở kịch kinh dị - hài nổi bật lấy bối cảnh tại nhà xác bệnh viện u ám. Câu chuyện không chỉ có những màn hù dọa thót tim mà còn khai thác sâu sắc bí mật của các nhân vật, đặt ra câu hỏi về ranh giới thật giả và cái ác vô hình. Với sự tham gia của Nghệ sĩ Việt Hương, Lê Nam, Võ Minh Khải... hứa hẹn một đêm thưởng thức nghệ thuật đầy kịch tính.",
+					BannerURL:   "/src/assets/events/arts/34d70f1cecbd4e29649d745fa9879940.png",
+					Location:    "Hồ Chí Minh",
+					Address:     "Sân khấu Nghệ thuật Trương Hùng Minh - 22 Vĩnh Viễn, Quận 10",
+					Latitude:    floatPtr(coord.Lat),
+					Longitude:   floatPtr(coord.Lon),
+					StartTime:   time.Now().UTC().AddDate(0, 0, 2),
+					EndTime:     time.Now().UTC().AddDate(0, 0, 2).Add(3 * time.Hour),
+					IsPublished: true,
+					Category:    "arts_stage",
+				},
+				zones: []models.EventZone{
+					{Name: "VIP", Price: 350000, TotalRows: 6, SeatsPerRow: 15},
+					{Name: "Standard", Price: 300000, TotalRows: 10, SeatsPerRow: 15},
+				},
+			}
 		} else {
 			title := titles[rand.Intn(len(titles))]
+			// Đảm bảo không trùng Slug bằng cách thêm index
 			title = fmt.Sprintf("%s #%d", title, i+1)
 			startTime := time.Now().UTC().AddDate(0, 0, rand.Intn(90)-30)
 			location := locations[rand.Intn(len(locations))]
