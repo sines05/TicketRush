@@ -27,7 +27,7 @@ export default function HeroCarousel({ events = [] }) {
   if (!events || events.length === 0) return null;
 
   return (
-    <section className="group relative w-full px-4 py-6 md:px-8" aria-labelledby="home-hero-heading">
+    <section className="group relative w-full max-w-[1536px] mx-auto px-4 py-6 md:px-6" aria-labelledby="home-hero-heading">
       <h1 id="home-hero-heading" className="sr-only">
         Sự kiện nổi bật trên TicketRush
       </h1>

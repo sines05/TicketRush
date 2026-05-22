@@ -245,7 +245,7 @@ export default function App() {
       <SearchOverlay isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
       {!isStandalonePage && (
         <header className="sticky top-0 z-50 w-full glass-surface glass-border border-b-0 shadow-lg shadow-black/5 backdrop-blur-xl">
-          <div className="mx-auto flex h-20 max-w-[1440px] items-center justify-between px-6 md:px-10 lg:px-14">
+          <div className="mx-auto flex h-20 max-w-[1440px] items-center justify-between px-4 md:px-6">
             <div className="flex items-center gap-4 md:gap-10">
               <Link to="/" className="flex items-center space-x-3 transition-all hover:scale-[1.03] active:scale-95">
                 <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 shadow-inner">
@@ -415,7 +415,7 @@ export default function App() {
 
       {(location.pathname === '/' || location.pathname === '/search') && (
         <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="mx-auto w-full max-w-[1440px] px-4 md:px-8 lg:px-12">
+          <div className="mx-auto w-full max-w-[1440px] px-4 md:px-6">
             <nav className="flex items-center gap-1 overflow-x-auto py-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
               {(() => {
                 const params = new URLSearchParams(location.search);
@@ -465,7 +465,7 @@ export default function App() {
       )}
 
       <div className="flex-1">
-        <main className={isStandalonePage ? 'w-full min-h-screen' : 'mx-auto w-full max-w-[1440px] px-4 md:px-8 lg:px-12 py-12'}>
+        <main className={isStandalonePage ? 'w-full min-h-screen' : 'mx-auto w-full max-w-[1440px] px-4 md:px-6 py-12'}>
           <ErrorBoundary>
             <AppRoutes />
           </ErrorBoundary>
@@ -474,7 +474,7 @@ export default function App() {
 
       {!isStandalonePage && (
         <footer className="border-t bg-muted/30">
-          <div className="mx-auto w-full max-w-[1440px] px-4 md:px-8 lg:px-12 py-12">
+          <div className="mx-auto w-full max-w-[1440px] px-4 md:px-6 py-12">
             <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
               <div className="col-span-1 md:col-span-2">
                 <Link to="/" className="flex items-center space-x-2">
